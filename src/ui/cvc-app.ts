@@ -24,7 +24,7 @@ import type { CvcCommandPalette } from './cvc-command-palette.js';
 import './cvc-login.js';
 import './cvc-orga-page.js';
 import './cvc-toaster.js';
-import type { CvcToaster } from './cvc-toaster.js';
+import type { CvcToaster, Toast } from './cvc-toaster.js';
 import './cvc-unlock.js';
 import type { OpenActionDetail } from './shared/events.js';
 import { sharedStyles } from './shared/styles.js';
@@ -66,11 +66,19 @@ export class CvcApp extends LitElement {
   private readonly onOpenAction = (event: CustomEvent<OpenActionDetail>) => {
     this.openAction(event.detail.actionId, event.detail.prefill);
   };
+  private readonly onToast = (event: CustomEvent<Toast>) => {
+    this.toaster?.push(event.detail);
+  };
+  private readonly onRefreshSummary = () => {
+    void this.session?.refreshSummary();
+  };
 
   override connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('keydown', this.onKeyDown);
     this.addEventListener('cvc-open-action', this.onOpenAction);
+    this.addEventListener('cvc-toast', this.onToast);
+    this.addEventListener('cvc-refresh-summary', this.onRefreshSummary);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
       if (route.kind === 'orga' || route.kind === 'app') {
@@ -89,6 +97,8 @@ export class CvcApp extends LitElement {
   override disconnectedCallback(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     this.removeEventListener('cvc-open-action', this.onOpenAction);
+    this.removeEventListener('cvc-toast', this.onToast);
+    this.removeEventListener('cvc-refresh-summary', this.onRefreshSummary);
     this.unwatchRoute?.();
     this.session?.removeEventListener('change', this.onChange);
     this.session?.vault.removeEventListener('change', this.onChange);

@@ -37,6 +37,8 @@ import type {
   OrganisationSummary,
 } from '@clevercloud/client/cc-api-commands/organisation/organisation.types.js';
 import { GetProfileCommand } from '@clevercloud/client/cc-api-commands/profile/get-profile-command.js';
+import { CreateTagCommand } from '@clevercloud/client/cc-api-commands/tag/create-tag-command.js';
+import { DeleteTagCommand } from '@clevercloud/client/cc-api-commands/tag/delete-tag-command.js';
 import type { Profile } from '@clevercloud/client/cc-api-commands/profile/profile.types.js';
 import { ERROR_TYPES, parseRaw } from '@clevercloud/client/utils/environment-utils.js';
 import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
@@ -250,6 +252,18 @@ export async function setPrimaryDomain(
   domain: string,
 ): Promise<void> {
   await client.send(new SetPrimaryDomainCommand({ ownerId, applicationId, domain }));
+}
+
+export type TagTarget = { ownerId: string; applicationId: string } | { ownerId: string; addonId: string };
+
+/** Adds a tag to an application or an add-on; returns the tags it now has. No clever-tools equivalent. */
+export function addTag(client: CcApiClient, target: TagTarget, tag: string): Promise<string[]> {
+  return client.send(new CreateTagCommand({ ...target, tag }));
+}
+
+/** Removes a tag from an application or an add-on; returns the tags left. No clever-tools equivalent. */
+export function removeTag(client: CcApiClient, target: TagTarget, tag: string): Promise<string[]> {
+  return client.send(new DeleteTagCommand({ ...target, tag }));
 }
 
 // --- helpers ---------------------------------------------------------------

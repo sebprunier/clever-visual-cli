@@ -2,6 +2,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
 import {
   describeOrigin,
@@ -26,8 +27,12 @@ import {
 } from '../core/home/grouping.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { listRecents } from '../core/home/recents.js';
+import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
 import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
+import './cvc-tag-dialog.js';
+import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
+import { pushToast, requestSummaryRefresh } from './shared/events.js';
 import {
   APP_STATE_LABELS,
   DEPLOYMENT_ACTION_LABELS,
@@ -50,6 +55,7 @@ interface HomePrefs {
 const DEFAULT_PREFS: HomePrefs = { grouping: null, sort: 'name', showAddons: true, collapsed: [] };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
+const COLUMNS = 7;
 
 const WATCH_LABELS: Record<WatchItem['kind'], { label: string; tone: string }> = {
   failed: { label: 'échec', tone: 'danger' },
@@ -61,7 +67,8 @@ const WATCH_LABELS: Record<WatchItem['kind'], { label: string; tone: string }> =
 /**
  * Home of one organisation: a dense, searchable list of applications and
  * add-ons, filtered and grouped by expressions, with what deserves
- * attention on top and the applications opened recently.
+ * attention on top, the applications opened recently, and a selection
+ * for bulk tag operations.
  */
 @customElement('cvc-orga-page')
 export class CvcOrgaPage extends LitElement {
@@ -76,15 +83,20 @@ export class CvcOrgaPage extends LitElement {
   @state() private filterText = '';
   @state() private groupingText = '';
   @state() private prefs: HomePrefs = DEFAULT_PREFS;
+  @state() private selected: ReadonlySet<string> = new Set();
+  @state() private tagDialog: TagOperationKind | null = null;
 
   @query('input[name="filter"]') private filterInput?: HTMLInputElement;
 
   #activitySource: readonly Deployment[] | null = null;
   #activity: Map<string, AppActivity> = new Map();
+  /** Ids of the visible rows in display order, for shift-click ranges and "select all". */
+  #order: string[] = [];
+  #lastClicked: string | null = null;
 
   private readonly onStoreChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) {
+    if (event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
     const target = event.composedPath()[0];
@@ -94,9 +106,14 @@ export class CvcOrgaPage extends LitElement {
     ) {
       return;
     }
-    event.preventDefault();
-    this.filterInput?.focus();
-    this.filterInput?.select();
+    if (event.key === '/') {
+      event.preventDefault();
+      this.filterInput?.focus();
+      this.filterInput?.select();
+    } else if (event.key === 'Escape' && !event.defaultPrevented && this.tagDialog == null && this.selected.size > 0) {
+      // A dialog closing on Escape prevents the default, so the selection survives it.
+      this.clearSelection();
+    }
   };
 
   override connectedCallback(): void {
@@ -123,6 +140,7 @@ export class CvcOrgaPage extends LitElement {
         this.filterText = params.get('q') ?? '';
         this.groupingText =
           params.get('g') ?? this.prefs.grouping ?? defaultGrouping([...this.orga.applications, ...this.orga.addons]);
+        this.selected = new Set();
       }
       this.refresh({});
     } else if (changed.has('revision')) {
@@ -130,6 +148,9 @@ export class CvcOrgaPage extends LitElement {
     }
     if (changed.has('filterText') || changed.has('groupingText')) {
       writeHashParams({ q: this.filterText.trim(), g: this.groupingText.trim() });
+      if (this.selected.size > 0) {
+        this.selected = new Set();
+      }
     }
   }
 
@@ -171,6 +192,83 @@ export class CvcOrgaPage extends LitElement {
     return this.#activity;
   }
 
+  // --- selection and tags ------------------------------------------------
+
+  private toggleSelect(id: string, range: boolean): void {
+    const next = new Set(this.selected);
+    const last = this.#lastClicked;
+    if (range && last != null && last !== id && this.#order.includes(last) && this.#order.includes(id)) {
+      const from = this.#order.indexOf(last);
+      const to = this.#order.indexOf(id);
+      const select = !this.selected.has(id);
+      for (const other of this.#order.slice(Math.min(from, to), Math.max(from, to) + 1)) {
+        if (select) {
+          next.add(other);
+        } else {
+          next.delete(other);
+        }
+      }
+    } else if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.#lastClicked = id;
+    this.selected = next;
+  }
+
+  private selectAll(): void {
+    this.selected = new Set(this.#order);
+  }
+
+  private clearSelection(): void {
+    this.selected = new Set();
+    this.#lastClicked = null;
+  }
+
+  private get selectedResources(): TagResource[] {
+    const apps = this.orga.applications
+      .filter((app) => this.selected.has(app.id))
+      .map((app): TagResource => ({ id: app.id, kind: 'app', name: app.name, tags: app.customerTags }));
+    const addons = this.orga.addons
+      .filter((addon) => this.selected.has(addon.id))
+      .map((addon): TagResource => ({ id: addon.id, kind: 'addon', name: addon.name, tags: addon.customerTags }));
+    return [...apps, ...addons];
+  }
+
+  private onTagsApplied(event: CustomEvent<TagsAppliedDetail>): void {
+    const { result } = event.detail;
+    this.tagDialog = null;
+    const done = result.done.length;
+    const failed = result.failed.length;
+    const message =
+      failed === 0
+        ? `${done} modification${done > 1 ? 's' : ''} de tags appliquée${done > 1 ? 's' : ''}.`
+        : `${done} appliquée${done > 1 ? 's' : ''}, ${failed} en échec : ${result.failed[0].error}`;
+    pushToast(this, {
+      kind: failed === 0 ? 'success' : 'error',
+      message,
+      action: done > 0 ? { label: 'Annuler', run: () => void this.undo(result.done) } : undefined,
+    });
+    requestSummaryRefresh(this);
+  }
+
+  private async undo(steps: TagStep[]): Promise<void> {
+    const result = await runSteps(invertSteps(steps), apiExecutor(this.client, this.orga.id), {
+      describe: describeError,
+    });
+    pushToast(
+      this,
+      result.failed.length === 0
+        ? {
+            kind: 'info',
+            message: `${result.done.length} modification${result.done.length > 1 ? 's' : ''} de tags annulée${result.done.length > 1 ? 's' : ''}.`,
+          }
+        : { kind: 'error', message: `Annulation incomplète : ${result.failed[0].error}` },
+    );
+    requestSummaryRefresh(this);
+  }
+
   // --- rendering ---------------------------------------------------------
 
   override render() {
@@ -208,6 +306,7 @@ export class CvcOrgaPage extends LitElement {
     const visibleApps = apps.filter(matchApp);
     const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
     const tree = buildTree(grouping, visibleApps, visibleAddons, context);
+    this.#order = this.displayOrder(tree, activity);
     const watch = watchList(apps, activity);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
@@ -216,6 +315,9 @@ export class CvcOrgaPage extends LitElement {
       .slice(0, MAX_RECENTS);
     const linksDone = apps.filter((app) => data.links[app.id] != null).length;
     const suggestions = groupingSuggestions([...apps, ...addons]);
+    const allTags = [...new Set([...apps, ...addons].flatMap((item) => item.customerTags))].sort((a, b) =>
+      a.localeCompare(b, 'fr'),
+    );
 
     return html`
       <header class="head">
@@ -317,6 +419,7 @@ export class CvcOrgaPage extends LitElement {
           ${data.deploymentsError ? html`<span class="danger">· activité indisponible : ${data.deploymentsError}</span>` : nothing}
           ${data.linksError ? html`<span class="danger">· liens incomplets : ${data.linksError}</span>` : nothing}
         </p>
+        ${this.renderSelectionBar()}
       </header>
 
       ${this.renderWatch(watch)} ${this.renderRecents(recents)}
@@ -336,7 +439,53 @@ export class CvcOrgaPage extends LitElement {
             </p>`
           : nothing
       }
+      ${
+        this.tagDialog != null
+          ? html`<cvc-tag-dialog
+              .client=${this.client}
+              ownerId=${this.orga.id}
+              .resources=${this.selectedResources}
+              .suggestions=${allTags}
+              kind=${this.tagDialog}
+              @cvc-tag-close=${() => (this.tagDialog = null)}
+              @cvc-tags-applied=${this.onTagsApplied}
+            ></cvc-tag-dialog>`
+          : nothing
+      }
     `;
+  }
+
+  private renderSelectionBar() {
+    const total = this.#order.length;
+    const count = this.selected.size;
+    const all = total > 0 && count === total;
+    return html`<div class="selection row ${count > 0 ? 'active' : ''}">
+      <label class="check">
+        <input
+          type="checkbox"
+          aria-label="Tout sélectionner"
+          .checked=${all}
+          .indeterminate=${count > 0 && !all}
+          ?disabled=${total === 0}
+          @change=${(event: Event) => ((event.currentTarget as HTMLInputElement).checked ? this.selectAll() : this.clearSelection())}
+        />
+        ${
+          count === 0
+            ? html`<span class="muted small">Tout sélectionner (${total})</span>`
+            : html`<span class="small"><strong>${count}</strong> sélectionné${count > 1 ? 's' : ''} sur ${total}</span>`
+        }
+      </label>
+      ${
+        count > 0
+          ? html`<button type="button" class="link small" @click=${this.clearSelection}>aucun</button>
+              <span class="muted small">maj+clic pour une plage, Échap pour tout désélectionner</span>
+              <span class="grow"></span>
+              <button type="button" @click=${() => (this.tagDialog = 'add')}>Ajouter un tag</button>
+              <button type="button" @click=${() => (this.tagDialog = 'remove')}>Retirer un tag</button>
+              <button type="button" @click=${() => (this.tagDialog = 'rename')}>Renommer un tag</button>`
+          : nothing
+      }
+    </div>`;
   }
 
   private renderWatch(items: WatchItem[]) {
@@ -397,6 +546,32 @@ export class CvcOrgaPage extends LitElement {
       .join(' · ');
   }
 
+  private sortedApps(node: GroupNode, activity: Map<string, AppActivity>): ApplicationSummary[] {
+    if (this.prefs.sort !== 'activity') {
+      return node.apps;
+    }
+    return [...node.apps].sort((a, b) =>
+      (activity.get(b.id)?.last.date ?? '').localeCompare(activity.get(a.id)?.last.date ?? ''),
+    );
+  }
+
+  /** Ids of the rows as displayed, collapsed groups excluded. */
+  private displayOrder(nodes: GroupNode[], activity: Map<string, AppActivity>): string[] {
+    const order: string[] = [];
+    const walk = (node: GroupNode) => {
+      if (node.level > 0 && this.prefs.collapsed.includes(node.path)) {
+        return;
+      }
+      if (node.children.length > 0) {
+        node.children.forEach(walk);
+        return;
+      }
+      order.push(...this.sortedApps(node, activity).map((app) => app.id), ...node.addons.map((addon) => addon.id));
+    };
+    nodes.forEach(walk);
+    return order;
+  }
+
   private renderSection(
     node: GroupNode,
     activity: Map<string, AppActivity>,
@@ -422,6 +597,7 @@ export class CvcOrgaPage extends LitElement {
   ) {
     return html`<table class="list">
       <colgroup>
+        <col class="check" />
         <col class="logo" />
         <col class="name" />
         <col class="type" />
@@ -448,7 +624,7 @@ export class CvcOrgaPage extends LitElement {
         (child) => {
           const collapsed = this.prefs.collapsed.includes(child.path);
           return html`<tr class="sub level-${child.level} ${child.missing ? 'missing' : ''}">
-              <td colspan="6">
+              <td colspan=${COLUMNS}>
                 <button
                   type="button"
                   class="sub-head"
@@ -465,12 +641,9 @@ export class CvcOrgaPage extends LitElement {
         },
       );
     }
-    const byActivity = (a: ApplicationSummary, b: ApplicationSummary) =>
-      (activity.get(b.id)?.last.date ?? '').localeCompare(activity.get(a.id)?.last.date ?? '');
-    const apps = this.prefs.sort === 'activity' ? [...node.apps].sort(byActivity) : node.apps;
     return html`
       ${repeat(
-        apps,
+        this.sortedApps(node, activity),
         (app) => app.id,
         (app) => this.renderAppRow(app, activity.get(app.id), context, linksLoading),
       )}
@@ -482,6 +655,17 @@ export class CvcOrgaPage extends LitElement {
     `;
   }
 
+  private renderCheck(id: string, name: string) {
+    return html`<td class="check">
+      <input
+        type="checkbox"
+        aria-label="Sélectionner ${name}"
+        .checked=${this.selected.has(id)}
+        @click=${(event: MouseEvent) => this.toggleSelect(id, event.shiftKey)}
+      />
+    </td>`;
+  }
+
   private renderAppRow(
     app: ApplicationSummary,
     activity: AppActivity | undefined,
@@ -490,7 +674,8 @@ export class CvcOrgaPage extends LitElement {
   ) {
     const status = stateLabel(APP_STATE_LABELS, app.state);
     const addons = linkedAddons(app.id, context);
-    return html`<tr class="app">
+    return html`<tr class="app ${this.selected.has(app.id) ? 'selected' : ''}">
+      ${this.renderCheck(app.id, app.name)}
       <td class="logo"><img src=${app.variantLogoUrl} alt="" width="20" height="20" loading="lazy" /></td>
       <td class="name">
         <a href=${this.appHash(app.id)}>${app.name}</a>
@@ -545,7 +730,8 @@ export class CvcOrgaPage extends LitElement {
 
   private renderAddonRow(addon: AddonSummary, context: GroupingContext, inferred: boolean) {
     const apps = linkedApps(addon.id, context);
-    return html`<tr class="addon">
+    return html`<tr class="addon ${this.selected.has(addon.id) ? 'selected' : ''}">
+      ${this.renderCheck(addon.id, addon.name)}
       <td class="logo"><img src=${addon.logoUrl} alt="" width="20" height="20" loading="lazy" /></td>
       <td class="name">
         <span>${addon.name}</span>
@@ -632,14 +818,16 @@ export class CvcOrgaPage extends LitElement {
         color: var(--cvc-bg);
         border-color: transparent;
       }
-      .check {
+      label.check {
         display: inline-flex;
         align-items: center;
-        gap: 0.3rem;
+        gap: 0.4rem;
         cursor: pointer;
+      }
+      .toolbar .check {
         padding-bottom: 0.5rem;
       }
-      .check input {
+      label.check input {
         margin: 0;
       }
       .hint code {
@@ -650,6 +838,20 @@ export class CvcOrgaPage extends LitElement {
       }
       .hint .danger {
         color: var(--cvc-danger);
+      }
+      .selection {
+        padding: 0.35rem 0.6rem;
+        border: 1px solid transparent;
+        border-radius: var(--cvc-radius);
+        min-height: 2.4rem;
+      }
+      .selection.active {
+        background: color-mix(in srgb, var(--cvc-accent) 7%, var(--cvc-surface));
+        border-color: color-mix(in srgb, var(--cvc-accent) 35%, var(--cvc-border));
+      }
+      .selection button:not(.link) {
+        padding: 0.25rem 0.7rem;
+        font-size: 0.85rem;
       }
 
       .watch {
@@ -756,6 +958,12 @@ export class CvcOrgaPage extends LitElement {
       .list tr.addon:hover td {
         background: color-mix(in srgb, var(--cvc-accent) 5%, transparent);
       }
+      .list tr.selected td {
+        background: color-mix(in srgb, var(--cvc-accent) 9%, transparent);
+      }
+      col.check {
+        width: 2rem;
+      }
       col.logo {
         width: 2.2rem;
       }
@@ -771,8 +979,17 @@ export class CvcOrgaPage extends LitElement {
       col.links {
         width: 11rem;
       }
+      td.check {
+        padding: 0 0.3rem 0 0.6rem;
+        user-select: none;
+      }
+      td.check input {
+        margin: 0;
+        display: block;
+      }
       td.logo {
         padding-right: 0;
+        padding-left: 0.3rem;
       }
       td.logo img {
         display: block;

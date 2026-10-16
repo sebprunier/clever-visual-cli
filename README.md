@@ -4,7 +4,7 @@ Une console Clever Cloud alternative, 100 % front, sans backend.
 
 L'idée : garder le vocabulaire et la logique du CLI officiel ([clever-tools](https://github.com/CleverCloud/clever-tools)), mais dans une interface web pensée pour l'usage quotidien, avec une command palette au centre. Chaque écran affiche la commande `clever` équivalente.
 
-> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions, accueil repensé (prototype UX)**.
+> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions, accueil repensé (filtres et regroupements par expression, tags en masse)**.
 
 ## Pourquoi pas le CLI lui-même ?
 
@@ -33,7 +33,10 @@ Piège rencontré : le client envoie ses `fetch` en `mode: 'same-origin'` par d�
 - Connexion par token API, via la Console (le parcours `clever login` dans une popup) ou avec un couple token/secret OAuth.
 - Plusieurs comptes, stockés chiffrés dans le navigateur ou seulement pour l'onglet.
 - Command palette (`⌘K` / `Ctrl+K`) : applications de toutes les organisations, organisations, onglets de la page courante, actions de session.
-- Accueil d’une organisation : liste dense des applications et add-ons, recherche avec filtres (`tag:`, `project:`, `env:`, `runtime:`, `state:`, `is:`), regroupement par stack (liens applications ↔ add-ons), projet, runtime ou état, bandeau « À surveiller » (déploiements échoués ou en cours), applications ouvertes récemment, dernier déploiement de chaque application en distinguant l’activité humaine de la maintenance plateforme.
+- Accueil d’une organisation : liste dense des applications et add-ons, bandeau « À surveiller » (déploiements échoués ou en cours), applications ouvertes récemment, dernier déploiement de chaque application en distinguant l’activité humaine de la maintenance plateforme.
+  - **Filtrer** par expression : texte libre, `is:app`, `is:addon`, `is:node`, `is:postgresql` (les slugs de la Console), `has:project`, n’importe quel tag `clé:valeur` (`project:nom`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combinés avec `AND` (implicite), `OR`, `NOT` ou `-`, des parenthèses et des guillemets.
+  - **Regrouper par** expression : une clé de tag (`project`, `env`…) ou `type`, `runtime`, `provider`, `state`, jusqu’à trois niveaux (`project > env(prod,dev)`, l’ordre entre parenthèses est optionnel). Un add-on sans tag hérite de ceux de ses applications liées (« déduit »). Filtre et regroupement sont dans l’URL, donc une vue se met en favori.
+  - **Tags en masse** : cases à cocher (maj+clic pour une plage, « tout sélectionner » sur le résultat filtré), puis ajouter, retirer ou renommer un tag sur la sélection, avec l’aperçu exact des appels API avant d’appliquer, une progression, et « Annuler » dans la notification qui rejoue l’inverse. Clever Cloud n’impose aucune convention de tag ; `project:<nom>:<env>` et `env:<env>` sont celles de l’auteur.
 - Page application : vue d'ensemble, instances, déploiements, variables d'environnement (valeurs masquées, copie, export `.env`), logs en direct avec filtre, pause et fenêtre de rejeu.
 - Actions, depuis la palette ou les boutons de la page : redémarrer, arrêter, annuler un déploiement, scaler, définir, supprimer ou importer des variables, ajouter, supprimer ou choisir le domaine principal. Chaque dialogue affiche en direct la commande `clever` équivalente.
 
