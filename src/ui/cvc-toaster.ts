@@ -1,4 +1,5 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { sharedStyles } from './shared/styles.js';
@@ -16,7 +17,7 @@ interface LiveToast extends Toast {
 
 /** Bottom-right notifications, auto-dismissed. `push()` is the only API. */
 @customElement('cvc-toaster')
-export class CvcToaster extends LitElement {
+export class CvcToaster extends CvcElement {
   @state() private toasts: LiveToast[] = [];
 
   #nextId = 1;

@@ -1,12 +1,14 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t } from '../../core/i18n.js';
+import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { fetchDeployments, type Deployment } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
 import {
-  DEPLOYMENT_ACTION_LABELS,
+  deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
   formatDateTime,
   formatRelative,
@@ -16,7 +18,7 @@ import {
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-deployments')
-export class CvcAppDeployments extends LitElement {
+export class CvcAppDeployments extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
@@ -55,25 +57,27 @@ export class CvcAppDeployments extends LitElement {
     return html`
       <div class="row toolbar">
         <span class="cli">clever activity --app ${this.appId}</span>
-        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>Rafraîchir</button>
+        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
+          ${t('common.refresh')}
+        </button>
       </div>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         this.deployments == null
-          ? html`<p class="empty">Chargement…</p>`
+          ? html`<p class="empty">${t('common.loading')}</p>`
           : this.deployments.length === 0
-            ? html`<p class="empty">Aucun déploiement.</p>`
+            ? html`<p class="empty">${t('deployments.none')}</p>`
             : html`<div class="card table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>État</th>
-                      <th>Action</th>
-                      <th>Commit</th>
-                      <th>Auteur</th>
-                      <th>Cause</th>
-                      <th>Inst.</th>
+                      <th>${t('common.date')}</th>
+                      <th>${t('common.state')}</th>
+                      <th>${t('deployments.action')}</th>
+                      <th>${t('deployments.commit')}</th>
+                      <th>${t('deployments.author')}</th>
+                      <th>${t('deployments.cause')}</th>
+                      <th>${t('deployments.instances')}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -91,7 +95,7 @@ export class CvcAppDeployments extends LitElement {
                             <div class="muted small">#${deployment.index}</div>
                           </td>
                           <td><span class="badge ${status.tone}">${status.label}</span></td>
-                          <td>${DEPLOYMENT_ACTION_LABELS[deployment.action] || deployment.action.toLowerCase()}</td>
+                          <td>${deploymentActionLabel(deployment.action) || deployment.action.toLowerCase()}</td>
                           <td class="mono">${shortCommit(deployment.commit) || html`<span class="muted">–</span>`}</td>
                           <td>${deployment.author.name ?? html`<span class="muted">–</span>`}</td>
                           <td class="small">${deployment.cause ?? html`<span class="muted">–</span>`}</td>
@@ -104,7 +108,7 @@ export class CvcAppDeployments extends LitElement {
                                     class="ghost small danger"
                                     @click=${() => openAction(this, 'cancel-deploy', { deploymentId: deployment.id })}
                                   >
-                                    Annuler
+                                    ${t('deployments.cancel')}
                                   </button>`
                                 : nothing
                             }

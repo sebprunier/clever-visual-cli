@@ -1,4 +1,6 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { t } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { loginViaConsole } from '../core/console-login.js';
@@ -22,7 +24,7 @@ type Step = { kind: 'credentials' } | { kind: 'save'; credentials: Credentials; 
  * skipped and the account is simply added.
  */
 @customElement('cvc-login')
-export class CvcLogin extends LitElement {
+export class CvcLogin extends CvcElement {
   @property({ attribute: false }) session!: Session;
   /** True when adding an account to an existing, unlocked vault. */
   @property({ type: Boolean }) adding = false;
@@ -72,7 +74,7 @@ export class CvcLogin extends LitElement {
 
   private onConsoleLogin(): void {
     this.error = null;
-    this.consoleStatus = 'Connectez-vous dans la fenêtre de la Console…';
+    this.consoleStatus = t('login.console.status');
     // No `await` before `loginViaConsole`: the popup must open inside the click.
     loginViaConsole({ onStatus: (status) => (this.consoleStatus = status) })
       .then((credentials) => this.verify(credentials))
@@ -107,11 +109,11 @@ export class CvcLogin extends LitElement {
     const passphrase = readField(event, 'passphrase');
     const confirmation = readField(event, 'confirmation');
     if (passphrase.length < 8) {
-      this.error = 'La phrase de passe doit faire au moins 8 caractères.';
+      this.error = t('login.error.passphraseLength');
       return;
     }
     if (passphrase !== confirmation) {
-      this.error = 'Les deux saisies ne correspondent pas.';
+      this.error = t('login.error.mismatch');
       return;
     }
     void this.save(this.step.credentials, this.step.account, passphrase);
@@ -149,7 +151,7 @@ export class CvcLogin extends LitElement {
       } else if (sessionOnly) {
         await vault.createSessionOnly(profile);
       } else {
-        throw new Error('Choisissez comment conserver cet accès.');
+        throw new Error(t('login.error.choose'));
       }
       this.dispatchEvent(
         new CustomEvent<StoredProfile>('cvc-logged-in', { detail: profile, bubbles: true, composed: true }),
@@ -168,13 +170,7 @@ export class CvcLogin extends LitElement {
       <main class="stack">
         <header>
           <h1>clever-visual-cli</h1>
-          <p class="muted">
-            ${
-              this.adding
-                ? 'Ajouter un compte Clever Cloud.'
-                : 'Une console Clever Cloud sans backend : tout se passe entre ce navigateur et les API.'
-            }
-          </p>
+          <p class="muted">${this.adding ? t('login.addAccount') : t('login.tagline')}</p>
         </header>
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
         ${this.step.kind === 'credentials' ? this.renderCredentials() : this.renderSave(this.step.account)}
@@ -186,7 +182,7 @@ export class CvcLogin extends LitElement {
                   class="link"
                   @click=${() => this.dispatchEvent(new CustomEvent('cvc-cancel', { bubbles: true, composed: true }))}
                 >
-                  Annuler
+                  ${t('common.cancel')}
                 </button>
               </p>`
             : nothing
@@ -200,10 +196,10 @@ export class CvcLogin extends LitElement {
       ${
         this.devProfile
           ? html`<section class="card dev">
-              <h2>Profil clever-tools local</h2>
+              <h2>${t('login.devProfile.title')}</h2>
               <p class="muted small">
-                Mode développement : le serveur Vite expose le profil <code>${this.devProfile.alias}</code>
-                ${this.devProfile.email ? html`(${this.devProfile.email})` : nothing} de cette machine.
+                ${t('login.devProfile.before')} <code>${this.devProfile.alias}</code>
+                ${this.devProfile.email ? html`(${this.devProfile.email})` : nothing} ${t('login.devProfile.after')}
               </p>
               <button
                 type="button"
@@ -211,42 +207,51 @@ export class CvcLogin extends LitElement {
                 ?disabled=${this.busy}
                 @click=${() => this.verify(this.devProfile!.credentials)}
               >
-                Utiliser ce profil
+                ${t('login.devProfile.use')}
               </button>
             </section>`
           : nothing
       }
 
       <section class="card">
-        <h2>Token API</h2>
-        <p class="muted small">Créé dans la Console (Profil → API tokens) ou avec <code>clever tokens create</code>.</p>
+        <h2>${t('login.apiToken.title')}</h2>
+        <p class="muted small">${t('login.apiToken.before')} <code>clever tokens create</code>.</p>
         <form class="row" @submit=${this.onApiTokenSubmit}>
-          <input name="apiToken" type="password" autocomplete="off" placeholder="Token API" required />
-          <button type="submit" class="primary" ?disabled=${this.busy}>Se connecter</button>
+          <input
+            name="apiToken"
+            type="password"
+            autocomplete="off"
+            placeholder=${t('login.apiToken.placeholder')}
+            required
+          />
+          <button type="submit" class="primary" ?disabled=${this.busy}>${t('login.signIn')}</button>
         </form>
       </section>
 
       <section class="card">
-        <h2>Via la Console</h2>
-        <p class="muted small">Le même parcours que <code>clever login</code>, dans une fenêtre de la Console.</p>
+        <h2>${t('login.console.title')}</h2>
+        <p class="muted small">${t('login.console.before')} <code>clever login</code>${t('login.console.after')}</p>
         <button
           type="button"
           class="primary"
           ?disabled=${this.busy || this.consoleStatus != null}
           @click=${this.onConsoleLogin}
         >
-          Se connecter via la Console
+          ${t('login.console.button')}
         </button>
         ${this.consoleStatus ? html`<p class="muted small">${this.consoleStatus}</p>` : nothing}
       </section>
 
       <section class="card">
-        <h2>Token et secret OAuth</h2>
-        <p class="muted small">Le couple stocké par <code>clever login</code> dans <code>clever-tools.json</code>.</p>
+        <h2>${t('login.oauth.title')}</h2>
+        <p class="muted small">
+          ${t('login.oauth.before')} <code>clever login</code> ${t('login.oauth.middle')}
+          <code>clever-tools.json</code>.
+        </p>
         <form class="row" @submit=${this.onOauthSubmit}>
-          <input name="token" type="password" autocomplete="off" placeholder="token" required />
-          <input name="secret" type="password" autocomplete="off" placeholder="secret" required />
-          <button type="submit" class="primary" ?disabled=${this.busy}>Se connecter</button>
+          <input name="token" type="password" autocomplete="off" placeholder=${t('login.oauth.token')} required />
+          <input name="secret" type="password" autocomplete="off" placeholder=${t('login.oauth.secret')} required />
+          <button type="submit" class="primary" ?disabled=${this.busy}>${t('login.signIn')}</button>
         </form>
       </section>
     `;
@@ -256,43 +261,38 @@ export class CvcLogin extends LitElement {
     return html`
       <section class="card stack">
         <div>
-          <h2>Connecté : ${account.name ?? account.email}</h2>
-          <p class="muted small">Comment conserver cet accès dans ce navigateur ?</p>
+          <h2>${t('login.save.connected', { name: account.name ?? account.email })}</h2>
+          <p class="muted small">${t('login.save.question')}</p>
         </div>
 
         <form class="stack" @submit=${this.onSaveEncrypted}>
-          <h3>Chiffré avec une phrase de passe</h3>
-          <p class="muted small">
-            Les tokens sont chiffrés (AES-GCM, clé dérivée par PBKDF2) et restent disponibles après fermeture du
-            navigateur. La phrase sera demandée à chaque nouvel onglet.
-          </p>
+          <h3>${t('login.save.encrypted.title')}</h3>
+          <p class="muted small">${t('login.save.encrypted.text')}</p>
           <div class="row">
             <input
               name="passphrase"
               type="password"
               autocomplete="new-password"
-              placeholder="Phrase de passe"
+              placeholder=${t('login.save.passphrase')}
               required
             />
             <input
               name="confirmation"
               type="password"
               autocomplete="new-password"
-              placeholder="Confirmation"
+              placeholder=${t('login.save.confirmation')}
               required
             />
-            <button type="submit" class="primary" ?disabled=${this.busy}>Enregistrer</button>
+            <button type="submit" class="primary" ?disabled=${this.busy}>${t('common.save')}</button>
           </div>
         </form>
 
         <div class="stack">
-          <h3>Seulement pour cet onglet</h3>
-          <p class="muted small">
-            Rien n'est écrit sur le disque au-delà de la session ; tout disparaît à la fermeture de l'onglet.
-          </p>
+          <h3>${t('login.save.session.title')}</h3>
+          <p class="muted small">${t('login.save.session.text')}</p>
           <div>
             <button type="button" ?disabled=${this.busy} @click=${this.onSaveSession}>
-              Continuer sans enregistrer
+              ${t('login.save.session.button')}
             </button>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t, type MessageKey } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../core/clever-client.js';
@@ -16,7 +18,6 @@ import {
 import { matchesFilter, parseFilter, toggleToken } from '../core/home/filter.js';
 import {
   buildTree,
-  defaultGrouping,
   groupingSuggestions,
   isWeak,
   linkedAddons,
@@ -35,7 +36,7 @@ import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
 import {
   APP_STATE_LABELS,
-  DEPLOYMENT_ACTION_LABELS,
+  deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
   formatDateTime,
   formatRelative,
@@ -57,11 +58,11 @@ const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
 const COLUMNS = 7;
 
-const WATCH_LABELS: Record<WatchItem['kind'], { label: string; tone: string }> = {
-  failed: { label: 'échec', tone: 'danger' },
-  deploying: { label: 'en cours', tone: 'warn' },
-  moderated: { label: 'modérée', tone: 'danger' },
-  payment: { label: 'impayé', tone: 'danger' },
+const WATCH_LABELS: Record<WatchItem['kind'], { label: MessageKey; tone: string }> = {
+  failed: { label: 'watch.failed', tone: 'danger' },
+  deploying: { label: 'watch.deploying', tone: 'warn' },
+  moderated: { label: 'watch.moderated', tone: 'danger' },
+  payment: { label: 'watch.payment', tone: 'danger' },
 };
 
 /**
@@ -71,7 +72,7 @@ const WATCH_LABELS: Record<WatchItem['kind'], { label: string; tone: string }> =
  * for bulk tag operations.
  */
 @customElement('cvc-orga-page')
-export class CvcOrgaPage extends LitElement {
+export class CvcOrgaPage extends CvcElement {
   @property({ attribute: false }) orga!: OrganisationSummary;
   @property({ attribute: false }) client!: CcApiClient;
   @property({ attribute: false }) store!: HomeStore;
@@ -138,8 +139,7 @@ export class CvcOrgaPage extends LitElement {
         this.prefs = readPrefs(this.orga.id);
         const params = readHashParams();
         this.filterText = params.get('q') ?? '';
-        this.groupingText =
-          params.get('g') ?? this.prefs.grouping ?? defaultGrouping([...this.orga.applications, ...this.orga.addons]);
+        this.groupingText = params.get('g') ?? this.prefs.grouping ?? '';
         this.selected = new Set();
       }
       this.refresh({});
@@ -243,12 +243,12 @@ export class CvcOrgaPage extends LitElement {
     const failed = result.failed.length;
     const message =
       failed === 0
-        ? `${done} modification${done > 1 ? 's' : ''} de tags appliquée${done > 1 ? 's' : ''}.`
-        : `${done} appliquée${done > 1 ? 's' : ''}, ${failed} en échec : ${result.failed[0].error}`;
+        ? t('tags.applied', { count: done })
+        : t('tags.partial', { done, failed, error: result.failed[0].error });
     pushToast(this, {
       kind: failed === 0 ? 'success' : 'error',
       message,
-      action: done > 0 ? { label: 'Annuler', run: () => void this.undo(result.done) } : undefined,
+      action: done > 0 ? { label: t('tags.undo'), run: () => void this.undo(result.done) } : undefined,
     });
     requestSummaryRefresh(this);
   }
@@ -262,9 +262,9 @@ export class CvcOrgaPage extends LitElement {
       result.failed.length === 0
         ? {
             kind: 'info',
-            message: `${result.done.length} modification${result.done.length > 1 ? 's' : ''} de tags annulée${result.done.length > 1 ? 's' : ''}.`,
+            message: t('tags.undone', { count: result.done.length }),
           }
-        : { kind: 'error', message: `Annulation incomplète : ${result.failed[0].error}` },
+        : { kind: 'error', message: t('tags.undoFailed', { error: result.failed[0].error }) },
     );
     requestSummaryRefresh(this);
   }
@@ -323,36 +323,36 @@ export class CvcOrgaPage extends LitElement {
       <header class="head">
         <div class="row">
           <h1>${this.orga.name}</h1>
-          <span class="muted small">${apps.length} applications · ${addons.length} add-ons</span>
+          <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
           <span class="cli">clever applications list</span>
           <span class="grow"></span>
           ${
             data.linksPending > 0
-              ? html`<span class="muted small" title="Liens applications ↔ add-ons"
-                  >liens ${linksDone}/${apps.length}</span
+              ? html`<span class="muted small" title=${t('home.linksTitle')}
+                  >${t('home.linksProgress', { done: linksDone, total: apps.length })}</span
                 >`
               : data.deploymentsLoading
-                ? html`<span class="muted small">activité…</span>`
+                ? html`<span class="muted small">${t('home.activityLoading')}</span>`
                 : nothing
           }
           <button
             type="button"
             class="ghost"
-            title="Recharge l’activité et les liens"
+            title=${t('home.refreshTitle')}
             ?disabled=${data.deploymentsLoading || data.linksPending > 0}
             @click=${() => this.refresh({ force: true, forceLinks: true })}
           >
-            Rafraîchir
+            ${t('common.refresh')}
           </button>
         </div>
         <div class="row toolbar">
           <label class="field filter">
-            <span class="muted small">Filtrer</span>
+            <span class="muted small">${t('home.filter')}</span>
             <input
               type="search"
               name="filter"
-              placeholder="is:app AND env:prod   (touche /)"
-              aria-label="Filtrer les applications et add-ons"
+              placeholder=${t('home.filterPlaceholder')}
+              aria-label=${t('home.filterAria')}
               autocomplete="off"
               spellcheck="false"
               .value=${this.filterText}
@@ -360,13 +360,13 @@ export class CvcOrgaPage extends LitElement {
             />
           </label>
           <label class="field grouping">
-            <span class="muted small">Regrouper par</span>
+            <span class="muted small">${t('home.groupBy')}</span>
             <input
               type="text"
               name="grouping"
               list="grouping-suggestions"
-              placeholder="project > env"
-              aria-label="Regrouper par"
+              placeholder=${t('home.groupByPlaceholder')}
+              aria-label=${t('home.groupBy')}
               autocomplete="off"
               spellcheck="false"
               .value=${this.groupingText}
@@ -376,24 +376,24 @@ export class CvcOrgaPage extends LitElement {
               ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
             </datalist>
           </label>
-          <div class="seg" role="group" aria-label="Trier par">
-            <span class="muted small">Trier</span>
+          <div class="seg" role="group" aria-label=${t('home.sort')}>
+            <span class="muted small">${t('home.sort')}</span>
             <button
               type="button"
               class=${this.prefs.sort === 'name' ? 'on' : ''}
               aria-pressed=${this.prefs.sort === 'name'}
               @click=${() => this.setPrefs({ sort: 'name' })}
             >
-              nom
+              ${t('home.sortName')}
             </button>
             <button
               type="button"
               class=${this.prefs.sort === 'activity' ? 'on' : ''}
               aria-pressed=${this.prefs.sort === 'activity'}
-              title="Dernier déploiement en premier"
+              title=${t('home.sortActivityTitle')}
               @click=${() => this.setPrefs({ sort: 'activity' })}
             >
-              activité
+              ${t('home.sortActivity')}
             </button>
           </div>
           <label class="small check">
@@ -402,22 +402,22 @@ export class CvcOrgaPage extends LitElement {
               .checked=${this.prefs.showAddons}
               @change=${(event: Event) => this.setPrefs({ showAddons: (event.currentTarget as HTMLInputElement).checked })}
             />
-            add-ons
+            ${t('home.addons')}
           </label>
         </div>
         <p class="muted small hint">
           ${
             filter.error != null
-              ? html`<span class="danger">Filtre incomplet (${filter.error}), appliqué mot à mot.</span>`
+              ? html`<span class="danger">${t('home.filterError', { error: filter.error })}</span>`
               : grouping.error != null
-                ? html`<span class="danger">Regroupement : ${grouping.error}.</span>`
+                ? html`<span class="danger">${t('home.groupingError', { error: grouping.error })}</span>`
                 : html`<code>is:app</code> <code>is:node</code> <code>project:nom</code> <code>env:prod</code>
                     <code>has:project</code> <code>-env:prod</code> <code>AND</code> <code>OR</code> <code>( )</code>
                     <span class="sep">·</span> <code>project > env(prod,dev)</code> <code>type</code>
                     <code>runtime</code> <code>state</code>`
           }
-          ${data.deploymentsError ? html`<span class="danger">· activité indisponible : ${data.deploymentsError}</span>` : nothing}
-          ${data.linksError ? html`<span class="danger">· liens incomplets : ${data.linksError}</span>` : nothing}
+          ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
+          ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
         </p>
         ${this.renderSelectionBar()}
       </header>
@@ -435,7 +435,7 @@ export class CvcOrgaPage extends LitElement {
       ${
         visibleApps.length + visibleAddons.length === 0
           ? html`<p class="empty">
-              ${this.filterText.trim() === '' ? 'Rien à afficher.' : html`Rien ne correspond à « ${this.filterText} ».`}
+              ${this.filterText.trim() === '' ? t('home.nothing') : t('home.noMatch', { query: this.filterText })}
             </p>`
           : nothing
       }
@@ -463,7 +463,7 @@ export class CvcOrgaPage extends LitElement {
       <label class="check">
         <input
           type="checkbox"
-          aria-label="Tout sélectionner"
+          aria-label=${t('home.selectAllAria')}
           .checked=${all}
           .indeterminate=${count > 0 && !all}
           ?disabled=${total === 0}
@@ -471,18 +471,18 @@ export class CvcOrgaPage extends LitElement {
         />
         ${
           count === 0
-            ? html`<span class="muted small">Tout sélectionner (${total})</span>`
-            : html`<span class="small"><strong>${count}</strong> sélectionné${count > 1 ? 's' : ''} sur ${total}</span>`
+            ? html`<span class="muted small">${t('home.selectAll', { count: total })}</span>`
+            : html`<span class="small">${t('home.selected', { count, total })}</span>`
         }
       </label>
       ${
         count > 0
-          ? html`<button type="button" class="link small" @click=${this.clearSelection}>aucun</button>
-              <span class="muted small">maj+clic pour une plage, Échap pour tout désélectionner</span>
+          ? html`<button type="button" class="link small" @click=${this.clearSelection}>${t('home.selectNone')}</button>
+              <span class="muted small">${t('home.selectionHint')}</span>
               <span class="grow"></span>
-              <button type="button" @click=${() => (this.tagDialog = 'add')}>Ajouter un tag</button>
-              <button type="button" @click=${() => (this.tagDialog = 'remove')}>Retirer un tag</button>
-              <button type="button" @click=${() => (this.tagDialog = 'rename')}>Renommer un tag</button>`
+              <button type="button" @click=${() => (this.tagDialog = 'add')}>${t('home.addTag')}</button>
+              <button type="button" @click=${() => (this.tagDialog = 'remove')}>${t('home.removeTag')}</button>
+              <button type="button" @click=${() => (this.tagDialog = 'rename')}>${t('home.renameTag')}</button>`
           : nothing
       }
     </div>`;
@@ -493,12 +493,12 @@ export class CvcOrgaPage extends LitElement {
       return nothing;
     }
     return html`<section class="watch card">
-      <h2>À surveiller</h2>
+      <h2>${t('home.watch')}</h2>
       <ul>
         ${items.map((item) => {
           const { label, tone } = WATCH_LABELS[item.kind];
           return html`<li class="row">
-            <span class="badge ${tone}">${label}</span>
+            <span class="badge ${tone}">${t(label)}</span>
             <a href=${this.appHash(item.app.id, item.kind === 'failed' ? 'deployments' : 'overview')}
               >${item.app.name}</a
             >
@@ -514,16 +514,23 @@ export class CvcOrgaPage extends LitElement {
     switch (item.kind) {
       case 'failed':
         return deployment == null
-          ? 'dernier déploiement échoué'
-          : `déploiement échoué ${formatRelative(deployment.date)} (${describeOrigin(deployment, this.userId)})`;
+          ? t('watch.failedLast')
+          : t('watch.failedAt', {
+              when: formatRelative(deployment.date),
+              who: describeOrigin(deployment, this.userId),
+            });
       case 'deploying':
         return deployment != null && isInProgress(deployment)
-          ? `${DEPLOYMENT_ACTION_LABELS[deployment.action] || 'déploiement'} en cours, lancé ${formatRelative(deployment.date)} (${describeOrigin(deployment, this.userId)})`
-          : 'démarrage demandé';
+          ? t('watch.inProgress', {
+              action: deploymentActionLabel(deployment.action) || t('deploymentAction.DEPLOY'),
+              when: formatRelative(deployment.date),
+              who: describeOrigin(deployment, this.userId),
+            })
+          : t('watch.startRequested');
       case 'moderated':
-        return 'application modérée par Clever Cloud';
+        return t('watch.moderatedText');
       case 'payment':
-        return 'défaut de paiement';
+        return t('watch.paymentText');
     }
   }
 
@@ -532,15 +539,15 @@ export class CvcOrgaPage extends LitElement {
       return nothing;
     }
     return html`<section class="recents row">
-      <span class="muted small">Récents</span>
+      <span class="muted small">${t('home.recents')}</span>
       ${apps.map((app) => html`<a class="chip" href=${this.appHash(app.id)}>${app.name}</a>`)}
     </section>`;
   }
 
   private counts(node: GroupNode): string {
     return [
-      node.appCount > 0 ? `${node.appCount} app${node.appCount > 1 ? 's' : ''}` : '',
-      node.addonCount > 0 ? `${node.addonCount} add-on${node.addonCount > 1 ? 's' : ''}` : '',
+      node.appCount > 0 ? t('home.apps', { count: node.appCount }) : '',
+      node.addonCount > 0 ? t('home.addonsCount', { count: node.addonCount }) : '',
     ]
       .filter((part) => part !== '')
       .join(' · ');
@@ -659,7 +666,7 @@ export class CvcOrgaPage extends LitElement {
     return html`<td class="check">
       <input
         type="checkbox"
-        aria-label="Sélectionner ${name}"
+        aria-label=${t('home.selectRow', { name })}
         .checked=${this.selected.has(id)}
         @click=${(event: MouseEvent) => this.toggleSelect(id, event.shiftKey)}
       />
@@ -712,12 +719,15 @@ export class CvcOrgaPage extends LitElement {
     const last = activity.last;
     const human = isHumanDeployment(last);
     const tone = last.state === 'FAILED' ? 'failed' : isInProgress(last) ? 'wip' : human ? '' : 'platform';
-    const action = DEPLOYMENT_ACTION_LABELS[last.action] || 'déploiement';
+    const action = deploymentActionLabel(last.action) || t('deploymentAction.DEPLOY');
     const title = [
       `${action} ${stateLabel(DEPLOYMENT_STATE_LABELS, last.state).label} · ${formatDateTime(last.date)}`,
-      last.cause ? `cause : ${last.cause}` : '',
+      last.cause ? t('activity.cause', { cause: last.cause }) : '',
       activity.lastHuman != null && activity.lastHuman !== last
-        ? `dernier déploiement humain : ${formatRelative(activity.lastHuman.date)} (${describeOrigin(activity.lastHuman, this.userId)})`
+        ? t('activity.lastHuman', {
+            when: formatRelative(activity.lastHuman.date),
+            who: describeOrigin(activity.lastHuman, this.userId),
+          })
         : '',
     ]
       .filter((part) => part !== '')
@@ -736,15 +746,17 @@ export class CvcOrgaPage extends LitElement {
       <td class="name">
         <span>${addon.name}</span>
         ${this.renderTags(addon.customerTags)}
-        ${inferred ? html`<span class="tag inferred" title="Placé d’après les applications liées">déduit</span>` : nothing}
+        ${inferred ? html`<span class="tag inferred" title=${t('home.inferredTitle')}>${t('home.inferred')}</span>` : nothing}
       </td>
       <td class="type muted small">${addon.providerId}</td>
       <td class="state"><span class="badge neutral">add-on</span></td>
       <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
-        ${apps.length === 0 ? 'non lié' : apps.length === 1 ? apps[0].name : `${apps.length} applications`}
+        ${apps.length === 0 ? t('home.notLinked') : apps.length === 1 ? apps[0].name : t('home.linkedApps', { count: apps.length })}
       </td>
       <td class="links">
-        <a class="small muted" href="${CONSOLE_URL}/goto/${addon.id}" target="_blank" rel="noopener">Console ↗</a>
+        <a class="small muted" href="${CONSOLE_URL}/goto/${addon.id}" target="_blank" rel="noopener"
+          >${t('common.console')}</a
+        >
       </td>
     </tr>`;
   }
@@ -752,7 +764,7 @@ export class CvcOrgaPage extends LitElement {
   private renderTags(tags: string[]) {
     return tags.map(
       (tag) =>
-        html`<button type="button" class="tag" title="Filtrer sur ce tag" @click=${() => this.toggleTag(tag)}>
+        html`<button type="button" class="tag" title=${t('home.filterTag')} @click=${() => this.toggleTag(tag)}>
           ${tag}
         </button>`,
     );

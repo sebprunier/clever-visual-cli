@@ -7,6 +7,7 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { addTag, removeTag, type TagTarget } from '../../data/api.js';
+import { t } from '../i18n.js';
 
 export type TagOperation =
   { kind: 'add'; tag: string } | { kind: 'remove'; tag: string } | { kind: 'rename'; from: string; to: string };
@@ -43,16 +44,16 @@ const CONCURRENCY = 6;
 export function validateTag(tag: string): string | null {
   const trimmed = tag.trim();
   if (trimmed === '') {
-    return 'Le tag est vide.';
+    return t('tag.error.empty');
   }
   if (/\s/.test(trimmed)) {
-    return 'Un tag ne contient pas d’espace.';
+    return t('tag.error.space');
   }
   if (/[/?#%]/.test(trimmed)) {
-    return 'Un tag ne contient ni /, ?, # ni %.';
+    return t('tag.error.chars');
   }
   if (trimmed.length > 100) {
-    return 'Un tag fait 100 caractères au plus.';
+    return t('tag.error.length');
   }
   return null;
 }

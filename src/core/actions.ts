@@ -6,6 +6,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
 import type { Application } from '../data/api.js';
+import { t, type MessageKey } from './i18n.js';
 import type { AppTab } from './router.js';
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox';
@@ -52,11 +53,14 @@ export interface ActionResult {
 
 export interface ActionDefinition {
   id: string;
-  title: string;
-  description?: string;
+  /** Message key of the title. */
+  title: MessageKey;
+  /** Message key of the description. */
+  description?: MessageKey;
   /** Destructive or disruptive: the submit button turns red and asks for confirmation wording. */
   danger?: boolean;
-  submitLabel?: string;
+  /** Message key of the submit button. */
+  submitLabel?: MessageKey;
   /** The bare command, shown in the palette. */
   cliHint: string;
   keywords?: string[];
@@ -71,21 +75,23 @@ export const ACTIONS: ActionDefinition[] = [
   {
     id: 'restart',
     cliHint: 'clever restart',
-    title: 'Redémarrer',
-    description: 'Relance un déploiement avec le dernier commit, ou un commit précis.',
-    submitLabel: 'Redémarrer',
-    keywords: ['restart', 'redeploy', 'redéployer'],
+    title: 'action.restart.title',
+    description: 'action.restart.description',
+    submitLabel: 'action.restart.title',
+    keywords: ['restart', 'redeploy', 'redéployer', 'redémarrer'],
     fields: (ctx) => [
       {
         name: 'commit',
-        label: 'Commit',
+        label: t('action.restart.commit'),
         type: 'text',
-        placeholder: ctx.app?.commitId ? `dernier déployé : ${ctx.app.commitId.slice(0, 8)}` : 'dernier commit déployé',
+        placeholder: ctx.app?.commitId
+          ? t('action.restart.lastDeployed', { commit: ctx.app.commitId.slice(0, 8) })
+          : t('action.restart.lastCommit'),
         mono: true,
         pattern: /^[0-9a-f]{7,40}$/i,
-        patternHelp: 'un identifiant de commit git (7 à 40 caractères hexadécimaux)',
+        patternHelp: t('action.restart.commitHelp'),
       },
-      { name: 'withoutCache', label: 'Sans cache de build', type: 'checkbox', default: false },
+      { name: 'withoutCache', label: t('action.restart.withoutCache'), type: 'checkbox', default: false },
     ],
     cli: (ctx, v) =>
       `clever restart ${appFlag(ctx)}${str(v.commit) ? ` --commit ${str(v.commit)}` : ''}${v.withoutCache ? ' --without-cache' : ''}`,
@@ -94,37 +100,41 @@ export const ACTIONS: ActionDefinition[] = [
         commit: str(v.commit) || undefined,
         useCache: !v.withoutCache,
       });
-      return { message: `Redémarrage lancé (${deploymentId.slice(0, 19)}…).`, navigateTo: 'logs', refresh: true };
+      return {
+        message: t('action.restart.done', { id: deploymentId.slice(0, 19) }),
+        navigateTo: 'logs',
+        refresh: true,
+      };
     },
   },
   {
     id: 'stop',
     cliHint: 'clever stop',
-    title: 'Arrêter',
-    description: "Arrête toutes les instances de l'application.",
+    title: 'action.stop.title',
+    description: 'action.stop.description',
     danger: true,
-    submitLabel: "Arrêter l'application",
-    keywords: ['stop', 'undeploy'],
+    submitLabel: 'action.stop.submit',
+    keywords: ['stop', 'undeploy', 'arrêter'],
     fields: () => [],
     cli: (ctx) => `clever stop ${appFlag(ctx)}`,
     run: async (ctx) => {
       await api.undeployApplication(ctx.client, ctx.ownerId, ctx.appId);
-      return { message: 'Arrêt demandé.', navigateTo: 'deployments', refresh: true };
+      return { message: t('action.stop.done'), navigateTo: 'deployments', refresh: true };
     },
   },
   {
     id: 'cancel-deploy',
     cliHint: 'clever cancel-deploy',
-    title: 'Annuler le déploiement en cours',
+    title: 'action.cancel.title',
     danger: true,
-    submitLabel: 'Annuler le déploiement',
-    keywords: ['cancel'],
+    submitLabel: 'action.cancel.submit',
+    keywords: ['cancel', 'annuler'],
     fields: () => [
       {
         name: 'deploymentId',
-        label: 'Déploiement',
+        label: t('action.cancel.deployment'),
         type: 'text',
-        placeholder: 'vide : le déploiement en cours',
+        placeholder: t('action.cancel.placeholder'),
         mono: true,
       },
     ],
@@ -135,21 +145,21 @@ export const ACTIONS: ActionDefinition[] = [
         const deployments = await api.fetchDeployments(ctx.client, ctx.ownerId, ctx.appId, 10);
         const running = deployments.find((d) => d.state === 'WORK_IN_PROGRESS' || d.state === 'TASK_IN_PROGRESS');
         if (running == null) {
-          throw new Error('Aucun déploiement en cours.');
+          throw new Error(t('action.cancel.none'));
         }
         deploymentId = running.id;
       }
       await api.cancelDeployment(ctx.client, ctx.ownerId, ctx.appId, deploymentId);
-      return { message: 'Déploiement annulé.', navigateTo: 'deployments', refresh: true };
+      return { message: t('action.cancel.done'), navigateTo: 'deployments', refresh: true };
     },
   },
   {
     id: 'scale',
     cliHint: 'clever scale',
-    title: 'Scaler',
-    description: "Bornes horizontales (instances) et verticales (taille) de l'application.",
-    submitLabel: 'Appliquer',
-    keywords: ['scale', 'instances', 'flavor', 'taille'],
+    title: 'action.scale.title',
+    description: 'action.scale.description',
+    submitLabel: 'common.apply',
+    keywords: ['scale', 'instances', 'flavor', 'taille', 'size'],
     fields: (ctx) => {
       const instance = ctx.app?.instance;
       const flavors = (instance?.flavors ?? [])
@@ -161,7 +171,7 @@ export const ACTIONS: ActionDefinition[] = [
       return [
         {
           name: 'minInstances',
-          label: 'Instances minimum',
+          label: t('action.scale.minInstances'),
           type: 'number',
           required: true,
           min: 1,
@@ -170,7 +180,7 @@ export const ACTIONS: ActionDefinition[] = [
         },
         {
           name: 'maxInstances',
-          label: 'Instances maximum',
+          label: t('action.scale.maxInstances'),
           type: 'number',
           required: true,
           min: 1,
@@ -179,7 +189,7 @@ export const ACTIONS: ActionDefinition[] = [
         },
         {
           name: 'minFlavor',
-          label: 'Taille minimum',
+          label: t('action.scale.minFlavor'),
           type: 'select',
           required: true,
           options: flavors,
@@ -187,7 +197,7 @@ export const ACTIONS: ActionDefinition[] = [
         },
         {
           name: 'maxFlavor',
-          label: 'Taille maximum',
+          label: t('action.scale.maxFlavor'),
           type: 'select',
           required: true,
           options: flavors,
@@ -201,12 +211,12 @@ export const ACTIONS: ActionDefinition[] = [
       const minInstances = num(v.minInstances);
       const maxInstances = num(v.maxInstances);
       if (minInstances > maxInstances) {
-        throw new Error('Le minimum d’instances dépasse le maximum.');
+        throw new Error(t('action.scale.instancesOrder'));
       }
       const flavors = ctx.app?.instance.flavors ?? [];
       const rank = (name: string) => flavors.findIndex((flavor) => flavor.name === name);
       if (rank(str(v.minFlavor)) > rank(str(v.maxFlavor))) {
-        throw new Error('La taille minimum dépasse la taille maximum.');
+        throw new Error(t('action.scale.flavorOrder'));
       }
       await api.updateApplication(ctx.client, ctx.ownerId, ctx.appId, {
         minInstances,
@@ -214,41 +224,41 @@ export const ACTIONS: ActionDefinition[] = [
         minFlavor: str(v.minFlavor),
         maxFlavor: str(v.maxFlavor),
       });
-      return { message: 'Scaling mis à jour.', refresh: true };
+      return { message: t('action.scale.done'), refresh: true };
     },
   },
   {
     id: 'env-set',
     cliHint: 'clever env set',
-    title: 'Définir une variable',
-    description: "Crée ou remplace une variable d'environnement. Prise en compte au prochain déploiement.",
-    submitLabel: 'Enregistrer',
-    keywords: ['env', 'set', 'variable', 'environnement'],
+    title: 'action.envSet.title',
+    description: 'action.envSet.description',
+    submitLabel: 'common.save',
+    keywords: ['env', 'set', 'variable', 'environnement', 'environment'],
     fields: () => [
       {
         name: 'name',
-        label: 'Nom',
+        label: t('action.envSet.name'),
         type: 'text',
         required: true,
         mono: true,
         pattern: ENV_NAME_PATTERN,
-        patternHelp: 'lettres, chiffres et _ uniquement, sans commencer par un chiffre',
+        patternHelp: t('action.envSet.nameHelp'),
       },
-      { name: 'value', label: 'Valeur', type: 'textarea', mono: true, rows: 3 },
+      { name: 'value', label: t('action.envSet.value'), type: 'textarea', mono: true, rows: 3 },
     ],
     cli: (ctx, v) => `clever env set ${str(v.name)} ${shellQuote(str(v.value))} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.setEnvironmentVariable(ctx.client, ctx.ownerId, ctx.appId, str(v.name), str(v.value));
-      return { message: `Variable ${str(v.name)} enregistrée.`, navigateTo: 'env', refresh: true };
+      return { message: t('action.envSet.done', { name: str(v.name) }), navigateTo: 'env', refresh: true };
     },
   },
   {
     id: 'env-rm',
     cliHint: 'clever env rm',
-    title: 'Supprimer une variable',
+    title: 'action.envRm.title',
     danger: true,
-    submitLabel: 'Supprimer',
-    keywords: ['env', 'rm', 'remove', 'variable'],
+    submitLabel: 'common.remove',
+    keywords: ['env', 'rm', 'remove', 'variable', 'supprimer', 'delete'],
     fields: (ctx, prefill) => {
       const names = (ctx.app?.environment ?? []).map((variable) => variable.name);
       const options = names.map((name) => ({ value: name, label: name }));
@@ -257,34 +267,42 @@ export const ACTIONS: ActionDefinition[] = [
         options.unshift({ value: prefilled, label: prefilled });
       }
       return options.length > 0
-        ? [{ name: 'name', label: 'Variable', type: 'select', required: true, options, mono: true }]
-        : [{ name: 'name', label: 'Variable', type: 'text', required: true, mono: true, pattern: ENV_NAME_PATTERN }];
+        ? [{ name: 'name', label: t('action.envRm.variable'), type: 'select', required: true, options, mono: true }]
+        : [
+            {
+              name: 'name',
+              label: t('action.envRm.variable'),
+              type: 'text',
+              required: true,
+              mono: true,
+              pattern: ENV_NAME_PATTERN,
+            },
+          ];
     },
     cli: (ctx, v) => `clever env rm ${str(v.name)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.deleteEnvironmentVariable(ctx.client, ctx.ownerId, ctx.appId, str(v.name));
-      return { message: `Variable ${str(v.name)} supprimée.`, navigateTo: 'env', refresh: true };
+      return { message: t('action.envRm.done', { name: str(v.name) }), navigateTo: 'env', refresh: true };
     },
   },
   {
     id: 'env-import',
     cliHint: 'clever env import',
-    title: 'Importer des variables',
-    description:
-      'Un fichier .env (NOM=valeur par ligne). Les variables existantes sont conservées, sauf si vous remplacez tout.',
-    submitLabel: 'Importer',
-    keywords: ['env', 'import', 'dotenv'],
+    title: 'action.envImport.title',
+    description: 'action.envImport.description',
+    submitLabel: 'env.import',
+    keywords: ['env', 'import', 'dotenv', 'importer'],
     fields: () => [
       {
         name: 'raw',
-        label: 'Contenu .env',
+        label: t('action.envImport.content'),
         type: 'textarea',
         required: true,
         mono: true,
         rows: 10,
         placeholder: 'DATABASE_URL=postgres://…\nFEATURE_FLAG=true',
       },
-      { name: 'replace', label: 'Remplacer toutes les variables existantes', type: 'checkbox', default: false },
+      { name: 'replace', label: t('action.envImport.replace'), type: 'checkbox', default: false },
     ],
     cli: (ctx) => `clever env import ${appFlag(ctx)} < .env`,
     run: async (ctx, v) => {
@@ -293,7 +311,7 @@ export const ACTIONS: ActionDefinition[] = [
         throw new Error(errors.join('\n'));
       }
       if (variables.length === 0) {
-        throw new Error('Aucune variable à importer.');
+        throw new Error(t('action.envImport.none'));
       }
       let environment = variables;
       if (!v.replace) {
@@ -305,44 +323,44 @@ export const ACTIONS: ActionDefinition[] = [
         environment = [...merged.entries()].map(([name, value]) => ({ name, value }));
       }
       await api.replaceEnvironment(ctx.client, ctx.ownerId, ctx.appId, environment);
-      return { message: `${variables.length} variable(s) importée(s).`, navigateTo: 'env', refresh: true };
+      return { message: t('action.envImport.done', { count: variables.length }), navigateTo: 'env', refresh: true };
     },
   },
   {
     id: 'domain-add',
     cliHint: 'clever domain add',
-    title: 'Ajouter un domaine',
-    submitLabel: 'Ajouter',
-    keywords: ['domain', 'domaine', 'dns'],
+    title: 'action.domainAdd.title',
+    submitLabel: 'common.add',
+    keywords: ['domain', 'domaine', 'dns', 'ajouter'],
     fields: () => [
       {
         name: 'domain',
-        label: 'Domaine',
+        label: t('action.domain.domain'),
         type: 'text',
         required: true,
         mono: true,
-        placeholder: 'app.example.com ou app.example.com/chemin',
+        placeholder: t('action.domainAdd.placeholder'),
         pattern: /^[a-z0-9.-]+(\/[^\s]*)?$/i,
-        patternHelp: 'un nom de domaine, éventuellement suivi d’un chemin',
+        patternHelp: t('action.domainAdd.help'),
       },
     ],
     cli: (ctx, v) => `clever domain add ${str(v.domain)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.addDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain).toLowerCase());
-      return { message: `Domaine ${str(v.domain)} ajouté.`, navigateTo: 'overview', refresh: true };
+      return { message: t('action.domainAdd.done', { domain: str(v.domain) }), navigateTo: 'overview', refresh: true };
     },
   },
   {
     id: 'domain-rm',
     cliHint: 'clever domain rm',
-    title: 'Supprimer un domaine',
+    title: 'action.domainRm.title',
     danger: true,
-    submitLabel: 'Supprimer',
-    keywords: ['domain', 'domaine', 'rm'],
+    submitLabel: 'common.remove',
+    keywords: ['domain', 'domaine', 'rm', 'supprimer', 'remove'],
     fields: (ctx) => [
       {
         name: 'domain',
-        label: 'Domaine',
+        label: t('action.domain.domain'),
         type: 'select',
         required: true,
         mono: true,
@@ -352,19 +370,19 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever domain rm ${str(v.domain)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.removeDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain));
-      return { message: `Domaine ${str(v.domain)} supprimé.`, navigateTo: 'overview', refresh: true };
+      return { message: t('action.domainRm.done', { domain: str(v.domain) }), navigateTo: 'overview', refresh: true };
     },
   },
   {
     id: 'domain-primary',
     cliHint: 'clever domain favourite set',
-    title: 'Définir le domaine principal',
-    submitLabel: 'Définir',
-    keywords: ['domain', 'domaine', 'favourite', 'principal'],
+    title: 'action.domainPrimary.title',
+    submitLabel: 'action.domainPrimary.submit',
+    keywords: ['domain', 'domaine', 'favourite', 'principal', 'primary'],
     fields: (ctx) => [
       {
         name: 'domain',
-        label: 'Domaine',
+        label: t('action.domain.domain'),
         type: 'select',
         required: true,
         mono: true,
@@ -374,7 +392,11 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever domain favourite set ${str(v.domain)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.setPrimaryDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain));
-      return { message: `${str(v.domain)} est le domaine principal.`, navigateTo: 'overview', refresh: true };
+      return {
+        message: t('action.domainPrimary.done', { domain: str(v.domain) }),
+        navigateTo: 'overview',
+        refresh: true,
+      };
     },
   },
 ];

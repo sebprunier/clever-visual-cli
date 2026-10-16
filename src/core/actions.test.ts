@@ -1,6 +1,9 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ACTIONS, findAction, shellQuote, type ActionContext } from './actions.js';
+import { setLocale, t } from './i18n.js';
+
+beforeAll(() => setLocale('fr', false));
 
 const ctx: ActionContext = {
   client: {} as CcApiClient,
@@ -16,7 +19,8 @@ describe('actions', () => {
     for (const action of ACTIONS) {
       expect(action.cliHint.startsWith('clever ')).toBe(true);
     }
-    expect(findAction('restart')?.title).toBe('Redémarrer');
+    expect(findAction('restart')?.title).toBe('action.restart.title');
+    expect(t(findAction('restart')!.title)).toBe('Redémarrer');
     expect(findAction('nope')).toBeNull();
   });
 

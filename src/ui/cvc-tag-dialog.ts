@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { t, type MessageKey } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import {
@@ -23,10 +25,10 @@ export interface TagsAppliedDetail {
   result: TagRunResult;
 }
 
-const KIND_LABELS: Record<TagOperationKind, string> = {
-  add: 'Ajouter un tag',
-  remove: 'Retirer un tag',
-  rename: 'Renommer un tag',
+const KIND_LABELS: Record<TagOperationKind, MessageKey> = {
+  add: 'home.addTag',
+  remove: 'home.removeTag',
+  rename: 'home.renameTag',
 };
 
 const MAX_PREVIEW = 40;
@@ -37,7 +39,7 @@ const MAX_PREVIEW = 40;
  * `cvc-tags-applied` with the result, or `cvc-tag-close`.
  */
 @customElement('cvc-tag-dialog')
-export class CvcTagDialog extends LitElement {
+export class CvcTagDialog extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property({ attribute: false }) resources: TagResource[] = [];
@@ -139,15 +141,12 @@ export class CvcTagDialog extends LitElement {
       <div class="backdrop" @click=${this.close}></div>
       <form class="dialog" role="dialog" aria-labelledby="title" @submit=${this.submit} @keydown=${this.onKeyDown}>
         <header>
-          <h2 id="title">${KIND_LABELS[this.kind]}</h2>
+          <h2 id="title">${t(KIND_LABELS[this.kind])}</h2>
           <p class="muted small">
-            ${this.resources.length} ressource${this.resources.length > 1 ? 's' : ''}
-            sélectionnée${this.resources.length > 1 ? 's' : ''} (${apps} app${apps > 1 ? 's' : ''}, ${addons}
-            add-on${addons > 1 ? 's' : ''}). Les tags sont libres ; la convention
-            <code>clé:valeur</code> (<code>project:nom</code>, <code>env:prod</code>) alimente le regroupement.
+            ${t('tagDialog.selected', { count: this.resources.length, apps, addons })} ${t('tagDialog.convention')}
           </p>
         </header>
-        <div class="seg" role="group" aria-label="Opération">
+        <div class="seg" role="group" aria-label=${t('tagDialog.operationAria')}>
           ${(Object.keys(KIND_LABELS) as TagOperationKind[]).map(
             (kind) =>
               html`<button
@@ -157,7 +156,7 @@ export class CvcTagDialog extends LitElement {
                 ?disabled=${this.busy}
                 @click=${() => this.setKind(kind)}
               >
-                ${KIND_LABELS[kind]}
+                ${t(KIND_LABELS[kind])}
               </button>`,
           )}
         </div>
@@ -166,9 +165,9 @@ export class CvcTagDialog extends LitElement {
         ${this.renderPlan(plan)} ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
         <footer class="row">
           ${this.busy ? html`<span class="muted small">${this.progress}/${plan.length}</span>` : nothing}
-          <button type="button" class="ghost" @click=${this.close} ?disabled=${this.busy}>Annuler</button>
+          <button type="button" class="ghost" @click=${this.close} ?disabled=${this.busy}>${t('common.cancel')}</button>
           <button type="submit" class="primary" ?disabled=${plan.length === 0 || this.busy}>
-            Appliquer${plan.length > 0 ? ` (${plan.length})` : ''}
+            ${t('common.apply')}${plan.length > 0 ? ` (${plan.length})` : ''}
           </button>
         </footer>
       </form>
@@ -182,7 +181,7 @@ export class CvcTagDialog extends LitElement {
     switch (this.kind) {
       case 'add':
         return html`<div class="field">
-          <label for="tag">Tag à ajouter</label>
+          <label for="tag">${t('tagDialog.tagToAdd')}</label>
           <input
             id="tag"
             type="text"
@@ -198,33 +197,33 @@ export class CvcTagDialog extends LitElement {
         </div>`;
       case 'remove':
         return html`<div class="field">
-          <label for="tag">Tag à retirer</label>
+          <label for="tag">${t('tagDialog.tagToRemove')}</label>
           <select
             id="tag"
             ?disabled=${this.busy}
             .value=${this.tag}
             @change=${(event: Event) => (this.tag = (event.currentTarget as HTMLSelectElement).value)}
           >
-            <option value="">— parmi les tags de la sélection —</option>
+            <option value="">${t('tagDialog.amongSelection')}</option>
             ${this.present.map((tag) => html`<option value=${tag} ?selected=${tag === this.tag}>${tag}</option>`)}
           </select>
         </div>`;
       case 'rename':
         return html`<div class="row fields">
           <div class="field">
-            <label for="from">Tag actuel</label>
+            <label for="from">${t('tagDialog.currentTag')}</label>
             <select
               id="from"
               ?disabled=${this.busy}
               .value=${this.from}
               @change=${(event: Event) => (this.from = (event.currentTarget as HTMLSelectElement).value)}
             >
-              <option value="">— parmi les tags de la sélection —</option>
+              <option value="">${t('tagDialog.amongSelection')}</option>
               ${this.present.map((tag) => html`<option value=${tag} ?selected=${tag === this.from}>${tag}</option>`)}
             </select>
           </div>
           <div class="field">
-            <label for="to">Nouveau tag</label>
+            <label for="to">${t('tagDialog.newTag')}</label>
             <input
               id="to"
               type="text"
@@ -245,28 +244,28 @@ export class CvcTagDialog extends LitElement {
   private renderPlan(plan: TagStep[]) {
     if (plan.length === 0) {
       return html`<p class="muted small">
-        ${this.operation == null ? 'Choisis un tag pour voir ce qui sera fait.' : 'Rien à faire : la sélection est déjà dans cet état.'}
+        ${this.operation == null ? t('tagDialog.chooseTag') : t('tagDialog.nothingToDo')}
       </p>`;
     }
     const skipped = this.resources.length - new Set(plan.map((step) => step.resource.id)).size;
     return html`<div class="plan">
       <p class="small">
-        <strong>${plan.length} appel${plan.length > 1 ? 's' : ''} API</strong>
-        ${skipped > 0 ? html`<span class="muted">· ${skipped} ressource${skipped > 1 ? 's' : ''} déjà à jour</span>` : nothing}
+        <strong>${t('tagDialog.calls', { count: plan.length })}</strong>
+        ${skipped > 0 ? html`<span class="muted">${t('tagDialog.alreadyUpToDate', { count: skipped })}</span>` : nothing}
       </p>
       <ul class="small">
         ${plan.slice(0, MAX_PREVIEW).map(
           (step) =>
             html`<li>
               <span class="op ${step.action}">${step.action === 'add' ? '+' : '−'}${step.tag}</span>
-              <span class="muted">${step.resource.kind === 'app' ? 'app' : 'add-on'}</span>
+              <span class="muted">${step.resource.kind === 'app' ? t('tagDialog.app') : t('tagDialog.addon')}</span>
               ${step.resource.name}
             </li>`,
         )}
-        ${plan.length > MAX_PREVIEW ? html`<li class="muted">… et ${plan.length - MAX_PREVIEW} autres</li>` : nothing}
+        ${plan.length > MAX_PREVIEW ? html`<li class="muted">${t('tagDialog.more', { count: plan.length - MAX_PREVIEW })}</li>` : nothing}
       </ul>
       <div class="cli-block">
-        <span class="muted small">Équivalent API (pas de commande clever-tools pour les tags)</span>
+        <span class="muted small">${t('tagDialog.apiEquivalent')}</span>
         <code class="cli">${describeStep(plan[0], this.ownerId)}${plan.length > 1 ? `\n… × ${plan.length}` : ''}</code>
       </div>
     </div>`;

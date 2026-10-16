@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t } from '../../core/i18n.js';
+import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
@@ -9,7 +11,7 @@ import { sharedStyles } from '../shared/styles.js';
 
 /** The environment, values hidden until asked for. Changes go through the action dialog. */
 @customElement('cvc-app-env')
-export class CvcAppEnv extends LitElement {
+export class CvcAppEnv extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
@@ -59,7 +61,7 @@ export class CvcAppEnv extends LitElement {
         }
       }, 1500);
     } catch {
-      this.error = 'Impossible de copier dans le presse-papiers.';
+      this.error = t('env.clipboardError');
     }
   }
 
@@ -74,29 +76,31 @@ export class CvcAppEnv extends LitElement {
       <div class="row toolbar">
         <span class="cli">clever env --app ${this.appId}</span>
         <span class="grow"></span>
-        <button type="button" class="primary" @click=${() => openAction(this, 'env-set')}>Ajouter une variable</button>
-        <button type="button" @click=${() => openAction(this, 'env-import')}>Importer</button>
+        <button type="button" class="primary" @click=${() => openAction(this, 'env-set')}>${t('env.add')}</button>
+        <button type="button" @click=${() => openAction(this, 'env-import')}>${t('env.import')}</button>
         <button type="button" class="ghost" ?disabled=${env == null} @click=${() => (this.revealed = !this.revealed)}>
-          ${this.revealed ? 'Masquer les valeurs' : 'Afficher les valeurs'}
+          ${this.revealed ? t('env.hide') : t('env.show')}
         </button>
         <button type="button" class="ghost" ?disabled=${env == null} @click=${this.copyAll}>
-          ${this.copied === '*' ? 'Copié !' : 'Copier en .env'}
+          ${this.copied === '*' ? t('common.copied') : t('env.copyDotenv')}
         </button>
-        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>Rafraîchir</button>
+        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
+          ${t('common.refresh')}
+        </button>
       </div>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         env == null
-          ? html`<p class="empty">Chargement…</p>`
+          ? html`<p class="empty">${t('common.loading')}</p>`
           : html`
               ${this.renderTable(env.environment, 'app', true)}
               ${(env.linkedAddonsEnvironment ?? []).map(
                 (linked) =>
                   html`<details class="card">
                     <summary>
-                      Add-on lié : <strong>${linked.addonName}</strong>
+                      ${t('env.linkedAddon')} <strong>${linked.addonName}</strong>
                       <span class="muted small"
-                        >${linked.addonProviderId} · ${linked.environment.length} variables</span
+                        >${linked.addonProviderId} · ${t('env.variables', { count: linked.environment.length })}</span
                       >
                     </summary>
                     ${this.renderTable(linked.environment, linked.addonId, false)}
@@ -106,8 +110,8 @@ export class CvcAppEnv extends LitElement {
                 (linked) =>
                   html`<details class="card">
                     <summary>
-                      Application liée : <strong>${linked.applicationName}</strong>
-                      <span class="muted small">${linked.environment.length} variables</span>
+                      ${t('env.linkedApp')} <strong>${linked.applicationName}</strong>
+                      <span class="muted small">${t('env.variables', { count: linked.environment.length })}</span>
                     </summary>
                     ${this.renderTable(linked.environment, linked.applicationId, false)}
                   </details>`,
@@ -119,14 +123,14 @@ export class CvcAppEnv extends LitElement {
 
   private renderTable(variables: EnvironmentVariable[], scope: string, editable: boolean) {
     if (variables.length === 0) {
-      return html`<p class="empty">Aucune variable.</p>`;
+      return html`<p class="empty">${t('env.none')}</p>`;
     }
     return html`<div class="card table">
       <table>
         <thead>
           <tr>
-            <th>Nom</th>
-            <th>Valeur</th>
+            <th>${t('env.name')}</th>
+            <th>${t('env.value')}</th>
             <th></th>
           </tr>
         </thead>
@@ -141,7 +145,7 @@ export class CvcAppEnv extends LitElement {
                 <td class="mono value">${this.revealed ? variable.value : mask(variable.value)}</td>
                 <td class="actions">
                   <button type="button" class="ghost small" @click=${() => this.copy(variable.value, key)}>
-                    ${this.copied === key ? 'Copié !' : 'Copier'}
+                    ${this.copied === key ? t('common.copied') : t('common.copy')}
                   </button>
                   ${
                     editable
@@ -150,14 +154,14 @@ export class CvcAppEnv extends LitElement {
                             class="ghost small"
                             @click=${() => openAction(this, 'env-set', { name: variable.name, value: variable.value })}
                           >
-                            Modifier
+                            ${t('common.edit')}
                           </button>
                           <button
                             type="button"
                             class="ghost small danger"
                             @click=${() => openAction(this, 'env-rm', { name: variable.name })}
                           >
-                            Supprimer
+                            ${t('common.remove')}
                           </button>`
                       : nothing
                   }

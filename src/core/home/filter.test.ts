@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { isEmptyFilter, matchesFilter, parseFilter, toggleToken, type FilterItem } from './filter.js';
+import { setLocale } from '../i18n.js';
+
+beforeAll(() => setLocale('fr', false));
 
 const api: FilterItem = {
   kind: 'app',

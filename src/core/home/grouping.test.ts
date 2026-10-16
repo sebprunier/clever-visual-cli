@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import {
   buildTree,
-  defaultGrouping,
   groupingSuggestions,
   linkedAddons,
   parseGrouping,
@@ -10,6 +9,9 @@ import {
   type GroupNode,
   type GroupingContext,
 } from './grouping.js';
+import { setLocale } from '../i18n.js';
+
+beforeAll(() => setLocale('fr', false));
 
 function app(
   id: string,
@@ -105,8 +107,6 @@ describe('home grouping', () => {
       'provider',
       'state',
     ]);
-    expect(defaultGrouping(apps)).toBe('project');
-    expect(defaultGrouping([app('x', 'x')])).toBe('type');
   });
 
   it('puts everything in one level-0 node without grouping', () => {

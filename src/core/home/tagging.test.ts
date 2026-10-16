@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   describeStep,
   invertSteps,
@@ -9,6 +9,9 @@ import {
   type TagResource,
   type TagStep,
 } from './tagging.js';
+import { setLocale } from '../i18n.js';
+
+beforeAll(() => setLocale('fr', false));
 
 const web: TagResource = { id: 'app_1', kind: 'app', name: 'web', tags: ['env:prod', 'project:shop:prod'] };
 const db: TagResource = { id: 'addon_1', kind: 'addon', name: 'db', tags: ['env:qa'] };

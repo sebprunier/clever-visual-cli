@@ -1,3 +1,4 @@
+import { t } from '../i18n.js';
 import type { Credentials } from '../credentials.js';
 import {
   decryptJson,
@@ -107,7 +108,7 @@ export class Vault extends EventTarget {
 
   async unlock(passphrase: string): Promise<void> {
     if (this.#blob == null) {
-      throw new Error('Aucun coffre à déverrouiller.');
+      throw new Error(t('vault.none'));
     }
     const derived = await deriveKey(passphrase, fromBase64(this.#blob.salt), this.#blob.iterations);
     this.#data = await decryptJson<VaultData>(derived.key, this.#blob);
@@ -170,7 +171,7 @@ export class Vault extends EventTarget {
   async setActiveProfile(profileId: string): Promise<void> {
     this.#assertUnlocked();
     if (!this.#data.profiles.some((p) => p.id === profileId)) {
-      throw new Error('Profil inconnu.');
+      throw new Error(t('vault.unknownProfile'));
     }
     this.#data = { ...this.#data, activeProfileId: profileId };
     await this.#persist();
@@ -192,7 +193,7 @@ export class Vault extends EventTarget {
   async #persist(): Promise<void> {
     if (this.#mode === 'encrypted') {
       if (this.#derived == null) {
-        throw new Error('Coffre verrouillé.');
+        throw new Error(t('vault.locked'));
       }
       this.#blob = await encryptJson(this.#derived, this.#data);
       writeString(localStorage, LOCAL_KEY, JSON.stringify(this.#blob));
@@ -204,7 +205,7 @@ export class Vault extends EventTarget {
 
   #assertUnlocked(): void {
     if (this.#state !== 'unlocked') {
-      throw new Error('Coffre verrouillé.');
+      throw new Error(t('vault.locked'));
     }
   }
 

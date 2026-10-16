@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t, type MessageKey } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
@@ -14,17 +16,17 @@ import { openAction } from './shared/events.js';
 import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
-export const APP_TAB_LABELS: Record<AppTab, { label: string; cli: string }> = {
-  overview: { label: "Vue d'ensemble", cli: 'clever status' },
-  instances: { label: 'Instances', cli: 'clever instances' },
-  deployments: { label: 'Déploiements', cli: 'clever activity' },
-  env: { label: 'Variables', cli: 'clever env' },
-  logs: { label: 'Logs', cli: 'clever logs' },
+export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> = {
+  overview: { label: 'tab.overview', cli: 'clever status' },
+  instances: { label: 'tab.instances', cli: 'clever instances' },
+  deployments: { label: 'tab.deployments', cli: 'clever activity' },
+  env: { label: 'tab.env', cli: 'clever env' },
+  logs: { label: 'tab.logs', cli: 'clever logs' },
 };
 
 /** One application: header with the main actions, tabs, and the active tab's view. */
 @customElement('cvc-app-page')
-export class CvcAppPage extends LitElement {
+export class CvcAppPage extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
@@ -81,18 +83,20 @@ export class CvcAppPage extends LitElement {
           ${status ? html`<span class="badge ${status.tone}">${status.label}</span>` : nothing}
           <span class="muted small">${variant ?? ''}${this.app ? ` · ${this.app.zone}` : ''}</span>
           <span class="grow"></span>
-          <button type="button" @click=${() => openAction(this, 'restart')}>Redémarrer</button>
-          ${canStop ? html`<button type="button" class="ghost" @click=${() => openAction(this, 'stop')}>Arrêter</button>` : nothing}
-          <a class="small" href="${CONSOLE_URL}/goto/${this.appId}" target="_blank" rel="noopener">Console ↗</a>
+          <button type="button" @click=${() => openAction(this, 'restart')}>${t('app.restart')}</button>
+          ${canStop ? html`<button type="button" class="ghost" @click=${() => openAction(this, 'stop')}>${t('app.stop')}</button>` : nothing}
+          <a class="small" href="${CONSOLE_URL}/goto/${this.appId}" target="_blank" rel="noopener"
+            >${t('common.console')}</a
+          >
         </div>
-        <nav class="tabs" aria-label="Sections de l'application">
+        <nav class="tabs" aria-label=${t('app.sectionsAria')}>
           ${(Object.keys(APP_TAB_LABELS) as AppTab[]).map(
             (tab) =>
               html`<a
                 class=${tab === this.tab ? 'active' : ''}
                 aria-current=${tab === this.tab ? 'page' : 'false'}
                 href=${routeToHash({ kind: 'app', ownerId: this.ownerId, appId: this.appId, tab })}
-                >${APP_TAB_LABELS[tab].label}</a
+                >${t(APP_TAB_LABELS[tab].label)}</a
               >`,
           )}
         </nav>
@@ -106,7 +110,7 @@ export class CvcAppPage extends LitElement {
     switch (this.tab) {
       case 'overview':
         return this.app == null
-          ? html`<p class="empty">Chargement…</p>`
+          ? html`<p class="empty">${t('common.loading')}</p>`
           : html`<cvc-app-overview .app=${this.app}></cvc-app-overview>`;
       case 'instances':
         return html`<cvc-app-instances

@@ -1,4 +1,6 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { t } from '../../core/i18n.js';
+import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property } from 'lit/decorators.js';
 import { CONSOLE_URL } from '../../core/constants.js';
 import type { Application } from '../../data/api.js';
@@ -8,7 +10,7 @@ import { sharedStyles } from '../shared/styles.js';
 
 /** Static facts about an application, the `clever status` and `clever config` view in one screen. */
 @customElement('cvc-app-overview')
-export class CvcAppOverview extends LitElement {
+export class CvcAppOverview extends CvcElement {
   @property({ attribute: false }) app!: Application;
 
   override render() {
@@ -26,38 +28,43 @@ export class CvcAppOverview extends LitElement {
     return html`
       <div class="grid">
         <section class="card">
-          <h3>Runtime</h3>
+          <h3>${t('overview.runtime')}</h3>
           <dl>
-            <dt>Type</dt>
+            <dt>${t('overview.type')}</dt>
             <dd>${instance.variant.name} <span class="muted">(${instance.type} ${instance.version})</span></dd>
-            <dt>Zone</dt>
+            <dt>${t('overview.zone')}</dt>
             <dd>${app.zone}</dd>
-            <dt>Cycle de vie</dt>
-            <dd>${instance.lifetime === 'TASK' ? 'tâche ponctuelle' : instance.lifetime.toLowerCase()}</dd>
-            <dt>Créée</dt>
+            <dt>${t('overview.lifetime')}</dt>
+            <dd>${instance.lifetime === 'TASK' ? t('overview.task') : instance.lifetime.toLowerCase()}</dd>
+            <dt>${t('overview.created')}</dt>
             <dd title=${formatDateTime(app.createdAt)}>${formatRelative(app.createdAt)}</dd>
           </dl>
         </section>
 
         <section class="card">
           <h3>
-            Scaling
+            ${t('overview.scaling')}
             <span class="row">
               <span class="cli">clever scale</span>
-              <button type="button" class="ghost small" @click=${() => openAction(this, 'scale')}>Modifier</button>
+              <button type="button" class="ghost small" @click=${() => openAction(this, 'scale')}>
+                ${t('common.edit')}
+              </button>
             </span>
           </h3>
           <dl>
-            <dt>Instances</dt>
-            <dd>${instanceRange} <span class="muted">(max autorisé : ${instance.maxAllowedInstances})</span></dd>
-            <dt>Taille</dt>
+            <dt>${t('overview.instances')}</dt>
+            <dd>
+              ${instanceRange}
+              <span class="muted">${t('overview.maxAllowed', { max: instance.maxAllowedInstances })}</span>
+            </dd>
+            <dt>${t('overview.size')}</dt>
             <dd>
               ${flavorRange}
               <span class="muted">· ${instance.minFlavor.cpus} CPU, ${instance.minFlavor.memory.formatted}</span>
             </dd>
             ${
               app.buildFlavor
-                ? html`<dt>Build dédié</dt>
+                ? html`<dt>${t('overview.dedicatedBuild')}</dt>
                     <dd>${app.buildFlavor.name}</dd>`
                 : nothing
             }
@@ -65,34 +72,36 @@ export class CvcAppOverview extends LitElement {
         </section>
 
         <section class="card">
-          <h3>Déploiement <span class="cli">clever status</span></h3>
+          <h3>${t('overview.deployment')} <span class="cli">clever status</span></h3>
           <dl>
-            <dt>Méthode</dt>
+            <dt>${t('overview.method')}</dt>
             <dd>${app.deployment.type.toLowerCase()}</dd>
-            <dt>Branche</dt>
+            <dt>${t('overview.branch')}</dt>
             <dd>${app.branch || html`<span class="muted">–</span>`}</dd>
-            <dt>Commit</dt>
-            <dd class="mono">${shortCommit(app.commitId) || html`<span class="muted">aucun</span>`}</dd>
-            <dt>Déploiements</dt>
+            <dt>${t('overview.commit')}</dt>
+            <dd class="mono">${shortCommit(app.commitId) || html`<span class="muted">${t('common.none')}</span>`}</dd>
+            <dt>${t('overview.deployments')}</dt>
             <dd>
-              ${app.lastDeployedAt > 0 ? `${app.lastDeployedAt} au total` : html`<span class="muted">aucun</span>`}
+              ${app.lastDeployedAt > 0 ? t('overview.total', { count: app.lastDeployedAt }) : html`<span class="muted">${t('common.none')}</span>`}
             </dd>
-            <dt>Remote</dt>
+            <dt>${t('overview.remote')}</dt>
             <dd class="mono small wrap">${app.deployment.httpUrl ?? app.deployment.url}</dd>
           </dl>
         </section>
 
         <section class="card">
           <h3>
-            Domaines
+            ${t('overview.domains')}
             <span class="row">
               <span class="cli">clever domain</span>
-              <button type="button" class="ghost small" @click=${() => openAction(this, 'domain-add')}>Ajouter</button>
+              <button type="button" class="ghost small" @click=${() => openAction(this, 'domain-add')}>
+                ${t('common.add')}
+              </button>
             </span>
           </h3>
           ${
             app.domains.length === 0
-              ? html`<p class="muted">Aucun domaine.</p>`
+              ? html`<p class="muted">${t('overview.noDomain')}</p>`
               : html`<ul class="plain domains">
                   ${app.domains.map(
                     (domain) =>
@@ -100,13 +109,13 @@ export class CvcAppOverview extends LitElement {
                         <a href="https://${domain.domain}" target="_blank" rel="noopener">${domain.domain}</a>
                         ${
                           domain.isPrimary
-                            ? html`<span class="badge info">principal</span>`
+                            ? html`<span class="badge info">${t('overview.primary')}</span>`
                             : html`<button
                                 type="button"
                                 class="link small"
                                 @click=${() => openAction(this, 'domain-primary', { domain: domain.domain })}
                               >
-                                principal
+                                ${t('overview.primary')}
                               </button>`
                         }
                         <button
@@ -114,7 +123,7 @@ export class CvcAppOverview extends LitElement {
                           class="link small danger"
                           @click=${() => openAction(this, 'domain-rm', { domain: domain.domain })}
                         >
-                          supprimer
+                          ${t('overview.removeDomain')}
                         </button>
                       </li>`,
                   )}
@@ -123,25 +132,26 @@ export class CvcAppOverview extends LitElement {
         </section>
 
         <section class="card">
-          <h3>Options <span class="cli">clever config</span></h3>
+          <h3>${t('overview.options')} <span class="cli">clever config</span></h3>
           <ul class="plain">
-            ${option('Sessions persistantes', app.hasStickySessions)}
-            ${option('Déploiement sans interruption', app.isZeroDowntimeDeploymentEnabled)}
-            ${option('HTTPS forcé', app.shouldForceHttps)} ${option('Build séparé', app.hasSeparatedBuild)}
-            ${option('Annuler le déploiement en cours au push', app.cancelOnPush)}
+            ${option(t('overview.stickySessions'), app.hasStickySessions)}
+            ${option(t('overview.zeroDowntime'), app.isZeroDowntimeDeploymentEnabled)}
+            ${option(t('overview.forceHttps'), app.shouldForceHttps)}
+            ${option(t('overview.separateBuild'), app.hasSeparatedBuild)}
+            ${option(t('overview.cancelOnPush'), app.cancelOnPush)}
           </ul>
         </section>
 
         <section class="card">
-          <h3>Identifiants</h3>
+          <h3>${t('overview.identifiers')}</h3>
           <dl>
-            <dt>Application</dt>
+            <dt>${t('overview.application')}</dt>
             <dd class="mono small">${app.id}</dd>
-            <dt>Propriétaire</dt>
+            <dt>${t('overview.owner')}</dt>
             <dd class="mono small">${app.ownerId}</dd>
           </dl>
           <p class="small">
-            <a href="${CONSOLE_URL}/goto/${app.id}" target="_blank" rel="noopener">Ouvrir dans la Console</a>
+            <a href="${CONSOLE_URL}/goto/${app.id}" target="_blank" rel="noopener">${t('common.openInConsole')}</a>
           </p>
         </section>
       </div>

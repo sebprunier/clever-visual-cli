@@ -1,4 +1,6 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { t } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import type { Vault } from '../core/vault/vault.js';
@@ -6,7 +8,7 @@ import { sharedStyles } from './shared/styles.js';
 
 /** Passphrase prompt shown when an encrypted vault exists but the tab holds no key. */
 @customElement('cvc-unlock')
-export class CvcUnlock extends LitElement {
+export class CvcUnlock extends CvcElement {
   @property({ attribute: false }) vault!: Vault;
 
   @state() private busy = false;
@@ -41,31 +43,33 @@ export class CvcUnlock extends LitElement {
   override render() {
     return html`
       <main class="stack">
-        <h1>Coffre verrouillé</h1>
-        <p class="muted">Vos accès Clever Cloud sont chiffrés dans ce navigateur. Entrez votre phrase de passe.</p>
+        <h1>${t('unlock.title')}</h1>
+        <p class="muted">${t('unlock.text')}</p>
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
         <form class="row" @submit=${this.onSubmit}>
           <input
             name="passphrase"
             type="password"
             autocomplete="current-password"
-            placeholder="Phrase de passe"
+            placeholder=${t('login.save.passphrase')}
             autofocus
             required
           />
           <button type="submit" class="primary" ?disabled=${this.busy}>
-            ${this.busy ? 'Déverrouillage…' : 'Déverrouiller'}
+            ${this.busy ? t('unlock.busy') : t('unlock.button')}
           </button>
         </form>
         <p class="small muted">
           ${
             this.confirmForget
-              ? html`Le coffre sera effacé de ce navigateur. Vos tokens restent valides côté Clever Cloud.
-                  <button type="button" class="link" @click=${this.forget}>Confirmer</button>
-                  <button type="button" class="link" @click=${() => (this.confirmForget = false)}>Annuler</button>`
-              : html`Phrase perdue ?
+              ? html`${t('unlock.forgetWarning')}
+                  <button type="button" class="link" @click=${this.forget}>${t('common.confirm')}</button>
+                  <button type="button" class="link" @click=${() => (this.confirmForget = false)}>
+                    ${t('common.cancel')}
+                  </button>`
+              : html`${t('unlock.lost')}
                   <button type="button" class="link" @click=${() => (this.confirmForget = true)}>
-                    Oublier ce coffre
+                    ${t('unlock.forget')}
                   </button>`
           }
         </p>

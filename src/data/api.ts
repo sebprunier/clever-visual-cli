@@ -41,6 +41,7 @@ import { CreateTagCommand } from '@clevercloud/client/cc-api-commands/tag/create
 import { DeleteTagCommand } from '@clevercloud/client/cc-api-commands/tag/delete-tag-command.js';
 import type { Profile } from '@clevercloud/client/cc-api-commands/profile/profile.types.js';
 import { ERROR_TYPES, parseRaw } from '@clevercloud/client/utils/environment-utils.js';
+import { t } from '../core/i18n.js';
 import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
 
 export type {
@@ -268,7 +269,7 @@ export function removeTag(client: CcApiClient, target: TagTarget, tag: string): 
 
 // --- helpers ---------------------------------------------------------------
 
-/** Parses `NAME=value` lines the way clever-tools and the Console do, with French error messages. */
+/** Parses `NAME=value` lines the way clever-tools and the Console do, with translated error messages. */
 export function parseEnvFile(raw: string): { variables: EnvironmentVariable[]; errors: string[] } {
   const { variables, errors } = parseRaw(raw, { mode: 'simple' });
   return {
@@ -278,19 +279,19 @@ export function parseEnvFile(raw: string): { variables: EnvironmentVariable[]; e
 }
 
 function describeParsingError(error: EnvVarParsingError): string {
-  const where = error.pos != null ? `ligne ${error.pos.line}` : 'contenu';
+  const where = error.pos != null ? t('env.parse.line', { line: error.pos.line }) : t('env.parse.content');
   const name = error.name != null ? ` (${error.name})` : '';
   switch (error.type) {
     case ERROR_TYPES.INVALID_NAME:
     case ERROR_TYPES.INVALID_NAME_STRICT:
-      return `${where} : nom de variable invalide${name}`;
+      return t('env.parse.invalidName', { where, name });
     case ERROR_TYPES.DUPLICATED_NAME:
-      return `${where} : variable en double${name}`;
+      return t('env.parse.duplicate', { where, name });
     case ERROR_TYPES.INVALID_LINE:
-      return `${where} : ligne invalide, attendu NOM=valeur`;
+      return t('env.parse.invalidLine', { where });
     case ERROR_TYPES.INVALID_VALUE:
-      return `${where} : valeur invalide${name}`;
+      return t('env.parse.invalidValue', { where, name });
     default:
-      return `${where} : erreur de syntaxe${name}`;
+      return t('env.parse.syntax', { where, name });
   }
 }

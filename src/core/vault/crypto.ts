@@ -1,3 +1,4 @@
+import { t } from '../i18n.js';
 /**
  * Encryption at rest for the credential vault, WebCrypto only.
  *
@@ -76,7 +77,7 @@ export async function decryptJson<T>(key: CryptoKey, blob: EncryptedBlob): Promi
 
 export class WrongKeyError extends Error {
   constructor() {
-    super('Phrase de passe incorrecte.');
+    super(t('vault.wrongPassphrase'));
     this.name = 'WrongKeyError';
   }
 }

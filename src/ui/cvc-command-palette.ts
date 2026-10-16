@@ -1,4 +1,6 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { css, html, nothing } from 'lit';
+import { t } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { filterCommands, type PaletteCommand } from '../core/palette.js';
@@ -9,7 +11,7 @@ import { sharedStyles } from './shared/styles.js';
  * this component only filters, navigates with the keyboard and runs.
  */
 @customElement('cvc-command-palette')
-export class CvcCommandPalette extends LitElement {
+export class CvcCommandPalette extends CvcElement {
   @property({ attribute: false }) commands: readonly PaletteCommand[] = [];
 
   @state() private opened = false;
@@ -97,22 +99,25 @@ export class CvcCommandPalette extends LitElement {
     let lastGroup: string | null = null;
     return html`
       <div class="backdrop" @click=${this.close}></div>
-      <div class="dialog" role="dialog" aria-label="Palette de commandes" @keydown=${this.onKeyDown}>
+      <div class="dialog" role="dialog" aria-label=${t('palette.aria')} @keydown=${this.onKeyDown}>
         <input
           type="search"
-          placeholder="Application, organisation, page, action…"
-          aria-label="Rechercher une commande"
+          placeholder=${t('palette.placeholder')}
+          aria-label=${t('palette.searchAria')}
           autocomplete="off"
           .value=${this.query}
           @input=${this.onInput}
         />
         <ul role="listbox">
-          ${results.length === 0 ? html`<li class="empty">Aucun résultat</li>` : nothing}
+          ${results.length === 0 ? html`<li class="empty">${t('palette.noResult')}</li>` : nothing}
           ${repeat(
             results,
             (command) => command.id,
             (command, index) => {
-              const header = command.group !== lastGroup ? html`<li class="group">${command.group}</li>` : nothing;
+              const header =
+                command.group !== lastGroup
+                  ? html`<li class="group">${t(`palette.group.${command.group}`)}</li>`
+                  : nothing;
               lastGroup = command.group;
               return html`${header}
                 <li

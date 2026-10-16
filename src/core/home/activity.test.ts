@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { ApplicationSummary, Deployment } from '../../data/api.js';
 import { describeOrigin, indexActivity, watchList } from './activity.js';
+import { setLocale } from '../i18n.js';
+
+beforeAll(() => setLocale('fr', false));
 
 function deployment(partial: Partial<Deployment> & { applicationId: string; date: string }): Deployment {
   return {

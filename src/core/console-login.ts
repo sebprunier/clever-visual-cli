@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 import { API_HOST, CLI_VERSION, CONSOLE_URL } from './constants.js';
 import type { Credentials } from './credentials.js';
 
@@ -39,7 +40,7 @@ export function loginViaConsole(options: ConsoleLoginOptions = {}): Promise<Cred
 
   const popup = window.open(consoleUrl.toString(), 'cvc-console-login', 'popup,width=640,height=760');
   if (popup == null) {
-    return Promise.reject(new Error('Le navigateur a bloqué la fenêtre de connexion à la Console.'));
+    return Promise.reject(new Error(t('consoleLogin.blocked')));
   }
 
   return pollCliToken(pollUrl, popup, options);
@@ -54,7 +55,7 @@ async function pollCliToken(
     for (let tryCount = 0; tryCount < POLLING_MAX_TRIES; tryCount += 1) {
       signal?.throwIfAborted();
       if (tryCount > 0 && tryCount % 10 === 0) {
-        onStatus?.('En attente de la fin de la connexion dans la fenêtre de la Console…');
+        onStatus?.(t('consoleLogin.waiting'));
       }
 
       const response = await fetch(pollUrl, { signal });
@@ -63,16 +64,16 @@ async function pollCliToken(
         continue;
       }
       if (!response.ok) {
-        throw new Error(`Réponse inattendue de l'API pendant la connexion (HTTP ${response.status}).`);
+        throw new Error(t('consoleLogin.unexpectedStatus', { status: response.status }));
       }
 
       const data = (await response.json()) as CliTokenResponse;
       if (typeof data.token !== 'string' || typeof data.secret !== 'string') {
-        throw new Error("Réponse inattendue de l'API : token ou secret absent.");
+        throw new Error(t('consoleLogin.missingToken'));
       }
       return { type: 'oauth-v1', token: data.token, secret: data.secret, expirationDate: data.expirationDate };
     }
-    throw new Error("La connexion via la Console n'a pas abouti dans le temps imparti.");
+    throw new Error(t('consoleLogin.timeout'));
   } finally {
     if (!popup.closed) {
       popup.close();

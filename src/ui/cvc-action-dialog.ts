@@ -1,4 +1,6 @@
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t } from '../core/i18n.js';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
   ActionContext,
@@ -16,7 +18,7 @@ import { sharedStyles } from './shared/styles.js';
  * `clever` command rendered live from the current values.
  */
 @customElement('cvc-action-dialog')
-export class CvcActionDialog extends LitElement {
+export class CvcActionDialog extends CvcElement {
   @property({ attribute: false }) action!: ActionDefinition;
   @property({ attribute: false }) context!: ActionContext;
   @property({ attribute: false }) prefill: ActionValues = {};
@@ -65,22 +67,22 @@ export class CvcActionDialog extends LitElement {
       const value = this.values[field.name];
       const text = value == null ? '' : String(value).trim();
       if (field.required && text === '') {
-        return `Le champ « ${field.label} » est obligatoire.`;
+        return t('dialog.required', { field: field.label });
       }
       if (field.type === 'number' && text !== '') {
         const parsed = Number(text);
         if (!Number.isInteger(parsed)) {
-          return `« ${field.label} » doit être un entier.`;
+          return t('dialog.integer', { field: field.label });
         }
         if (field.min != null && parsed < field.min) {
-          return `« ${field.label} » doit être au moins ${field.min}.`;
+          return t('dialog.min', { field: field.label, min: field.min });
         }
         if (field.max != null && parsed > field.max) {
-          return `« ${field.label} » doit être au plus ${field.max}.`;
+          return t('dialog.max', { field: field.label, max: field.max });
         }
       }
       if (field.pattern != null && text !== '' && !field.pattern.test(text)) {
-        return `« ${field.label} » : ${field.patternHelp ?? 'format invalide'}.`;
+        return t('dialog.pattern', { field: field.label, help: field.patternHelp ?? t('dialog.invalidFormat') });
       }
     }
     return null;
@@ -113,28 +115,31 @@ export class CvcActionDialog extends LitElement {
       <div class="backdrop" @click=${this.close}></div>
       <form class="dialog" role="dialog" aria-labelledby="title" @submit=${this.submit} @keydown=${this.onKeyDown}>
         <header>
-          <h2 id="title">${action.title}</h2>
-          ${action.description ? html`<p class="muted small">${action.description}</p>` : nothing}
+          <h2 id="title">${t(action.title)}</h2>
+          ${action.description ? html`<p class="muted small">${t(action.description)}</p>` : nothing}
         </header>
 
         ${
           this.fields.length === 0 && action.danger
-            ? html`<p>Confirmer l'action sur <strong>${this.context.app?.name ?? this.context.appId}</strong> ?</p>`
+            ? html`<p>
+                ${t('dialog.confirmBefore')}
+                <strong>${this.context.app?.name ?? this.context.appId}</strong>${t('dialog.confirmAfter')}
+              </p>`
             : nothing
         }
         ${this.fields.map((field) => this.renderField(field))}
 
         <div class="cli-block">
-          <span class="muted small">Équivalent clever-tools</span>
+          <span class="muted small">${t('common.cliEquivalent')}</span>
           <code class="cli">${action.cli(this.context, this.values)}</code>
         </div>
 
         ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
 
         <footer class="row">
-          <button type="button" class="ghost" @click=${this.close} ?disabled=${this.busy}>Annuler</button>
+          <button type="button" class="ghost" @click=${this.close} ?disabled=${this.busy}>${t('common.cancel')}</button>
           <button type="submit" class=${action.danger ? 'danger' : 'primary'} ?disabled=${this.busy}>
-            ${this.busy ? 'En cours…' : (action.submitLabel ?? 'Exécuter')}
+            ${this.busy ? t('common.busy') : t(action.submitLabel ?? 'dialog.run')}
           </button>
         </footer>
       </form>

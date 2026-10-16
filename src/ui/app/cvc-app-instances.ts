@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t } from '../../core/i18n.js';
+import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
@@ -8,7 +10,7 @@ import { formatDateTime, formatRelative, INSTANCE_STATE_LABELS, shortId, stateLa
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-instances')
-export class CvcAppInstances extends LitElement {
+export class CvcAppInstances extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
@@ -49,23 +51,25 @@ export class CvcAppInstances extends LitElement {
     return html`
       <div class="row toolbar">
         <span class="cli">clever instances --app ${this.appId}</span>
-        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>Rafraîchir</button>
+        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
+          ${t('common.refresh')}
+        </button>
       </div>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         this.instances == null
-          ? html`<p class="empty">Chargement…</p>`
+          ? html`<p class="empty">${t('common.loading')}</p>`
           : this.instances.length === 0
-            ? html`<p class="empty">Aucune instance en vie.</p>`
+            ? html`<p class="empty">${t('instances.none')}</p>`
             : html`<div class="card table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Instance</th>
-                      <th>État</th>
-                      <th>Taille</th>
-                      <th>Démarrée</th>
-                      <th>Déploiement</th>
+                      <th>${t('instances.instance')}</th>
+                      <th>${t('common.state')}</th>
+                      <th>${t('instances.size')}</th>
+                      <th>${t('instances.started')}</th>
+                      <th>${t('instances.deployment')}</th>
                     </tr>
                   </thead>
                   <tbody>

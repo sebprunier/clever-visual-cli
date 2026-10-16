@@ -1,99 +1,103 @@
 # clever-visual-cli
 
-Une console Clever Cloud alternative, 100 % front, sans backend.
+An alternative Clever Cloud console, 100 % front-end, no backend.
 
-L'idée : garder le vocabulaire et la logique du CLI officiel ([clever-tools](https://github.com/CleverCloud/clever-tools)), mais dans une interface web pensée pour l'usage quotidien, avec une command palette au centre. Chaque écran affiche la commande `clever` équivalente.
+The idea: keep the vocabulary and the logic of the official CLI ([clever-tools](https://github.com/CleverCloud/clever-tools)), but in a web interface designed for daily use, with a command palette at its centre. Every screen shows the equivalent `clever` command.
 
-> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions, accueil repensé (filtres et regroupements par expression, tags en masse)**.
+> Community project, not affiliated with Clever Cloud. Status: **phase 2, reads and actions, reworked home page (filter and grouping expressions, bulk tags), English and French interface**.
 
-## Pourquoi pas le CLI lui-même ?
+## Why not the CLI itself?
 
-Les commandes de clever-tools sont liées à Node (parsing d'arguments, système de fichiers, git, prompts). En revanche, toute la logique API vit dans [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), la bibliothèque sur laquelle le CLI et la Console officielle sont construits. Elle tourne dans le navigateur et expose un client "command pattern" qui gère nativement :
+The clever-tools commands are bound to Node (argument parsing, file system, git, prompts). All the API logic, however, lives in [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library both the CLI and the official Console are built on. It runs in the browser and exposes a "command pattern" client that natively handles:
 
-- l'auth par **token API** (Bearer, via `api-bridge.clever-cloud.com`),
-- l'auth **OAuth v1** (le couple token/secret que `clever login` stocke),
-- les streams de logs en Server-Sent Events avec reconnexion,
-- un cache des identifiants de ressources en `localStorage`.
+- **API token** authentication (Bearer, through `api-bridge.clever-cloud.com`),
+- **OAuth v1** authentication (the token/secret pair `clever login` stores),
+- log streams over Server-Sent Events with reconnection,
+- a resource id cache in `localStorage`.
 
-Les API de Clever Cloud renvoient des en-têtes CORS pour n'importe quelle origine, donc une page statique peut leur parler directement.
+The Clever Cloud APIs send CORS headers for any origin, so a static page can talk to them directly.
 
-Piège rencontré : le client envoie ses `fetch` en `mode: 'same-origin'` par défaut, ce qu'un navigateur refuse pour une URL cross-origin. Il faut passer `defaultRequestConfig: { isCorsEnabled: true }` à `CcApiClient` (voir `src/core/clever-client.ts`).
+Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin'` by default, which a browser refuses for a cross-origin URL. `CcApiClient` needs `defaultRequestConfig: { isCorsEnabled: true }` (see `src/core/clever-client.ts`).
 
-## Décisions
+## Decisions
 
-| Sujet   | Choix                                                                           |
-| ------- | ------------------------------------------------------------------------------- |
-| Stack   | Vite, TypeScript, Lit                                                           |
-| UI      | 100 % maison, pas de réutilisation des composants de la Console                 |
-| Backend | Aucun. Site statique, routage par `#` pour tourner sur n'importe quel hébergeur |
-| Licence | À choisir avant la première publication                                         |
+| Topic    | Choice                                                                |
+| -------- | --------------------------------------------------------------------- |
+| Stack    | Vite, TypeScript, Lit                                                 |
+| UI       | Entirely home-made, no reuse of the Console components                |
+| Backend  | None. Static site, `#` routing so it runs on any host                 |
+| Language | English and French, picked from the browser, switchable from the menu |
+| Licence  | Apache-2.0                                                            |
 
-## Ce que fait l'application aujourd'hui
+## What the application does today
 
-- Connexion par token API, via la Console (le parcours `clever login` dans une popup) ou avec un couple token/secret OAuth.
-- Plusieurs comptes, stockés chiffrés dans le navigateur ou seulement pour l'onglet.
-- Command palette (`⌘K` / `Ctrl+K`) : applications de toutes les organisations, organisations, onglets de la page courante, actions de session.
-- Accueil d’une organisation : liste dense des applications et add-ons, bandeau « À surveiller » (déploiements échoués ou en cours), applications ouvertes récemment, dernier déploiement de chaque application en distinguant l’activité humaine de la maintenance plateforme.
-  - **Filtrer** par expression : texte libre, `is:app`, `is:addon`, `is:node`, `is:postgresql` (les slugs de la Console), `has:project`, n’importe quel tag `clé:valeur` (`project:nom`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combinés avec `AND` (implicite), `OR`, `NOT` ou `-`, des parenthèses et des guillemets.
-  - **Regrouper par** expression : une clé de tag (`project`, `env`…) ou `type`, `runtime`, `provider`, `state`, jusqu’à trois niveaux (`project > env(prod,dev)`, l’ordre entre parenthèses est optionnel). Un add-on sans tag hérite de ceux de ses applications liées (« déduit »). Filtre et regroupement sont dans l’URL, donc une vue se met en favori.
-  - **Tags en masse** : cases à cocher (maj+clic pour une plage, « tout sélectionner » sur le résultat filtré), puis ajouter, retirer ou renommer un tag sur la sélection, avec l’aperçu exact des appels API avant d’appliquer, une progression, et « Annuler » dans la notification qui rejoue l’inverse. Clever Cloud n’impose aucune convention de tag ; `project:<nom>:<env>` et `env:<env>` sont celles de l’auteur.
-- Page application : vue d'ensemble, instances, déploiements, variables d'environnement (valeurs masquées, copie, export `.env`), logs en direct avec filtre, pause et fenêtre de rejeu.
-- Actions, depuis la palette ou les boutons de la page : redémarrer, arrêter, annuler un déploiement, scaler, définir, supprimer ou importer des variables, ajouter, supprimer ou choisir le domaine principal. Chaque dialogue affiche en direct la commande `clever` équivalente.
+- Sign in with an API token, through the Console (the `clever login` flow in a popup) or with an OAuth token/secret pair.
+- Several accounts, stored encrypted in the browser or for the tab only.
+- Command palette (`⌘K` / `Ctrl+K`): applications of every organisation, organisations, tabs of the current page, session actions, language.
+- Organisation home: a dense list of applications and add-ons, a "To watch" strip (failed or running deployments), recently opened applications, the last deployment of each application with human activity told apart from platform maintenance.
+  - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `has:project`, any `key:value` tag (`project:name`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes.
+  - **Group by** expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels (`project > env(prod,dev)`, the order in parentheses is optional). An add-on without a tag inherits those of its linked applications ("inferred"). Filter and grouping live in the URL, so a view can be bookmarked.
+  - **Bulk tags**: checkboxes (shift+click for a range, "select all" on the filtered result), then add, remove or rename a tag on the selection, with the exact list of API calls before applying, a progress counter, and "Undo" in the notification, which replays the inverse. Clever Cloud imposes no tag convention; `project:<name>:<env>` and `env:<env>` are the author's.
+- Application page: overview, instances, deployments, environment variables (hidden values, copy, `.env` export), live logs with filter, pause and replay window.
+- Actions, from the palette or the page buttons: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live.
+- Interface in English or French: the browser language by default, changeable from the account menu, the account page or the palette; the choice is remembered in the browser.
 
-## Lancer
+## Run
 
 ```sh
 pnpm install
 pnpm dev            # http://localhost:5173
-pnpm dev:cli        # idem, avec un bouton de connexion qui lit le profil clever-tools de la machine
-pnpm test           # tests unitaires (chiffrement, routeur, palette)
+pnpm dev:cli        # same, with a sign-in button that reads the machine's clever-tools profile
+pnpm test           # unit tests (crypto, router, palette, actions, home page logic, i18n)
 pnpm typecheck
-pnpm build          # site statique dans dist/
-pnpm spike:node     # vérification de @clevercloud/client côté Node, sans navigateur
+pnpm build          # static site in dist/
+pnpm spike:node     # checks @clevercloud/client from Node, without a browser
 ```
 
-`pnpm dev:cli` active un middleware Vite qui sert le premier profil de `~/.config/clever-cloud/clever-tools.json` sur `/__cvc/dev-profile`. C'est un confort de développement, jamais inclus dans le build, à n'activer que sur une machine de confiance.
+`pnpm dev:cli` enables a Vite middleware that serves the first profile of `~/.config/clever-cloud/clever-tools.json` on `/__cvc/dev-profile`. It is a development convenience, never part of the build, to enable on a trusted machine only.
 
-## Identifiants et sécurité
+## Credentials and security
 
-- **Coffre chiffré** : les tokens sont chiffrés en AES-256-GCM avec une clé dérivée d'une phrase de passe par PBKDF2-SHA256 (600 000 itérations), et stockés en `localStorage`. Pour ne pas redemander la phrase à chaque rechargement, la clé brute est gardée en `sessionStorage` tant que l'onglet est ouvert ; "Verrouiller" l'efface.
-- **Session seulement** : JSON en clair en `sessionStorage`, disparaît avec l'onglet.
-- **Données d’accueil, non sensibles** : les liens applications ↔ add-ons (`cvc.links.*`), les préférences d’affichage par organisation (`cvc.home.*`) et les applications ouvertes récemment (`cvc.recents`) restent en `localStorage` ; « Tout effacer de ce navigateur » les supprime aussi.
-- Modèle de menace : le fichier de configuration de clever-tools est en clair sur disque. Une SPA statique sans script tiers n'est pas plus exposée. Le risque réel est une XSS via du contenu affiché (logs, noms, variables), d'où Lit (échappement par défaut), jamais d'`innerHTML`, et une CSP stricte en production (à venir avec le déploiement).
-- La clé de consumer OAuth embarquée est celle de clever-tools, publique par conception (voir `src/core/constants.ts`).
-- Rien ne part ailleurs que vers `api.clever-cloud.com`, `api-bridge.clever-cloud.com` et `console.clever-cloud.com`.
+- **Encrypted vault**: tokens are encrypted with AES-256-GCM under a key derived from a passphrase with PBKDF2-SHA256 (600 000 iterations), and stored in `localStorage`. So that the passphrase is not asked on every reload, the raw key is kept in `sessionStorage` while the tab is open; "Lock" erases it.
+- **Session only**: plain JSON in `sessionStorage`, gone with the tab.
+- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`) and the language (`cvc.locale`) stay in `localStorage`; "Erase everything from this browser" removes them too.
+- Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production.
+- The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
+- Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com` and `console.clever-cloud.com`.
 
-## Déploiement
+## Deployment
 
-Le site est publié sur GitHub Pages à chaque push sur `main` par le workflow `.github/workflows/deploy.yml` (typecheck, tests, build, publication) : <https://sebprunier.github.io/clever-visual-cli/>.
+The site is published on GitHub Pages on every push to `main` by the `.github/workflows/deploy.yml` workflow (typecheck, tests, build, publish): <https://sebprunier.github.io/clever-visual-cli/>.
 
-- `CVC_BASE=/clever-visual-cli/` au build fixe le chemin de base ; sans cette variable le build vise la racine d'un hébergeur quelconque (Clever Cloud static, par exemple).
-- Le build de production injecte une Content Security Policy en balise `meta` : scripts et styles depuis le site uniquement, réseau limité aux API Clever Cloud, images depuis n'importe quelle origine https pour les logos.
-- À savoir : toutes les pages d'un même compte GitHub partagent l'origine `sebprunier.github.io`, donc le `localStorage` du coffre est visible par les autres projets publiés sous ce compte. Le coffre y est chiffré, mais un domaine personnalisé donne une origine isolée.
+- `CVC_BASE=/clever-visual-cli/` at build time sets the base path; without it the build targets the root of any host (Clever Cloud static hosting, for instance).
+- The production build injects a Content Security Policy as a `meta` tag: scripts and styles from the site only, network limited to the Clever Cloud APIs, images from any https origin for the logos.
+- Worth knowing: every page of a GitHub account shares the `sebprunier.github.io` origin, so the vault's `localStorage` is visible to the other projects published under that account. The vault is encrypted there, but a custom domain gives an isolated origin.
 
-## Ce qui ne marchera pas sans backend
+## What will not work without a backend
 
-- `clever deploy` (git push), `clever ssh`, accès direct aux bases.
-- Contournements : redéployer le dernier commit, apps liées à GitHub, afficher la commande CLI à lancer localement.
+- `clever deploy` (git push), `clever ssh`, direct database access.
+- Workarounds: redeploy the latest commit, applications linked to GitHub, show the CLI command to run locally.
 
-## Organisation du code
+## Code layout
 
 ```
-src/core/      vault (chiffrement, profils), session, routeur, modèle de palette, actions, flow Console
-src/data/      le seul module qui importe les commandes de @clevercloud/client
-src/ui/        composants Lit : shell, login, déverrouillage, palette, pages
-scripts/       vérifications hors navigateur
+src/core/      vault (crypto, profiles), session, router, palette model, actions, Console flow, i18n, home page logic
+src/data/      the only module that imports the @clevercloud/client commands
+src/i18n/      message dictionaries (en.ts is the reference, fr.ts must match its keys)
+src/ui/        Lit components: shell, sign-in, unlock, palette, pages, dialogs
+scripts/       checks outside the browser
 ```
 
-## Feuille de route
+## Roadmap
 
-| Phase | Contenu                                                                                        | État    |
-| ----- | ---------------------------------------------------------------------------------------------- | ------- |
-| 0     | Spike : auth, orgas, apps, logs en direct                                                      | fait    |
-| 1     | MVP lecture : coffre chiffré, multi-comptes, page application, palette                         | fait    |
-| 2     | Actions : restart, stop, redeploy, cancel, scale, env, domaines, avec l'équivalent CLI affiché | fait    |
-| 3     | Confort : PWA, raccourcis, favoris, fr/en, CSP, déploiement statique sur Clever Cloud          | à venir |
-| 4     | Add-ons, backups, drains, network groups, tokens API, k8s                                      | à venir |
+| Phase | Content                                                                                 | Status |
+| ----- | --------------------------------------------------------------------------------------- | ------ |
+| 0     | Spike: auth, organisations, applications, live logs                                     | done   |
+| 1     | Read-only MVP: encrypted vault, several accounts, application page, palette             | done   |
+| 2     | Actions: restart, stop, redeploy, cancel, scale, env, domains, with the CLI equivalent  | done   |
+| 2b    | Home page for daily use: filter and grouping expressions, bulk tags, English and French | done   |
+| 3     | Comfort: PWA, shortcuts, favourites, static hosting on Clever Cloud                     | to do  |
+| 4     | Add-ons, backups, drains, network groups, API tokens, Kubernetes                        | to do  |
 
 ## Licence
 

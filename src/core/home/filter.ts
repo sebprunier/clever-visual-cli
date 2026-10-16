@@ -16,6 +16,7 @@
  * Operators are case-insensitive. Matching ignores case and accents. A malformed
  * expression reports an error and falls back to the implicit AND of its terms.
  */
+import { t } from '../i18n.js';
 import { normalise } from '../palette.js';
 
 export type ItemKind = 'app' | 'addon';
@@ -70,12 +71,12 @@ export function parseFilter(raw: string): ParsedFilter {
     const node = parser.parseOr();
     if (parser.peek() != null) {
       throw new FilterSyntaxError(
-        parser.peek()?.type === 'rparen' ? 'parenthèse fermante en trop' : 'expression inattendue',
+        parser.peek()?.type === 'rparen' ? t('filter.error.extraParen') : t('filter.error.unexpected'),
       );
     }
     return { raw, node, error: null };
   } catch (error) {
-    const message = error instanceof FilterSyntaxError ? error.message : 'expression invalide';
+    const message = error instanceof FilterSyntaxError ? error.message : t('filter.error.invalid');
     const terms = tokens
       .filter((token) => token.type === 'term')
       .map((token): FilterNode => {
@@ -218,18 +219,18 @@ class Parser {
   parseNot(): FilterNode {
     const token = this.#next();
     if (token == null) {
-      throw new FilterSyntaxError('opérateur sans opérande');
+      throw new FilterSyntaxError(t('filter.error.missingOperand'));
     }
     switch (token.type) {
       case 'not':
         return { type: 'not', child: this.parseNot() };
       case 'lparen': {
         if (this.peek()?.type === 'rparen') {
-          throw new FilterSyntaxError('parenthèses vides');
+          throw new FilterSyntaxError(t('filter.error.emptyParens'));
         }
         const inner = this.parseOr();
         if (this.#next()?.type !== 'rparen') {
-          throw new FilterSyntaxError('parenthèse non fermée');
+          throw new FilterSyntaxError(t('filter.error.unclosed'));
         }
         return inner;
       }
@@ -238,9 +239,9 @@ class Parser {
         return token.negated ? { type: 'not', child: term } : term;
       }
       case 'rparen':
-        throw new FilterSyntaxError('parenthèse fermante en trop');
+        throw new FilterSyntaxError(t('filter.error.extraParen'));
       default:
-        throw new FilterSyntaxError('opérateur sans opérande');
+        throw new FilterSyntaxError(t('filter.error.missingOperand'));
     }
   }
 }

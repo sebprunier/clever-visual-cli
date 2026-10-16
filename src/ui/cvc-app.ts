@@ -1,4 +1,5 @@
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { CvcElement } from './shared/cvc-element.js';
 import { customElement, query, state } from 'lit/decorators.js';
 import {
   ACTIONS,
@@ -9,6 +10,7 @@ import {
   type ActionValues,
 } from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
+import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
@@ -41,7 +43,7 @@ const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** Application shell: vault and session lifecycle, routing, top bar, command palette and action dialog. */
 @customElement('cvc-app')
-export class CvcApp extends LitElement {
+export class CvcApp extends CvcElement {
   @state() private phase: Phase = 'loading';
   @state() private route: Route = { kind: 'home' };
   @state() private session: Session | null = null;
@@ -236,7 +238,7 @@ export class CvcApp extends LitElement {
         const { label, cli } = APP_TAB_LABELS[tab];
         commands.push({
           id: `tab:${tab}`,
-          title: label,
+          title: t(label),
           subtitle: current?.app.name,
           group: 'Page',
           cli,
@@ -246,7 +248,7 @@ export class CvcApp extends LitElement {
       for (const action of ACTIONS) {
         commands.push({
           id: `action:${action.id}`,
-          title: action.title,
+          title: t(action.title),
           subtitle: current?.app.name,
           group: 'Actions',
           keywords: action.keywords,
@@ -276,7 +278,7 @@ export class CvcApp extends LitElement {
       commands.push({
         id: `orga:${orga.id}`,
         title: orga.name,
-        subtitle: `${orga.applications.length} applications · ${orga.addons.length} add-ons`,
+        subtitle: t('home.counts', { apps: orga.applications.length, addons: orga.addons.length }),
         group: 'Organisations',
         keywords: [orga.id],
         run: () => navigate({ kind: 'orga', ownerId: orga.id }),
@@ -285,13 +287,13 @@ export class CvcApp extends LitElement {
 
     commands.push({
       id: 'session:refresh',
-      title: 'Rafraîchir les données',
+      title: t('palette.refreshData'),
       group: 'Session',
       run: () => void session.refreshSummary(),
     });
     commands.push({
       id: 'session:account',
-      title: 'Mon compte',
+      title: t('shell.myAccount'),
       subtitle: session.profile?.email,
       group: 'Session',
       cli: 'clever profile',
@@ -301,7 +303,7 @@ export class CvcApp extends LitElement {
       if (profile.id !== session.profile?.id) {
         commands.push({
           id: `session:switch:${profile.id}`,
-          title: `Passer au compte ${profile.name ?? profile.email}`,
+          title: t('palette.switchAccount', { name: profile.name ?? profile.email }),
           subtitle: profile.email,
           group: 'Session',
           cli: 'clever profile switch',
@@ -311,23 +313,34 @@ export class CvcApp extends LitElement {
     }
     commands.push({
       id: 'session:add',
-      title: 'Ajouter un compte',
+      title: t('shell.addAccount'),
       group: 'Session',
       cli: 'clever login --alias',
       run: () => (this.phase = 'adding'),
     });
+    for (const locale of LOCALES) {
+      if (locale.id !== getLocale()) {
+        commands.push({
+          id: `session:lang:${locale.id}`,
+          title: t('palette.language', { name: locale.label }),
+          group: 'Session',
+          keywords: ['lang', 'langue', 'language', locale.id],
+          run: () => setLocale(locale.id),
+        });
+      }
+    }
     if (session.vault.mode === 'encrypted') {
       commands.push({
         id: 'session:lock',
-        title: 'Verrouiller le coffre',
+        title: t('palette.lockVault'),
         group: 'Session',
         run: () => this.lock(),
       });
     }
     commands.push({
       id: 'session:logout',
-      title: 'Se déconnecter',
-      subtitle: 'retire ce compte du navigateur',
+      title: t('shell.logout'),
+      subtitle: t('palette.logoutSubtitle'),
       group: 'Session',
       cli: 'clever logout',
       run: () => void this.forgetActiveAccount(),
@@ -340,7 +353,7 @@ export class CvcApp extends LitElement {
   override render() {
     const session = this.session;
     if (session == null || this.phase === 'loading') {
-      return html`<p class="empty">Chargement…</p>`;
+      return html`<p class="empty">${t('common.loading')}</p>`;
     }
     switch (this.phase) {
       case 'login':
@@ -378,7 +391,7 @@ export class CvcApp extends LitElement {
                 @change=${(event: Event) =>
                   navigate({ kind: 'orga', ownerId: (event.currentTarget as HTMLSelectElement).value })}
               >
-                ${currentOwnerId === '' ? html`<option value="">Organisation…</option>` : nothing}
+                ${currentOwnerId === '' ? html`<option value="">${t('shell.orgaPlaceholder')}</option>` : nothing}
                 ${session.organisations.map(
                   (orga) =>
                     html`<option value=${orga.id} ?selected=${orga.id === currentOwnerId}>${orga.name}</option>`,
@@ -387,22 +400,34 @@ export class CvcApp extends LitElement {
             : nothing
         }
         <button type="button" class="search" @click=${() => this.palette?.open()}>
-          <span>Rechercher ou commander…</span>
+          <span>${t('shell.search')}</span>
           <kbd>${IS_MAC ? '⌘K' : 'Ctrl+K'}</kbd>
         </button>
         <details class="menu">
-          <summary>${profile?.name ?? profile?.email ?? 'Compte'}</summary>
+          <summary>${profile?.name ?? profile?.email ?? t('shell.account')}</summary>
           <div class="menu-items">
             <span class="muted small">${profile?.email}</span>
-            <a href=${routeToHash({ kind: 'account' })}>Mon compte</a>
-            <button type="button" class="link" @click=${() => session.refreshSummary()}>Rafraîchir</button>
-            <button type="button" class="link" @click=${() => (this.phase = 'adding')}>Ajouter un compte</button>
+            <a href=${routeToHash({ kind: 'account' })}>${t('shell.myAccount')}</a>
+            <label class="row small lang">
+              ${t('common.language')}
+              <select
+                aria-label=${t('common.language')}
+                @change=${(event: Event) => setLocale((event.currentTarget as HTMLSelectElement).value as Locale)}
+              >
+                ${LOCALES.map(
+                  (locale) =>
+                    html`<option value=${locale.id} ?selected=${locale.id === getLocale()}>${locale.label}</option>`,
+                )}
+              </select>
+            </label>
+            <button type="button" class="link" @click=${() => session.refreshSummary()}>${t('common.refresh')}</button>
+            <button type="button" class="link" @click=${() => (this.phase = 'adding')}>${t('shell.addAccount')}</button>
             ${
               session.vault.mode === 'encrypted'
-                ? html`<button type="button" class="link" @click=${this.lock}>Verrouiller</button>`
+                ? html`<button type="button" class="link" @click=${this.lock}>${t('shell.lock')}</button>`
                 : nothing
             }
-            <button type="button" class="link" @click=${this.forgetActiveAccount}>Se déconnecter</button>
+            <button type="button" class="link" @click=${this.forgetActiveAccount}>${t('shell.logout')}</button>
           </div>
         </details>
       </header>
@@ -430,18 +455,18 @@ export class CvcApp extends LitElement {
     if (session.summaryError != null) {
       return html`<div class="stack">
         <p class="error" role="alert">${session.summaryError}</p>
-        <div><button type="button" @click=${() => session.refreshSummary()}>Réessayer</button></div>
+        <div><button type="button" @click=${() => session.refreshSummary()}>${t('common.retry')}</button></div>
       </div>`;
     }
     if (session.summary == null) {
-      return html`<p class="empty">Chargement des organisations…</p>`;
+      return html`<p class="empty">${t('shell.loadingOrgas')}</p>`;
     }
     switch (this.route.kind) {
       case 'orga': {
         const orga = session.findOrganisation(this.route.ownerId);
         const client = session.client;
         if (orga == null || client == null) {
-          return html`<p class="empty">Organisation inconnue.</p>`;
+          return html`<p class="empty">${t('shell.unknownOrga')}</p>`;
         }
         return html`<cvc-orga-page
           .orga=${orga}
@@ -468,7 +493,7 @@ export class CvcApp extends LitElement {
         ></cvc-app-page>`;
       }
       default:
-        return html`<p class="empty">Chargement…</p>`;
+        return html`<p class="empty">${t('common.loading')}</p>`;
     }
   }
 
@@ -476,15 +501,11 @@ export class CvcApp extends LitElement {
     const vault = session.vault;
     return html`
       <div class="account stack">
-        <h1>Mon compte</h1>
+        <h1>${t('shell.myAccount')}</h1>
         <section class="card stack">
-          <h2>Comptes dans ce navigateur</h2>
+          <h2>${t('account.accountsInBrowser')}</h2>
           <p class="muted small">
-            ${
-              vault.mode === 'encrypted'
-                ? 'Stockage chiffré (AES-GCM) dans localStorage, déverrouillé pour cet onglet.'
-                : 'Stockage de session uniquement : tout disparaît à la fermeture de l’onglet.'
-            }
+            ${vault.mode === 'encrypted' ? t('account.encryptedNote') : t('account.sessionNote')}
           </p>
           <ul class="profiles">
             ${vault.profiles.map(
@@ -493,26 +514,43 @@ export class CvcApp extends LitElement {
                   <span>
                     <strong>${profile.name ?? profile.email}</strong>
                     <span class="muted small"
-                      >${profile.email} · ${profile.credentials.type === 'api-token' ? 'token API' : 'OAuth'}</span
+                      >${profile.email} ·
+                      ${profile.credentials.type === 'api-token' ? t('account.apiToken') : 'OAuth'}</span
                     >
                   </span>
                   ${
                     profile.id === session.profile?.id
-                      ? html`<span class="badge ok">actif</span>`
+                      ? html`<span class="badge ok">${t('account.active')}</span>`
                       : html`<button type="button" class="ghost" @click=${() => this.switchProfile(profile)}>
-                          Utiliser
+                          ${t('account.use')}
                         </button>`
                   }
                 </li>`,
             )}
           </ul>
           <div class="row">
-            <button type="button" @click=${() => (this.phase = 'adding')}>Ajouter un compte</button>
-            ${vault.mode === 'encrypted' ? html`<button type="button" @click=${this.lock}>Verrouiller</button>` : nothing}
-            <button type="button" @click=${this.forgetActiveAccount}>Se déconnecter</button>
+            <button type="button" @click=${() => (this.phase = 'adding')}>${t('shell.addAccount')}</button>
+            ${vault.mode === 'encrypted' ? html`<button type="button" @click=${this.lock}>${t('shell.lock')}</button>` : nothing}
+            <button type="button" @click=${this.forgetActiveAccount}>${t('shell.logout')}</button>
             <button type="button" class="ghost danger" @click=${this.destroyEverything}>
-              Tout effacer de ce navigateur
+              ${t('account.eraseAll')}
             </button>
+          </div>
+        </section>
+        <section class="card stack">
+          <h2>${t('common.language')}</h2>
+          <div class="row">
+            ${LOCALES.map(
+              (locale) =>
+                html`<button
+                  type="button"
+                  class=${locale.id === getLocale() ? 'primary' : 'ghost'}
+                  aria-pressed=${locale.id === getLocale()}
+                  @click=${() => setLocale(locale.id)}
+                >
+                  ${locale.label}
+                </button>`,
+            )}
           </div>
         </section>
       </div>

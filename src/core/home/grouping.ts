@@ -12,14 +12,15 @@
  * applications linked to it, and is marked as inferred.
  */
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
+import { t, type MessageKey } from '../i18n.js';
 import { normalise } from '../palette.js';
 
 export const MAX_LEVELS = 3;
-export const BUILTIN_KEYS: ReadonlyArray<{ key: string; hint: string }> = [
-  { key: 'type', hint: 'applications puis add-ons' },
-  { key: 'runtime', hint: 'runtime des applications, fournisseur des add-ons' },
-  { key: 'provider', hint: 'fournisseur des add-ons' },
-  { key: 'state', hint: 'état des applications' },
+export const BUILTIN_KEYS: ReadonlyArray<{ key: string; hint: MessageKey }> = [
+  { key: 'type', hint: 'grouping.hint.type' },
+  { key: 'runtime', hint: 'grouping.hint.runtime' },
+  { key: 'provider', hint: 'grouping.hint.provider' },
+  { key: 'state', hint: 'grouping.hint.state' },
 ];
 
 /** Providers typically shared across unrelated applications: shown dimmed among linked add-ons. */
@@ -91,11 +92,11 @@ export function parseGrouping(raw: string): ParsedGrouping {
   for (const part of parts) {
     const match = /^([^\s()]+)\s*(?:\(([^()]*)\))?$/.exec(part);
     if (match == null) {
-      return { raw, keys, error: part === '' ? 'clé vide' : `syntaxe attendue : clé ou clé(valeur, valeur)` };
+      return { raw, keys, error: part === '' ? t('grouping.error.empty') : t('grouping.error.syntax') };
     }
     const key = normalise(match[1]);
     if (keys.some((candidate) => candidate.key === key)) {
-      return { raw, keys, error: `clé « ${match[1]} » en double` };
+      return { raw, keys, error: t('grouping.error.duplicate', { key: match[1] }) };
     }
     const order = (match[2] ?? '')
       .split(',')
@@ -104,7 +105,7 @@ export function parseGrouping(raw: string): ParsedGrouping {
     keys.push({ key, order });
   }
   if (keys.length > MAX_LEVELS) {
-    return { raw, keys: keys.slice(0, MAX_LEVELS), error: `${MAX_LEVELS} niveaux maximum` };
+    return { raw, keys: keys.slice(0, MAX_LEVELS), error: t('grouping.error.levels', { max: MAX_LEVELS }) };
   }
   return { raw, keys, error: null };
 }
@@ -159,12 +160,6 @@ export function groupingSuggestions(items: ReadonlyArray<{ customerTags: string[
     suggestions.push(builtin.key);
   }
   return suggestions;
-}
-
-/** `project` when the organisation uses that tag, else `type`. */
-export function defaultGrouping(items: ReadonlyArray<{ customerTags: string[] }>): string {
-  const keys = tagKeys(items);
-  return keys.includes('project') ? 'project' : 'type';
 }
 
 // --- links -----------------------------------------------------------------
@@ -265,7 +260,9 @@ function build(
     ),
   );
   if (missing.length > 0) {
-    nodes.push(node(`${parentPath}${key}=`, level, `sans ${key}`, true, missing, inherited, keys, context));
+    nodes.push(
+      node(`${parentPath}${key}=`, level, t('grouping.missing', { key }), true, missing, inherited, keys, context),
+    );
   }
   return nodes;
 }
@@ -338,7 +335,7 @@ function valuesOf(item: Item, key: string, context: GroupingContext): Values {
   };
   switch (key) {
     case 'type':
-      put(item.kind === 'app' ? 'Applications' : 'Add-ons');
+      put(item.kind === 'app' ? t('grouping.applications') : t('grouping.addons'));
       return { values, inferred: false };
     case 'runtime':
       put(item.kind === 'app' ? item.app.variantName : item.addon.providerId);
@@ -349,7 +346,7 @@ function valuesOf(item: Item, key: string, context: GroupingContext): Values {
       }
       return { values, inferred: false };
     case 'state':
-      put(item.kind === 'app' ? context.stateLabel(item.app.state) : 'add-on');
+      put(item.kind === 'app' ? context.stateLabel(item.app.state) : t('grouping.addonState'));
       return { values, inferred: false };
     default: {
       const tags = item.kind === 'app' ? item.app.customerTags : item.addon.customerTags;

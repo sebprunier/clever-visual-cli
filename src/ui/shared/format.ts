@@ -1,3 +1,4 @@
+import { getLocale, t, type MessageKey } from '../../core/i18n.js';
 import type { Application, Deployment, Instance } from '../../data/api.js';
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'neutral' | 'info';
@@ -7,88 +8,118 @@ export interface StateLabel {
   tone: Tone;
 }
 
-export const APP_STATE_LABELS: Record<Application['state'], StateLabel> = {
-  SHOULD_BE_UP: { label: 'démarrée', tone: 'ok' },
-  WANTS_TO_BE_UP: { label: 'démarrage', tone: 'warn' },
-  SHOULD_BE_DOWN: { label: 'arrêtée', tone: 'neutral' },
-  MODERATED: { label: 'modérée', tone: 'danger' },
-  DEFAULT_OF_PAYMENT: { label: 'défaut de paiement', tone: 'danger' },
-};
-
-export const DEPLOYMENT_STATE_LABELS: Record<Deployment['state'], StateLabel> = {
-  WORK_IN_PROGRESS: { label: 'en cours', tone: 'warn' },
-  TASK_IN_PROGRESS: { label: 'tâche en cours', tone: 'warn' },
-  SUCCEEDED: { label: 'réussi', tone: 'ok' },
-  FAILED: { label: 'échoué', tone: 'danger' },
-  CANCELLED: { label: 'annulé', tone: 'neutral' },
-};
-
-export const DEPLOYMENT_ACTION_LABELS: Record<Deployment['action'], string> = {
-  DEPLOY: 'déploiement',
-  UNDEPLOY: 'arrêt',
-  UPSCALE: 'montée en charge',
-  DOWNSCALE: 'réduction',
-  REPLACE: 'remplacement',
-  CANCEL: 'annulation',
-  NONE: '',
-};
-
-export const INSTANCE_STATE_LABELS: Record<Instance['state'], StateLabel> = {
-  UP: { label: 'up', tone: 'ok' },
-  READY: { label: 'prête', tone: 'ok' },
-  BOOTING: { label: 'démarrage', tone: 'warn' },
-  STARTING: { label: 'démarrage', tone: 'warn' },
-  DEPLOYING: { label: 'déploiement', tone: 'warn' },
-  BUILDING: { label: 'build', tone: 'warn' },
-  TASK_IN_PROGRESS: { label: 'tâche', tone: 'warn' },
-  MIGRATION_IN_PROGRESS: { label: 'migration', tone: 'warn' },
-  STOPPING: { label: 'arrêt', tone: 'neutral' },
-  DELETED: { label: 'supprimée', tone: 'neutral' },
-  GHOST: { label: 'fantôme', tone: 'danger' },
-};
-
-export function stateLabel<K extends string>(table: Record<K, StateLabel>, state: K | string): StateLabel {
-  return (table as Record<string, StateLabel>)[state] ?? { label: state.toLowerCase(), tone: 'neutral' };
+interface StateSpec {
+  key: MessageKey;
+  tone: Tone;
 }
 
-const relativeFormat = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+export const APP_STATE_LABELS: Record<Application['state'], StateSpec> = {
+  SHOULD_BE_UP: { key: 'state.app.SHOULD_BE_UP', tone: 'ok' },
+  WANTS_TO_BE_UP: { key: 'state.app.WANTS_TO_BE_UP', tone: 'warn' },
+  SHOULD_BE_DOWN: { key: 'state.app.SHOULD_BE_DOWN', tone: 'neutral' },
+  MODERATED: { key: 'state.app.MODERATED', tone: 'danger' },
+  DEFAULT_OF_PAYMENT: { key: 'state.app.DEFAULT_OF_PAYMENT', tone: 'danger' },
+};
 
-/** "il y a 3 minutes", "hier", "dans 2 heures". Accepts ISO strings or unix timestamps in ms or s. */
+export const DEPLOYMENT_STATE_LABELS: Record<Deployment['state'], StateSpec> = {
+  WORK_IN_PROGRESS: { key: 'state.deployment.WORK_IN_PROGRESS', tone: 'warn' },
+  TASK_IN_PROGRESS: { key: 'state.deployment.TASK_IN_PROGRESS', tone: 'warn' },
+  SUCCEEDED: { key: 'state.deployment.SUCCEEDED', tone: 'ok' },
+  FAILED: { key: 'state.deployment.FAILED', tone: 'danger' },
+  CANCELLED: { key: 'state.deployment.CANCELLED', tone: 'neutral' },
+};
+
+const DEPLOYMENT_ACTION_KEYS: Partial<Record<Deployment['action'], MessageKey>> = {
+  DEPLOY: 'deploymentAction.DEPLOY',
+  UNDEPLOY: 'deploymentAction.UNDEPLOY',
+  UPSCALE: 'deploymentAction.UPSCALE',
+  DOWNSCALE: 'deploymentAction.DOWNSCALE',
+  REPLACE: 'deploymentAction.REPLACE',
+  CANCEL: 'deploymentAction.CANCEL',
+};
+
+export const INSTANCE_STATE_LABELS: Record<Instance['state'], StateSpec> = {
+  UP: { key: 'state.instance.UP', tone: 'ok' },
+  READY: { key: 'state.instance.READY', tone: 'ok' },
+  BOOTING: { key: 'state.instance.BOOTING', tone: 'warn' },
+  STARTING: { key: 'state.instance.STARTING', tone: 'warn' },
+  DEPLOYING: { key: 'state.instance.DEPLOYING', tone: 'warn' },
+  BUILDING: { key: 'state.instance.BUILDING', tone: 'warn' },
+  TASK_IN_PROGRESS: { key: 'state.instance.TASK_IN_PROGRESS', tone: 'warn' },
+  MIGRATION_IN_PROGRESS: { key: 'state.instance.MIGRATION_IN_PROGRESS', tone: 'warn' },
+  STOPPING: { key: 'state.instance.STOPPING', tone: 'neutral' },
+  DELETED: { key: 'state.instance.DELETED', tone: 'neutral' },
+  GHOST: { key: 'state.instance.GHOST', tone: 'danger' },
+};
+
+export function stateLabel<K extends string>(table: Record<K, StateSpec>, state: K | string): StateLabel {
+  const spec = (table as Record<string, StateSpec>)[state];
+  return spec == null ? { label: state.toLowerCase(), tone: 'neutral' } : { label: t(spec.key), tone: spec.tone };
+}
+
+/** The translated deployment action, empty for `NONE`. */
+export function deploymentActionLabel(action: Deployment['action']): string {
+  const key = DEPLOYMENT_ACTION_KEYS[action];
+  return key == null ? '' : t(key);
+}
+
+interface Formatters {
+  locale: string;
+  relative: Intl.RelativeTimeFormat;
+  dateTime: Intl.DateTimeFormat;
+  time: Intl.DateTimeFormat;
+}
+
+let formatters: Formatters | null = null;
+
+function formats(): Formatters {
+  const locale = getLocale();
+  if (formatters == null || formatters.locale !== locale) {
+    formatters = {
+      locale,
+      relative: new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }),
+      dateTime: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+      time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    };
+  }
+  return formatters;
+}
+
+/** "3 minutes ago", "yesterday", "in 2 hours". Accepts ISO strings or unix timestamps in ms or s. */
 export function formatRelative(value: string | number | null | undefined, now = Date.now()): string {
   const date = toDate(value);
   if (date == null) {
     return '';
   }
+  const { relative } = formats();
   const diffSeconds = Math.round((date.getTime() - now) / 1000);
   const abs = Math.abs(diffSeconds);
   if (abs < 60) {
-    return relativeFormat.format(diffSeconds, 'second');
+    return relative.format(diffSeconds, 'second');
   }
   if (abs < 3600) {
-    return relativeFormat.format(Math.round(diffSeconds / 60), 'minute');
+    return relative.format(Math.round(diffSeconds / 60), 'minute');
   }
   if (abs < 86_400) {
-    return relativeFormat.format(Math.round(diffSeconds / 3600), 'hour');
+    return relative.format(Math.round(diffSeconds / 3600), 'hour');
   }
   if (abs < 86_400 * 30) {
-    return relativeFormat.format(Math.round(diffSeconds / 86_400), 'day');
+    return relative.format(Math.round(diffSeconds / 86_400), 'day');
   }
   if (abs < 86_400 * 365) {
-    return relativeFormat.format(Math.round(diffSeconds / (86_400 * 30)), 'month');
+    return relative.format(Math.round(diffSeconds / (86_400 * 30)), 'month');
   }
-  return relativeFormat.format(Math.round(diffSeconds / (86_400 * 365)), 'year');
+  return relative.format(Math.round(diffSeconds / (86_400 * 365)), 'year');
 }
 
 export function formatDateTime(value: string | number | null | undefined): string {
   const date = toDate(value);
-  return date == null ? '' : dateTimeFormat.format(date);
+  return date == null ? '' : formats().dateTime.format(date);
 }
 
 export function formatTime(value: string | number | null | undefined): string {
   const date = toDate(value);
-  return date == null ? '' : timeFormat.format(date);
+  return date == null ? '' : formats().time.format(date);
 }
 
 export function shortCommit(commitId: string | null | undefined): string {

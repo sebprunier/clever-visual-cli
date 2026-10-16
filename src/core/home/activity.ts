@@ -6,6 +6,7 @@
  * "recent activity" means yours, not Clever Cloud's maintenance.
  */
 import type { ApplicationSummary, Deployment } from '../../data/api.js';
+import { t } from '../i18n.js';
 
 export interface AppActivity {
   /** Most recent deployment, whoever triggered it. */
@@ -38,18 +39,18 @@ export function isInProgress(deployment: Deployment): boolean {
 export function describeOrigin(deployment: Deployment, currentUserId = ''): string {
   if (isHumanDeployment(deployment)) {
     if (deployment.author.id === currentUserId) {
-      return 'toi';
+      return t('origin.you');
     }
-    return deployment.author.name ?? 'un membre';
+    return deployment.author.name ?? t('origin.member');
   }
   const cause = deployment.cause ?? '';
   if (cause.startsWith('Maintenance')) {
-    return 'maintenance';
+    return t('origin.maintenance');
   }
   if (cause.startsWith('Monitoring')) {
-    return 'monitoring';
+    return t('origin.monitoring');
   }
-  return cause === '' ? 'plateforme' : cause;
+  return cause === '' ? t('origin.platform') : cause;
 }
 
 /** Indexes deployments by application, newest first. The API groups them by application without a global order. */

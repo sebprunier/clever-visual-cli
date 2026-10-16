@@ -1,5 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
+import { t, type MessageKey } from '../../core/i18n.js';
+import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
@@ -10,17 +12,17 @@ import { sharedStyles } from '../shared/styles.js';
 type StreamStatus = 'idle' | 'connecting' | 'open' | 'paused' | 'closed' | 'error';
 
 const MAX_LINES = 2000;
-const SINCE_OPTIONS: Array<{ value: string; label: string; minutes: number }> = [
-  { value: 'now', label: 'maintenant', minutes: 0 },
-  { value: '15m', label: '15 dernières minutes', minutes: 15 },
-  { value: '1h', label: 'dernière heure', minutes: 60 },
-  { value: '6h', label: '6 dernières heures', minutes: 360 },
-  { value: '24h', label: 'dernières 24 heures', minutes: 1440 },
+const SINCE_OPTIONS: Array<{ value: string; label: MessageKey; minutes: number }> = [
+  { value: 'now', label: 'logs.since.now', minutes: 0 },
+  { value: '15m', label: 'logs.since.15m', minutes: 15 },
+  { value: '1h', label: 'logs.since.1h', minutes: 60 },
+  { value: '6h', label: 'logs.since.6h', minutes: 360 },
+  { value: '24h', label: 'logs.since.24h', minutes: 1440 },
 ];
 
 /** Live runtime logs: the `clever logs` stream with pause, filter and replay window. */
 @customElement('cvc-app-logs')
-export class CvcAppLogs extends LitElement {
+export class CvcAppLogs extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
@@ -140,15 +142,15 @@ export class CvcAppLogs extends LitElement {
   private describeStatus(): { label: string; tone: string } {
     switch (this.status) {
       case 'connecting':
-        return { label: 'connexion…', tone: 'warn' };
+        return { label: t('logs.status.connecting'), tone: 'warn' };
       case 'open':
-        return { label: 'en direct', tone: 'ok' };
+        return { label: t('logs.status.open'), tone: 'ok' };
       case 'paused':
-        return { label: 'en pause', tone: 'warn' };
+        return { label: t('logs.status.paused'), tone: 'warn' };
       case 'closed':
-        return { label: 'arrêté', tone: 'neutral' };
+        return { label: t('logs.status.closed'), tone: 'neutral' };
       case 'error':
-        return { label: 'erreur', tone: 'danger' };
+        return { label: t('logs.status.error'), tone: 'danger' };
       default:
         return { label: '', tone: 'neutral' };
     }
@@ -163,19 +165,20 @@ export class CvcAppLogs extends LitElement {
         <span class="cli">clever logs --app ${this.appId}${sinceFlag}</span>
         <span class="badge ${status.tone}">${status.label}</span>
         <span class="muted small"
-          >${visible.length}${visible.length !== this.lines.length ? ` / ${this.lines.length}` : ''} lignes</span
+          >${visible.length}${visible.length !== this.lines.length ? ` / ${this.lines.length}` : ''}
+          ${t('logs.lines')}</span
         >
         <span class="grow"></span>
         <label class="row small">
-          Depuis
+          ${t('logs.since')}
           <select .value=${this.since} @change=${this.onSinceChange}>
-            ${SINCE_OPTIONS.map((option) => html`<option value=${option.value} ?selected=${option.value === this.since}>${option.label}</option>`)}
+            ${SINCE_OPTIONS.map((option) => html`<option value=${option.value} ?selected=${option.value === this.since}>${t(option.label)}</option>`)}
           </select>
         </label>
         <input
           type="search"
-          placeholder="Filtrer les lignes…"
-          aria-label="Filtrer les lignes"
+          placeholder=${t('logs.filter')}
+          aria-label=${t('logs.filter')}
           .value=${this.filter}
           @input=${(event: Event) => (this.filter = (event.currentTarget as HTMLInputElement).value)}
         />
@@ -185,23 +188,23 @@ export class CvcAppLogs extends LitElement {
             .checked=${this.autoscroll}
             @change=${(event: Event) => (this.autoscroll = (event.currentTarget as HTMLInputElement).checked)}
           />
-          Suivre
+          ${t('logs.follow')}
         </label>
         <button type="button" class="ghost" ?disabled=${this.stream == null} @click=${this.togglePause}>
-          ${this.status === 'paused' ? 'Reprendre' : 'Pause'}
+          ${this.status === 'paused' ? t('logs.resume') : t('logs.pause')}
         </button>
         ${
           this.stream == null
-            ? html`<button type="button" class="ghost" @click=${this.start}>Relancer</button>`
-            : html`<button type="button" class="ghost" @click=${this.stop}>Arrêter</button>`
+            ? html`<button type="button" class="ghost" @click=${this.start}>${t('logs.restart')}</button>`
+            : html`<button type="button" class="ghost" @click=${this.stop}>${t('logs.stop')}</button>`
         }
-        <button type="button" class="ghost" @click=${() => (this.lines = [])}>Effacer</button>
+        <button type="button" class="ghost" @click=${() => (this.lines = [])}>${t('logs.clear')}</button>
       </div>
       ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
       <div class="lines card" role="log" aria-live="off">
         ${
           visible.length === 0
-            ? html`<p class="empty">${this.status === 'open' ? 'Connecté, en attente de lignes.' : ''}</p>`
+            ? html`<p class="empty">${this.status === 'open' ? t('logs.waiting') : ''}</p>`
             : repeat(
                 visible,
                 (log) => log.id,
