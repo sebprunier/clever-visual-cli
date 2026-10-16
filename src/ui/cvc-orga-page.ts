@@ -23,7 +23,7 @@ import {
   type HomeGroup,
 } from '../core/home/groups.js';
 import type { HomeStore } from '../core/home/home-store.js';
-import { matchesQuery, parseQuery, toggleToken } from '../core/home/query.js';
+import { matchesFilter, parseFilter, toggleToken } from '../core/home/filter.js';
 import { listRecents } from '../core/home/recents.js';
 import { routeToHash } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
@@ -146,7 +146,8 @@ export class CvcOrgaPage extends LitElement {
   }
 
   private toggleTag(tag: string): void {
-    this.queryText = toggleToken(this.queryText, `tag:${tag}`);
+    // A `key:value` tag is a filter term on its own; a bare tag goes through `tag:`.
+    this.queryText = toggleToken(this.queryText, /^[^:\s]+:[^\s]+$/.test(tag) ? tag : `tag:${tag}`);
   }
 
   private activity(deployments: readonly Deployment[] | null): Map<string, AppActivity> {
@@ -170,20 +171,22 @@ export class CvcOrgaPage extends LitElement {
       links: data.links,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
     };
-    const query = parseQuery(this.queryText);
+    const filter = parseFilter(this.queryText);
     const matchApp = (app: ApplicationSummary) =>
-      matchesQuery(query, {
+      matchesFilter(filter, {
         kind: 'app',
         name: app.name,
+        slugs: [app.variantSlug, app.instanceType],
         runtime: app.variantName,
         state: stateLabel(APP_STATE_LABELS, app.state).label,
         tags: app.customerTags,
         extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
       });
     const matchAddon = (addon: AddonSummary) =>
-      matchesQuery(query, {
+      matchesFilter(filter, {
         kind: 'addon',
         name: addon.name,
+        slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
         runtime: addon.providerId,
         tags: addon.customerTags,
         extra: [addon.id, addon.realId],
@@ -290,8 +293,13 @@ export class CvcOrgaPage extends LitElement {
           </label>
         </div>
         <p class="muted small hint">
-          <code>tag:env:prod</code> <code>project:nom</code> <code>env:prod</code> <code>runtime:node</code>
-          <code>state:arrêtée</code> <code>is:addon</code>
+          ${
+            filter.error != null
+              ? html`<span class="danger">Expression incomplète (${filter.error}), filtre appliqué mot à mot.</span>`
+              : html`<code>is:app</code> <code>is:node</code> <code>project:nom</code> <code>env:prod</code>
+                  <code>has:project</code> <code>-env:prod</code> <code>state:arrêtée</code> <code>AND</code>
+                  <code>OR</code> <code>NOT</code> <code>( )</code> <code>"deux mots"</code>`
+          }
           ${data.deploymentsError ? html`<span class="danger">· activité indisponible : ${data.deploymentsError}</span>` : nothing}
           ${data.linksError ? html`<span class="danger">· liens incomplets : ${data.linksError}</span>` : nothing}
         </p>
