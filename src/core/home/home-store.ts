@@ -11,7 +11,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { fetchApplicationLinks, fetchOrganisationDeployments, type Deployment } from '../../data/api.js';
 import { describeError } from '../clever-client.js';
-import type { AppLinks } from './groups.js';
+import type { AppLinks } from './grouping.js';
 
 export interface OwnerHomeData {
   deployments: Deployment[] | null;

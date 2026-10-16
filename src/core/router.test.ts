@@ -44,3 +44,16 @@ describe('router', () => {
     }
   });
 });
+
+describe('router hash params', () => {
+  it('ignores the query string when parsing and edits it without touching the route', async () => {
+    const { readHashParams, withHashParams } = await import('./router.js');
+    expect(parseRoute('#/orga/orga_1?q=is%3Aapp&g=project')).toEqual({ kind: 'orga', ownerId: 'orga_1' });
+    expect(readHashParams('#/orga/orga_1?q=is%3Aapp&g=project').get('q')).toBe('is:app');
+    expect(withHashParams('#/orga/orga_1', { q: 'is:app AND env:prod', g: null })).toBe(
+      '#/orga/orga_1?q=is%3Aapp+AND+env%3Aprod',
+    );
+    expect(withHashParams('#/orga/orga_1?q=x&g=project', { q: '' })).toBe('#/orga/orga_1?g=project');
+    expect(withHashParams('#/orga/orga_1?q=x', { q: null })).toBe('#/orga/orga_1');
+  });
+});

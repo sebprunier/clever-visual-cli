@@ -12,20 +12,21 @@ import {
   type AppActivity,
   type WatchItem,
 } from '../core/home/activity.js';
+import { matchesFilter, parseFilter, toggleToken } from '../core/home/filter.js';
 import {
-  buildGroups,
-  GROUP_MODES,
+  buildTree,
+  defaultGrouping,
+  groupingSuggestions,
   isWeak,
   linkedAddons,
   linkedApps,
-  type GroupMode,
+  parseGrouping,
+  type GroupNode,
   type GroupingContext,
-  type HomeGroup,
-} from '../core/home/groups.js';
+} from '../core/home/grouping.js';
 import type { HomeStore } from '../core/home/home-store.js';
-import { matchesFilter, parseFilter, toggleToken } from '../core/home/filter.js';
 import { listRecents } from '../core/home/recents.js';
-import { routeToHash } from '../core/router.js';
+import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import {
   APP_STATE_LABELS,
@@ -40,13 +41,13 @@ import { sharedStyles } from './shared/styles.js';
 type SortMode = 'name' | 'activity';
 
 interface HomePrefs {
-  groupMode: GroupMode;
+  grouping: string | null;
   sort: SortMode;
   showAddons: boolean;
   collapsed: string[];
 }
 
-const DEFAULT_PREFS: HomePrefs = { groupMode: 'stack', sort: 'name', showAddons: true, collapsed: [] };
+const DEFAULT_PREFS: HomePrefs = { grouping: null, sort: 'name', showAddons: true, collapsed: [] };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
 
@@ -59,7 +60,7 @@ const WATCH_LABELS: Record<WatchItem['kind'], { label: string; tone: string }> =
 
 /**
  * Home of one organisation: a dense, searchable list of applications and
- * add-ons, grouped by stack, project, runtime or state, with what deserves
+ * add-ons, filtered and grouped by expressions, with what deserves
  * attention on top and the applications opened recently.
  */
 @customElement('cvc-orga-page')
@@ -72,10 +73,11 @@ export class CvcOrgaPage extends LitElement {
   /** Bumped by the shell after an action so the activity reloads. */
   @property({ type: Number }) revision = 0;
 
-  @state() private queryText = '';
+  @state() private filterText = '';
+  @state() private groupingText = '';
   @state() private prefs: HomePrefs = DEFAULT_PREFS;
 
-  @query('input[type="search"]') private searchInput?: HTMLInputElement;
+  @query('input[name="filter"]') private filterInput?: HTMLInputElement;
 
   #activitySource: readonly Deployment[] | null = null;
   #activity: Map<string, AppActivity> = new Map();
@@ -93,8 +95,8 @@ export class CvcOrgaPage extends LitElement {
       return;
     }
     event.preventDefault();
-    this.searchInput?.focus();
-    this.searchInput?.select();
+    this.filterInput?.focus();
+    this.filterInput?.select();
   };
 
   override connectedCallback(): void {
@@ -108,7 +110,7 @@ export class CvcOrgaPage extends LitElement {
     super.disconnectedCallback();
   }
 
-  override willUpdate(changed: PropertyValues<this>): void {
+  override willUpdate(changed: PropertyValues): void {
     if (changed.has('store')) {
       (changed.get('store') as HomeStore | undefined)?.removeEventListener('change', this.onStoreChange);
       this.store?.addEventListener('change', this.onStoreChange);
@@ -116,12 +118,18 @@ export class CvcOrgaPage extends LitElement {
     if (changed.has('orga')) {
       const previous = changed.get('orga') as OrganisationSummary | undefined;
       if (previous?.id !== this.orga.id) {
-        this.queryText = '';
         this.prefs = readPrefs(this.orga.id);
+        const params = readHashParams();
+        this.filterText = params.get('q') ?? '';
+        this.groupingText =
+          params.get('g') ?? this.prefs.grouping ?? defaultGrouping([...this.orga.applications, ...this.orga.addons]);
       }
       this.refresh({});
     } else if (changed.has('revision')) {
       this.refresh({ force: true });
+    }
+    if (changed.has('filterText') || changed.has('groupingText')) {
+      writeHashParams({ q: this.filterText.trim(), g: this.groupingText.trim() });
     }
   }
 
@@ -138,16 +146,21 @@ export class CvcOrgaPage extends LitElement {
     writePrefs(this.orga.id, this.prefs);
   }
 
-  private toggleGroup(id: string): void {
-    const collapsed = this.prefs.collapsed.includes(id)
-      ? this.prefs.collapsed.filter((candidate) => candidate !== id)
-      : [...this.prefs.collapsed, id];
+  private setGrouping(text: string): void {
+    this.groupingText = text;
+    this.setPrefs({ grouping: text });
+  }
+
+  private toggleGroup(path: string): void {
+    const collapsed = this.prefs.collapsed.includes(path)
+      ? this.prefs.collapsed.filter((candidate) => candidate !== path)
+      : [...this.prefs.collapsed, path];
     this.setPrefs({ collapsed });
   }
 
   private toggleTag(tag: string): void {
     // A `key:value` tag is a filter term on its own; a bare tag goes through `tag:`.
-    this.queryText = toggleToken(this.queryText, /^[^:\s]+:[^\s]+$/.test(tag) ? tag : `tag:${tag}`);
+    this.filterText = toggleToken(this.filterText, /^[^:\s]+:[^\s]+$/.test(tag) ? tag : `tag:${tag}`);
   }
 
   private activity(deployments: readonly Deployment[] | null): Map<string, AppActivity> {
@@ -171,7 +184,7 @@ export class CvcOrgaPage extends LitElement {
       links: data.links,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
     };
-    const filter = parseFilter(this.queryText);
+    const filter = parseFilter(this.filterText);
     const matchApp = (app: ApplicationSummary) =>
       matchesFilter(filter, {
         kind: 'app',
@@ -191,19 +204,10 @@ export class CvcOrgaPage extends LitElement {
         tags: addon.customerTags,
         extra: [addon.id, addon.realId],
       });
-    const byActivity = (a: ApplicationSummary, b: ApplicationSummary) =>
-      (activity.get(b.id)?.last.date ?? '').localeCompare(activity.get(a.id)?.last.date ?? '');
-    const groups = buildGroups(this.prefs.groupMode, context)
-      .map((group) => {
-        const addons = this.prefs.showAddons ? group.addons.filter(matchAddon) : [];
-        // In a nested group an add-on only shows under its application, so a matching add-on keeps its application.
-        const keep = (app: ApplicationSummary) =>
-          matchApp(app) ||
-          (group.nested === true && addons.some((addon) => context.links[app.id]?.addonIds.includes(addon.id)));
-        const kept = group.apps.filter(keep);
-        return { ...group, apps: this.prefs.sort === 'activity' ? kept.sort(byActivity) : kept, addons };
-      })
-      .filter((group) => group.apps.length + group.addons.length > 0);
+    const grouping = parseGrouping(this.groupingText);
+    const visibleApps = apps.filter(matchApp);
+    const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
+    const tree = buildTree(grouping, visibleApps, visibleAddons, context);
     const watch = watchList(apps, activity);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
@@ -211,6 +215,7 @@ export class CvcOrgaPage extends LitElement {
       .filter((app): app is ApplicationSummary => app != null)
       .slice(0, MAX_RECENTS);
     const linksDone = apps.filter((app) => data.links[app.id] != null).length;
+    const suggestions = groupingSuggestions([...apps, ...addons]);
 
     return html`
       <header class="head">
@@ -239,30 +244,36 @@ export class CvcOrgaPage extends LitElement {
           </button>
         </div>
         <div class="row toolbar">
-          <input
-            type="search"
-            placeholder="Rechercher…  (touche /)"
-            aria-label="Rechercher une application ou un add-on"
-            autocomplete="off"
-            spellcheck="false"
-            .value=${this.queryText}
-            @input=${(event: Event) => (this.queryText = (event.currentTarget as HTMLInputElement).value)}
-          />
-          <div class="seg" role="group" aria-label="Grouper par">
-            <span class="muted small">Grouper</span>
-            ${GROUP_MODES.map(
-              (mode) =>
-                html`<button
-                  type="button"
-                  class=${mode.id === this.prefs.groupMode ? 'on' : ''}
-                  aria-pressed=${mode.id === this.prefs.groupMode}
-                  title=${mode.hint}
-                  @click=${() => this.setPrefs({ groupMode: mode.id })}
-                >
-                  ${mode.label}
-                </button>`,
-            )}
-          </div>
+          <label class="field filter">
+            <span class="muted small">Filtrer</span>
+            <input
+              type="search"
+              name="filter"
+              placeholder="is:app AND env:prod   (touche /)"
+              aria-label="Filtrer les applications et add-ons"
+              autocomplete="off"
+              spellcheck="false"
+              .value=${this.filterText}
+              @input=${(event: Event) => (this.filterText = (event.currentTarget as HTMLInputElement).value)}
+            />
+          </label>
+          <label class="field grouping">
+            <span class="muted small">Regrouper par</span>
+            <input
+              type="text"
+              name="grouping"
+              list="grouping-suggestions"
+              placeholder="project > env"
+              aria-label="Regrouper par"
+              autocomplete="off"
+              spellcheck="false"
+              .value=${this.groupingText}
+              @input=${(event: Event) => this.setGrouping((event.currentTarget as HTMLInputElement).value)}
+            />
+            <datalist id="grouping-suggestions">
+              ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
+            </datalist>
+          </label>
           <div class="seg" role="group" aria-label="Trier par">
             <span class="muted small">Trier</span>
             <button
@@ -295,10 +306,13 @@ export class CvcOrgaPage extends LitElement {
         <p class="muted small hint">
           ${
             filter.error != null
-              ? html`<span class="danger">Expression incomplète (${filter.error}), filtre appliqué mot à mot.</span>`
-              : html`<code>is:app</code> <code>is:node</code> <code>project:nom</code> <code>env:prod</code>
-                  <code>has:project</code> <code>-env:prod</code> <code>state:arrêtée</code> <code>AND</code>
-                  <code>OR</code> <code>NOT</code> <code>( )</code> <code>"deux mots"</code>`
+              ? html`<span class="danger">Filtre incomplet (${filter.error}), appliqué mot à mot.</span>`
+              : grouping.error != null
+                ? html`<span class="danger">Regroupement : ${grouping.error}.</span>`
+                : html`<code>is:app</code> <code>is:node</code> <code>project:nom</code> <code>env:prod</code>
+                    <code>has:project</code> <code>-env:prod</code> <code>AND</code> <code>OR</code> <code>( )</code>
+                    <span class="sep">·</span> <code>project > env(prod,dev)</code> <code>type</code>
+                    <code>runtime</code> <code>state</code>`
           }
           ${data.deploymentsError ? html`<span class="danger">· activité indisponible : ${data.deploymentsError}</span>` : nothing}
           ${data.linksError ? html`<span class="danger">· liens incomplets : ${data.linksError}</span>` : nothing}
@@ -306,15 +320,19 @@ export class CvcOrgaPage extends LitElement {
       </header>
 
       ${this.renderWatch(watch)} ${this.renderRecents(recents)}
-      ${repeat(
-        groups,
-        (group) => group.id,
-        (group) => this.renderGroup(group, activity, context, data.linksPending > 0),
-      )}
       ${
-        groups.length === 0
+        tree.length === 1 && tree[0].level === 0
+          ? this.renderTable(tree[0], activity, context, data.linksPending > 0)
+          : repeat(
+              tree,
+              (node) => node.path,
+              (node) => this.renderSection(node, activity, context, data.linksPending > 0),
+            )
+      }
+      ${
+        visibleApps.length + visibleAddons.length === 0
           ? html`<p class="empty">
-              ${this.queryText.trim() === '' ? 'Rien à afficher.' : html`Rien ne correspond à « ${this.queryText} ».`}
+              ${this.filterText.trim() === '' ? 'Rien à afficher.' : html`Rien ne correspond à « ${this.filterText} ».`}
             </p>`
           : nothing
       }
@@ -370,59 +388,98 @@ export class CvcOrgaPage extends LitElement {
     </section>`;
   }
 
-  private renderGroup(
-    group: HomeGroup,
+  private counts(node: GroupNode): string {
+    return [
+      node.appCount > 0 ? `${node.appCount} app${node.appCount > 1 ? 's' : ''}` : '',
+      node.addonCount > 0 ? `${node.addonCount} add-on${node.addonCount > 1 ? 's' : ''}` : '',
+    ]
+      .filter((part) => part !== '')
+      .join(' · ');
+  }
+
+  private renderSection(
+    node: GroupNode,
     activity: Map<string, AppActivity>,
     context: GroupingContext,
     linksLoading: boolean,
   ) {
-    const collapsed = this.prefs.collapsed.includes(group.id);
-    const counts = [
-      group.apps.length > 0 ? `${group.apps.length} app${group.apps.length > 1 ? 's' : ''}` : '',
-      group.addons.length > 0 ? `${group.addons.length} add-on${group.addons.length > 1 ? 's' : ''}` : '',
-    ]
-      .filter((part) => part !== '')
-      .join(' · ');
-    return html`<section class="group ${group.kind}">
-      <button type="button" class="group-head" aria-expanded=${!collapsed} @click=${() => this.toggleGroup(group.id)}>
+    const collapsed = this.prefs.collapsed.includes(node.path);
+    return html`<section class="group ${node.missing ? 'missing' : ''}">
+      <button type="button" class="group-head" aria-expanded=${!collapsed} @click=${() => this.toggleGroup(node.path)}>
         <span class="chevron">${collapsed ? '▸' : '▾'}</span>
-        <span class="group-name">${group.name}</span>
-        <span class="muted small">${counts}</span>
+        <span class="group-name">${node.label}</span>
+        <span class="muted small">${this.counts(node)}</span>
       </button>
-      ${
-        collapsed
-          ? nothing
-          : html`<table class="list">
-              <tbody>
-                ${repeat(
-                  group.apps,
-                  (app) => app.id,
-                  (app) => html`
-                    ${this.renderAppRow(app, activity.get(app.id), context, linksLoading)}
-                    ${
-                      group.nested === true
-                        ? repeat(
-                            group.addons.filter((addon) => context.links[app.id]?.addonIds.includes(addon.id)),
-                            (addon) => addon.id,
-                            (addon) => this.renderAddonRow(addon, context, true),
-                          )
-                        : nothing
-                    }
-                  `,
-                )}
-                ${
-                  group.nested === true
-                    ? nothing
-                    : repeat(
-                        group.addons,
-                        (addon) => addon.id,
-                        (addon) => this.renderAddonRow(addon, context),
-                      )
-                }
-              </tbody>
-            </table>`
-      }
+      ${collapsed ? nothing : this.renderTable(node, activity, context, linksLoading)}
     </section>`;
+  }
+
+  private renderTable(
+    node: GroupNode,
+    activity: Map<string, AppActivity>,
+    context: GroupingContext,
+    linksLoading: boolean,
+  ) {
+    return html`<table class="list">
+      <colgroup>
+        <col class="logo" />
+        <col class="name" />
+        <col class="type" />
+        <col class="state" />
+        <col class="activity" />
+        <col class="links" />
+      </colgroup>
+      <tbody>
+        ${this.renderRows(node, activity, context, linksLoading)}
+      </tbody>
+    </table>`;
+  }
+
+  private renderRows(
+    node: GroupNode,
+    activity: Map<string, AppActivity>,
+    context: GroupingContext,
+    linksLoading: boolean,
+  ): unknown {
+    if (node.children.length > 0) {
+      return repeat(
+        node.children,
+        (child) => child.path,
+        (child) => {
+          const collapsed = this.prefs.collapsed.includes(child.path);
+          return html`<tr class="sub level-${child.level} ${child.missing ? 'missing' : ''}">
+              <td colspan="6">
+                <button
+                  type="button"
+                  class="sub-head"
+                  aria-expanded=${!collapsed}
+                  @click=${() => this.toggleGroup(child.path)}
+                >
+                  <span class="chevron">${collapsed ? '▸' : '▾'}</span>
+                  <span class="group-name">${child.label}</span>
+                  <span class="muted small">${this.counts(child)}</span>
+                </button>
+              </td>
+            </tr>
+            ${collapsed ? nothing : this.renderRows(child, activity, context, linksLoading)}`;
+        },
+      );
+    }
+    const byActivity = (a: ApplicationSummary, b: ApplicationSummary) =>
+      (activity.get(b.id)?.last.date ?? '').localeCompare(activity.get(a.id)?.last.date ?? '');
+    const apps = this.prefs.sort === 'activity' ? [...node.apps].sort(byActivity) : node.apps;
+    return html`
+      ${repeat(
+        apps,
+        (app) => app.id,
+        (app) => this.renderAppRow(app, activity.get(app.id), context, linksLoading),
+      )}
+      ${repeat(
+        node.addons,
+        (addon) => addon.id,
+        (addon) => this.renderAddonRow(addon, context, node.inferred.has(addon.id)),
+      )}
+    `;
   }
 
   private renderAppRow(
@@ -486,27 +543,19 @@ export class CvcOrgaPage extends LitElement {
     </td>`;
   }
 
-  private renderAddonRow(addon: AddonSummary, context: GroupingContext, nested = false) {
+  private renderAddonRow(addon: AddonSummary, context: GroupingContext, inferred: boolean) {
     const apps = linkedApps(addon.id, context);
-    return html`<tr class="addon ${nested ? 'nested' : ''}">
+    return html`<tr class="addon">
       <td class="logo"><img src=${addon.logoUrl} alt="" width="20" height="20" loading="lazy" /></td>
       <td class="name">
-        ${nested ? html`<span class="muted branch">└</span>` : nothing}
         <span>${addon.name}</span>
         ${this.renderTags(addon.customerTags)}
+        ${inferred ? html`<span class="tag inferred" title="Placé d’après les applications liées">déduit</span>` : nothing}
       </td>
       <td class="type muted small">${addon.providerId}</td>
       <td class="state"><span class="badge neutral">add-on</span></td>
       <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
-        ${
-          nested && apps.length === 1
-            ? ''
-            : apps.length === 0
-              ? 'non lié'
-              : apps.length === 1
-                ? apps[0].name
-                : `${apps.length} applications`
-        }
+        ${apps.length === 0 ? 'non lié' : apps.length === 1 ? apps[0].name : `${apps.length} applications`}
       </td>
       <td class="links">
         <a class="small muted" href="${CONSOLE_URL}/goto/${addon.id}" target="_blank" rel="noopener">Console ↗</a>
@@ -542,16 +591,32 @@ export class CvcOrgaPage extends LitElement {
         gap: 0.6rem;
         margin-bottom: 1rem;
       }
-      .toolbar input[type='search'] {
+      .toolbar {
+        align-items: flex-end;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      .field.filter {
         flex: 1 1 320px;
-        min-width: 200px;
+        min-width: 220px;
+      }
+      .field.grouping {
+        flex: 0 1 260px;
+        min-width: 180px;
+      }
+      .field input {
         font-family: var(--cvc-mono);
         font-size: 0.9rem;
+        width: 100%;
       }
       .seg {
         display: inline-flex;
         align-items: center;
         gap: 0.15rem;
+        padding-bottom: 0.3rem;
       }
       .seg > span {
         margin-right: 0.3rem;
@@ -572,11 +637,15 @@ export class CvcOrgaPage extends LitElement {
         align-items: center;
         gap: 0.3rem;
         cursor: pointer;
+        padding-bottom: 0.5rem;
       }
       .check input {
         margin: 0;
       }
       .hint code {
+        margin-right: 0.5rem;
+      }
+      .hint .sep {
         margin-right: 0.5rem;
       }
       .hint .danger {
@@ -625,7 +694,8 @@ export class CvcOrgaPage extends LitElement {
       .group {
         margin-bottom: 0.9rem;
       }
-      .group-head {
+      .group-head,
+      .sub-head {
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -636,17 +706,30 @@ export class CvcOrgaPage extends LitElement {
         padding: 0.3rem 0.4rem;
         font-weight: 600;
       }
-      .group-head:hover {
+      .group-head:hover,
+      .sub-head:hover {
         background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
       }
-      .group.rest .group-name,
-      .group.shared .group-name,
-      .group.orphans .group-name {
+      .group.missing .group-name,
+      tr.missing .group-name {
         color: var(--cvc-muted);
+        font-weight: 500;
       }
       .chevron {
         width: 1em;
         color: var(--cvc-muted);
+      }
+      tr.sub td {
+        padding: 0.15rem 0.3rem;
+        background: color-mix(in srgb, var(--cvc-muted) 6%, transparent);
+      }
+      tr.sub.level-3 .sub-head {
+        padding-left: 1.6rem;
+        font-size: 0.9rem;
+      }
+      .sub-head {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.95rem;
       }
 
       table.list {
@@ -669,11 +752,26 @@ export class CvcOrgaPage extends LitElement {
       .list tr:last-child td {
         border-bottom: none;
       }
-      .list tr:hover td {
+      .list tr.app:hover td,
+      .list tr.addon:hover td {
         background: color-mix(in srgb, var(--cvc-accent) 5%, transparent);
       }
+      col.logo {
+        width: 2.2rem;
+      }
+      col.type {
+        width: 9rem;
+      }
+      col.state {
+        width: 8rem;
+      }
+      col.activity {
+        width: 15rem;
+      }
+      col.links {
+        width: 11rem;
+      }
       td.logo {
-        width: 2rem;
         padding-right: 0;
       }
       td.logo img {
@@ -681,23 +779,13 @@ export class CvcOrgaPage extends LitElement {
         border-radius: 4px;
       }
       td.name a,
-      td.name > span {
+      td.name > span:first-child {
         font-weight: 500;
         text-decoration: none;
       }
       td.name a:hover {
         color: var(--cvc-accent);
         text-decoration: underline;
-      }
-      tr.nested td.name {
-        padding-left: 1.4rem;
-      }
-      tr.nested td.name > .branch {
-        font-weight: 400;
-        margin-right: 0.3rem;
-      }
-      tr.nested td.logo img {
-        opacity: 0.85;
       }
       .tag {
         margin-left: 0.4rem;
@@ -709,14 +797,12 @@ export class CvcOrgaPage extends LitElement {
         background: color-mix(in srgb, var(--cvc-info) 10%, transparent);
         border: 1px solid color-mix(in srgb, var(--cvc-info) 30%, transparent);
       }
-      td.type {
-        width: 9rem;
-      }
-      td.state {
-        width: 9rem;
-      }
-      td.activity {
-        width: 15rem;
+      .tag.inferred {
+        color: var(--cvc-muted);
+        background: transparent;
+        border-style: dashed;
+        border-color: var(--cvc-border);
+        font-weight: 400;
       }
       td.activity.platform {
         color: var(--cvc-muted);
@@ -726,9 +812,6 @@ export class CvcOrgaPage extends LitElement {
       }
       td.activity.wip {
         color: var(--cvc-warn);
-      }
-      td.links {
-        width: 11rem;
       }
       td.links img {
         vertical-align: middle;
@@ -746,7 +829,11 @@ export class CvcOrgaPage extends LitElement {
         td.links {
           display: none;
         }
-        td.activity {
+        col.type,
+        col.links {
+          width: 0;
+        }
+        col.activity {
           width: 11rem;
         }
       }
@@ -766,7 +853,7 @@ function readPrefs(ownerId: string): HomePrefs {
     }
     const parsed = JSON.parse(raw) as Partial<HomePrefs>;
     return {
-      groupMode: GROUP_MODES.some((mode) => mode.id === parsed.groupMode) ? parsed.groupMode! : DEFAULT_PREFS.groupMode,
+      grouping: typeof parsed.grouping === 'string' ? parsed.grouping : null,
       sort: parsed.sort === 'activity' ? 'activity' : 'name',
       showAddons: parsed.showAddons !== false,
       collapsed: Array.isArray(parsed.collapsed) ? parsed.collapsed.filter((id) => typeof id === 'string') : [],

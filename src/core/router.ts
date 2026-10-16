@@ -15,7 +15,7 @@ export type Route =
   | { kind: 'account' };
 
 export function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#/, '').replace(/^\/+/, '').replace(/\/+$/, '');
+  const path = hash.replace(/^#/, '').split('?')[0].replace(/^\/+/, '').replace(/\/+$/, '');
   const segments = path
     .split('/')
     .filter((segment) => segment.length > 0)
@@ -75,4 +75,34 @@ export function watchRoute(listener: (route: Route) => void): () => void {
 
 function isAppTab(value: string | undefined): value is AppTab {
   return value != null && (APP_TABS as readonly string[]).includes(value);
+}
+
+/** Query parameters carried after the route, as in `#/orga/<id>?q=…&g=…`. */
+export function readHashParams(hash = window.location.hash): URLSearchParams {
+  const index = hash.indexOf('?');
+  return new URLSearchParams(index === -1 ? '' : hash.slice(index + 1));
+}
+
+/** Sets or removes (`null` or empty) query parameters of the current route without a navigation. */
+export function writeHashParams(params: Record<string, string | null>): void {
+  const hash = window.location.hash;
+  const next = withHashParams(hash, params);
+  if (next !== hash) {
+    history.replaceState(null, '', next);
+  }
+}
+
+export function withHashParams(hash: string, params: Record<string, string | null>): string {
+  const index = hash.indexOf('?');
+  const base = index === -1 ? hash : hash.slice(0, index);
+  const search = new URLSearchParams(index === -1 ? '' : hash.slice(index + 1));
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === '') {
+      search.delete(key);
+    } else {
+      search.set(key, value);
+    }
+  }
+  const query = search.toString();
+  return query === '' ? base : `${base}?${query}`;
 }
