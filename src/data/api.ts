@@ -1,15 +1,27 @@
 /**
- * The only module that imports `@clevercloud/client` commands. Views go
- * through these functions so the command classes, their id-resolution quirks
- * and the "beta, may change" surface of the client stay in one place.
+ * The only module that imports `@clevercloud/client` commands. Views and
+ * actions go through these functions so the command classes, their
+ * id-resolution quirks and the "beta, may change" surface of the client stay
+ * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Application } from '@clevercloud/client/cc-api-commands/application/application.types.js';
+import { DeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/deploy-application-command.js';
 import { GetApplicationCommand } from '@clevercloud/client/cc-api-commands/application/get-application-command.js';
+import { UndeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/undeploy-application-command.js';
+import { UpdateApplicationCommand } from '@clevercloud/client/cc-api-commands/application/update-application-command.js';
+import type { UpdateApplicationCommandInput } from '@clevercloud/client/cc-api-commands/application/update-application-command.types.js';
+import { CancelDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/cancel-deployment-command.js';
 import type { DeploymentLegacy } from '@clevercloud/client/cc-api-commands/deployment/deployment.types.js';
 import { ListDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/list-deployment-command.js';
+import { CreateDomainCommand } from '@clevercloud/client/cc-api-commands/domain/create-domain-command.js';
+import { DeleteDomainCommand } from '@clevercloud/client/cc-api-commands/domain/delete-domain-command.js';
+import { SetPrimaryDomainCommand } from '@clevercloud/client/cc-api-commands/domain/set-primary-domain-command.js';
+import { CreateOrUpdateEnvironmentVariableCommand } from '@clevercloud/client/cc-api-commands/environment/create-or-update-environment-variable-command.js';
+import { DeleteEnvironmentVariableCommand } from '@clevercloud/client/cc-api-commands/environment/delete-environment-variable-command.js';
 import type { GetEnvironmentCommandOutput } from '@clevercloud/client/cc-api-commands/environment/environment.types.js';
 import { GetEnvironmentCommand } from '@clevercloud/client/cc-api-commands/environment/get-environment-command.js';
+import { UpdateEnvironmentCommand } from '@clevercloud/client/cc-api-commands/environment/update-environment-command.js';
 import type { Instance } from '@clevercloud/client/cc-api-commands/instance/instance.types.js';
 import { ListApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/list-application-instance-command.js';
 import type { LogsStream } from '@clevercloud/client/cc-api-commands/log/abstract-logs-stream-command.js';
@@ -18,12 +30,14 @@ import { StreamApplicationRuntimeLogCommand } from '@clevercloud/client/cc-api-c
 import { GetOrganisationSummaryCommand } from '@clevercloud/client/cc-api-commands/organisation/get-organisation-summary-command.js';
 import type { GetOrganisationSummaryCommandOutput } from '@clevercloud/client/cc-api-commands/organisation/get-organisation-summary-command.types.js';
 import type {
-  ApplicationSummary,
   AddonSummary,
+  ApplicationSummary,
   OrganisationSummary,
 } from '@clevercloud/client/cc-api-commands/organisation/organisation.types.js';
 import { GetProfileCommand } from '@clevercloud/client/cc-api-commands/profile/get-profile-command.js';
 import type { Profile } from '@clevercloud/client/cc-api-commands/profile/profile.types.js';
+import { ERROR_TYPES, parseRaw } from '@clevercloud/client/utils/environment-utils.js';
+import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
 
 export type {
   AddonSummary,
@@ -32,6 +46,7 @@ export type {
   ApplicationSummary,
   DeploymentLegacy as Deployment,
   GetEnvironmentCommandOutput as Environment,
+  EnvironmentVariable,
   Instance,
   LogsStream,
   OrganisationSummary,
@@ -39,6 +54,9 @@ export type {
 };
 
 export type Summary = GetOrganisationSummaryCommandOutput;
+export type ApplicationPatch = Omit<UpdateApplicationCommandInput, 'ownerId' | 'applicationId'>;
+
+// --- reads -----------------------------------------------------------------
 
 export function fetchProfile(client: CcApiClient): Promise<Profile> {
   return client.send(new GetProfileCommand());
@@ -97,4 +115,138 @@ export function openRuntimeLogs(
       instanceId: options.instanceId,
     }),
   );
+}
+
+// --- writes ----------------------------------------------------------------
+
+export interface RedeployOptions {
+  commit?: string;
+  useCache?: boolean;
+}
+
+/** `clever restart`: redeploys the current commit, or the given one. */
+export function redeployApplication(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  options: RedeployOptions = {},
+): Promise<{ deploymentId: string }> {
+  return client.send(
+    new DeployApplicationCommand({ ownerId, applicationId, commit: options.commit, useCache: options.useCache }),
+  );
+}
+
+/** `clever stop` */
+export async function undeployApplication(client: CcApiClient, ownerId: string, applicationId: string): Promise<void> {
+  await client.send(new UndeployApplicationCommand({ ownerId, applicationId }));
+}
+
+/** `clever cancel-deploy` */
+export async function cancelDeployment(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  deploymentId: string,
+): Promise<void> {
+  await client.send(new CancelDeploymentCommand({ ownerId, applicationId, deploymentId }));
+}
+
+/** `clever scale`, `clever config set`, and every other field of the application. */
+export function updateApplication(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  patch: ApplicationPatch,
+): Promise<Application> {
+  return client.send(new UpdateApplicationCommand({ ownerId, applicationId, ...patch }));
+}
+
+/** `clever env set` */
+export async function setEnvironmentVariable(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  name: string,
+  value: string,
+): Promise<void> {
+  await client.send(new CreateOrUpdateEnvironmentVariableCommand({ ownerId, applicationId, name, value }));
+}
+
+/** `clever env rm` */
+export async function deleteEnvironmentVariable(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  name: string,
+): Promise<void> {
+  await client.send(new DeleteEnvironmentVariableCommand({ ownerId, applicationId, name }));
+}
+
+/** `clever env import`: replaces the whole environment. */
+export async function replaceEnvironment(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  environment: EnvironmentVariable[],
+): Promise<void> {
+  await client.send(new UpdateEnvironmentCommand({ ownerId, applicationId, environment }));
+}
+
+/** `clever domain add` */
+export async function addDomain(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  domain: string,
+): Promise<void> {
+  await client.send(new CreateDomainCommand({ ownerId, applicationId, domain }));
+}
+
+/** `clever domain rm` */
+export async function removeDomain(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  domain: string,
+): Promise<void> {
+  await client.send(new DeleteDomainCommand({ ownerId, applicationId, domain }));
+}
+
+/** `clever domain favourite set` */
+export async function setPrimaryDomain(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  domain: string,
+): Promise<void> {
+  await client.send(new SetPrimaryDomainCommand({ ownerId, applicationId, domain }));
+}
+
+// --- helpers ---------------------------------------------------------------
+
+/** Parses `NAME=value` lines the way clever-tools and the Console do, with French error messages. */
+export function parseEnvFile(raw: string): { variables: EnvironmentVariable[]; errors: string[] } {
+  const { variables, errors } = parseRaw(raw, { mode: 'simple' });
+  return {
+    variables,
+    errors: errors.filter((error) => error.type !== ERROR_TYPES.JAVA_INFO).map(describeParsingError),
+  };
+}
+
+function describeParsingError(error: EnvVarParsingError): string {
+  const where = error.pos != null ? `ligne ${error.pos.line}` : 'contenu';
+  const name = error.name != null ? ` (${error.name})` : '';
+  switch (error.type) {
+    case ERROR_TYPES.INVALID_NAME:
+    case ERROR_TYPES.INVALID_NAME_STRICT:
+      return `${where} : nom de variable invalide${name}`;
+    case ERROR_TYPES.DUPLICATED_NAME:
+      return `${where} : variable en double${name}`;
+    case ERROR_TYPES.INVALID_LINE:
+      return `${where} : ligne invalide, attendu NOM=valeur`;
+    case ERROR_TYPES.INVALID_VALUE:
+      return `${where} : valeur invalide${name}`;
+    default:
+      return `${where} : erreur de syntaxe${name}`;
+  }
 }

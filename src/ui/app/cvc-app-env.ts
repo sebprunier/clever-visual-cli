@@ -3,20 +3,17 @@ import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
-import { fetchEnvironment, type Environment } from '../../data/api.js';
+import { fetchEnvironment, type Environment, type EnvironmentVariable } from '../../data/api.js';
+import { openAction } from '../shared/events.js';
 import { sharedStyles } from '../shared/styles.js';
 
-interface EnvVar {
-  name: string;
-  value: string;
-}
-
-/** Read-only environment, with the values hidden until asked for. Editing comes with phase 2. */
+/** The environment, values hidden until asked for. Changes go through the action dialog. */
 @customElement('cvc-app-env')
 export class CvcAppEnv extends LitElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
+  @property({ type: Number }) revision = 0;
 
   @state() private environment: Environment | null = null;
   @state() private error: string | null = null;
@@ -27,6 +24,8 @@ export class CvcAppEnv extends LitElement {
   override willUpdate(changed: PropertyValues<this>): void {
     if (changed.has('client') || changed.has('ownerId') || changed.has('appId')) {
       this.revealed = false;
+      void this.load();
+    } else if (changed.has('revision')) {
       void this.load();
     }
   }
@@ -75,6 +74,8 @@ export class CvcAppEnv extends LitElement {
       <div class="row toolbar">
         <span class="cli">clever env --app ${this.appId}</span>
         <span class="grow"></span>
+        <button type="button" class="primary" @click=${() => openAction(this, 'env-set')}>Ajouter une variable</button>
+        <button type="button" @click=${() => openAction(this, 'env-import')}>Importer</button>
         <button type="button" class="ghost" ?disabled=${env == null} @click=${() => (this.revealed = !this.revealed)}>
           ${this.revealed ? 'Masquer les valeurs' : 'Afficher les valeurs'}
         </button>
@@ -88,7 +89,7 @@ export class CvcAppEnv extends LitElement {
         env == null
           ? html`<p class="empty">Chargement…</p>`
           : html`
-              ${this.renderTable(env.environment, 'app')}
+              ${this.renderTable(env.environment, 'app', true)}
               ${(env.linkedAddonsEnvironment ?? []).map(
                 (linked) =>
                   html`<details class="card">
@@ -98,7 +99,7 @@ export class CvcAppEnv extends LitElement {
                         >${linked.addonProviderId} · ${linked.environment.length} variables</span
                       >
                     </summary>
-                    ${this.renderTable(linked.environment, linked.addonId)}
+                    ${this.renderTable(linked.environment, linked.addonId, false)}
                   </details>`,
               )}
               ${(env.linkedApplicationsEnvironment ?? []).map(
@@ -108,7 +109,7 @@ export class CvcAppEnv extends LitElement {
                       Application liée : <strong>${linked.applicationName}</strong>
                       <span class="muted small">${linked.environment.length} variables</span>
                     </summary>
-                    ${this.renderTable(linked.environment, linked.applicationId)}
+                    ${this.renderTable(linked.environment, linked.applicationId, false)}
                   </details>`,
               )}
             `
@@ -116,7 +117,7 @@ export class CvcAppEnv extends LitElement {
     `;
   }
 
-  private renderTable(variables: EnvVar[], scope: string) {
+  private renderTable(variables: EnvironmentVariable[], scope: string, editable: boolean) {
     if (variables.length === 0) {
       return html`<p class="empty">Aucune variable.</p>`;
     }
@@ -142,6 +143,24 @@ export class CvcAppEnv extends LitElement {
                   <button type="button" class="ghost small" @click=${() => this.copy(variable.value, key)}>
                     ${this.copied === key ? 'Copié !' : 'Copier'}
                   </button>
+                  ${
+                    editable
+                      ? html`<button
+                            type="button"
+                            class="ghost small"
+                            @click=${() => openAction(this, 'env-set', { name: variable.name, value: variable.value })}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            class="ghost small danger"
+                            @click=${() => openAction(this, 'env-rm', { name: variable.name })}
+                          >
+                            Supprimer
+                          </button>`
+                      : nothing
+                  }
                 </td>
               </tr>`;
             },
@@ -190,6 +209,9 @@ export class CvcAppEnv extends LitElement {
       button.small {
         padding: 0.2rem 0.5rem;
         font-size: 0.8rem;
+      }
+      button.danger {
+        color: var(--cvc-danger);
       }
     `,
   ];

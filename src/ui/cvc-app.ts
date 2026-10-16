@@ -1,51 +1,80 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
+import {
+  ACTIONS,
+  findAction,
+  type ActionContext,
+  type ActionDefinition,
+  type ActionResult,
+  type ActionValues,
+} from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import type { PaletteCommand } from '../core/palette.js';
 import { navigate, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
 import { Session } from '../core/session.js';
 import { Vault, type StoredProfile } from '../core/vault/vault.js';
+import type { Application } from '../data/api.js';
+import './cvc-action-dialog.js';
 import './cvc-app-page.js';
 import { APP_TAB_LABELS } from './cvc-app-page.js';
 import './cvc-command-palette.js';
 import type { CvcCommandPalette } from './cvc-command-palette.js';
 import './cvc-login.js';
 import './cvc-orga-page.js';
+import './cvc-toaster.js';
+import type { CvcToaster } from './cvc-toaster.js';
 import './cvc-unlock.js';
+import type { OpenActionDetail } from './shared/events.js';
 import { sharedStyles } from './shared/styles.js';
 
 type Phase = 'loading' | 'login' | 'adding' | 'unlock' | 'workspace';
 
+interface PendingAction {
+  action: ActionDefinition;
+  prefill: ActionValues;
+}
+
 const LAST_OWNER_KEY = 'cvc.lastOwnerId';
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 
-/** Application shell: vault and session lifecycle, routing, top bar and command palette. */
+/** Application shell: vault and session lifecycle, routing, top bar, command palette and action dialog. */
 @customElement('cvc-app')
 export class CvcApp extends LitElement {
   @state() private phase: Phase = 'loading';
   @state() private route: Route = { kind: 'home' };
   @state() private session: Session | null = null;
+  @state() private currentApp: Application | null = null;
+  @state() private pendingAction: PendingAction | null = null;
+  @state() private revision = 0;
 
   @query('cvc-command-palette') private palette?: CvcCommandPalette;
+  @query('cvc-toaster') private toaster?: CvcToaster;
 
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      if (this.phase === 'workspace') {
+      if (this.phase === 'workspace' && this.pendingAction == null) {
         this.palette?.toggle();
       }
     }
+  };
+  private readonly onOpenAction = (event: CustomEvent<OpenActionDetail>) => {
+    this.openAction(event.detail.actionId, event.detail.prefill);
   };
 
   override connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('keydown', this.onKeyDown);
+    this.addEventListener('cvc-open-action', this.onOpenAction);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
       if (route.kind === 'orga' || route.kind === 'app') {
         rememberOwner(route.ownerId);
+      }
+      if (route.kind !== 'app') {
+        this.pendingAction = null;
       }
     });
     void this.boot();
@@ -53,6 +82,7 @@ export class CvcApp extends LitElement {
 
   override disconnectedCallback(): void {
     window.removeEventListener('keydown', this.onKeyDown);
+    this.removeEventListener('cvc-open-action', this.onOpenAction);
     this.unwatchRoute?.();
     this.session?.removeEventListener('change', this.onChange);
     this.session?.vault.removeEventListener('change', this.onChange);
@@ -104,6 +134,7 @@ export class CvcApp extends LitElement {
     }
     this.phase = 'workspace';
     if (session.profile?.id !== active.id) {
+      this.currentApp = null;
       await session.activate(active);
     }
   }
@@ -138,6 +169,39 @@ export class CvcApp extends LitElement {
     void this.syncPhase();
   }
 
+  // --- actions -----------------------------------------------------------
+
+  private openAction(actionId: string, prefill: ActionValues = {}): void {
+    const action = findAction(actionId);
+    if (action == null || this.route.kind !== 'app') {
+      return;
+    }
+    this.palette?.close();
+    this.pendingAction = { action, prefill };
+  }
+
+  private actionContext(): ActionContext | null {
+    const client = this.session?.client;
+    if (client == null || this.route.kind !== 'app') {
+      return null;
+    }
+    const app = this.currentApp?.id === this.route.appId ? this.currentApp : null;
+    return { client, ownerId: this.route.ownerId, appId: this.route.appId, app };
+  }
+
+  private onActionDone(event: CustomEvent<ActionResult>): void {
+    const result = event.detail;
+    this.pendingAction = null;
+    this.toaster?.push({ kind: 'success', message: result.message });
+    if (result.refresh) {
+      this.revision += 1;
+      void this.session?.refreshSummary();
+    }
+    if (result.navigateTo != null && this.route.kind === 'app') {
+      navigate({ kind: 'app', ownerId: this.route.ownerId, appId: this.route.appId, tab: result.navigateTo });
+    }
+  }
+
   // --- palette -----------------------------------------------------------
 
   private buildCommands(): PaletteCommand[] {
@@ -159,6 +223,17 @@ export class CvcApp extends LitElement {
           group: 'Page',
           cli,
           run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
+        });
+      }
+      for (const action of ACTIONS) {
+        commands.push({
+          id: `action:${action.id}`,
+          title: action.title,
+          subtitle: current?.app.name,
+          group: 'Actions',
+          keywords: action.keywords,
+          cli: action.cliHint,
+          run: () => this.openAction(action.id),
         });
       }
     }
@@ -273,6 +348,7 @@ export class CvcApp extends LitElement {
   private renderWorkspace(session: Session) {
     const profile = session.profile;
     const currentOwnerId = this.route.kind === 'orga' || this.route.kind === 'app' ? this.route.ownerId : '';
+    const actionContext = this.pendingAction != null ? this.actionContext() : null;
     return html`
       <header class="topbar">
         <a class="brand" href="#/">clever-visual-cli</a>
@@ -281,7 +357,8 @@ export class CvcApp extends LitElement {
             ? html`<select
                 aria-label="Organisation"
                 .value=${currentOwnerId}
-                @change=${(event: Event) => navigate({ kind: 'orga', ownerId: (event.currentTarget as HTMLSelectElement).value })}
+                @change=${(event: Event) =>
+                  navigate({ kind: 'orga', ownerId: (event.currentTarget as HTMLSelectElement).value })}
               >
                 ${currentOwnerId === '' ? html`<option value="">Organisation…</option>` : nothing}
                 ${session.organisations.map(
@@ -313,6 +390,18 @@ export class CvcApp extends LitElement {
       </header>
       <main>${this.renderContent(session)}</main>
       <cvc-command-palette .commands=${this.buildCommands()}></cvc-command-palette>
+      ${
+        this.pendingAction != null && actionContext != null
+          ? html`<cvc-action-dialog
+              .action=${this.pendingAction.action}
+              .context=${actionContext}
+              .prefill=${this.pendingAction.prefill}
+              @cvc-action-done=${this.onActionDone}
+              @cvc-action-close=${() => (this.pendingAction = null)}
+            ></cvc-action-dialog>`
+          : nothing
+      }
+      <cvc-toaster></cvc-toaster>
     `;
   }
 
@@ -348,6 +437,8 @@ export class CvcApp extends LitElement {
           appId=${this.route.appId}
           tab=${this.route.tab}
           .summaryApp=${found?.app ?? null}
+          .revision=${this.revision}
+          @cvc-app-loaded=${(event: CustomEvent<Application>) => (this.currentApp = event.detail)}
         ></cvc-app-page>`;
       }
       default:

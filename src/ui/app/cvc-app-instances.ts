@@ -12,13 +12,14 @@ export class CvcAppInstances extends LitElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
+  @property({ type: Number }) revision = 0;
 
   @state() private instances: Instance[] | null = null;
   @state() private error: string | null = null;
   @state() private loading = false;
 
   override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('client') || changed.has('ownerId') || changed.has('appId')) {
+    if (changed.has('client') || changed.has('ownerId') || changed.has('appId') || changed.has('revision')) {
       void this.load();
     }
   }

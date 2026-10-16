@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { CONSOLE_URL } from '../../core/constants.js';
 import type { Application } from '../../data/api.js';
+import { openAction } from '../shared/events.js';
 import { formatDateTime, formatRelative, shortCommit } from '../shared/format.js';
 import { sharedStyles } from '../shared/styles.js';
 
@@ -39,7 +40,13 @@ export class CvcAppOverview extends LitElement {
         </section>
 
         <section class="card">
-          <h3>Scaling <span class="cli">clever scale</span></h3>
+          <h3>
+            Scaling
+            <span class="row">
+              <span class="cli">clever scale</span>
+              <button type="button" class="ghost small" @click=${() => openAction(this, 'scale')}>Modifier</button>
+            </span>
+          </h3>
           <dl>
             <dt>Instances</dt>
             <dd>${instanceRange} <span class="muted">(max autorisé : ${instance.maxAllowedInstances})</span></dd>
@@ -66,9 +73,9 @@ export class CvcAppOverview extends LitElement {
             <dd>${app.branch || html`<span class="muted">–</span>`}</dd>
             <dt>Commit</dt>
             <dd class="mono">${shortCommit(app.commitId) || html`<span class="muted">aucun</span>`}</dd>
-            <dt>Dernier déploiement</dt>
-            <dd title=${formatDateTime(app.lastDeployedAt)}>
-              ${formatRelative(app.lastDeployedAt) || html`<span class="muted">jamais</span>`}
+            <dt>Déploiements</dt>
+            <dd>
+              ${app.lastDeployedAt > 0 ? `${app.lastDeployedAt} au total` : html`<span class="muted">aucun</span>`}
             </dd>
             <dt>Remote</dt>
             <dd class="mono small wrap">${app.deployment.httpUrl ?? app.deployment.url}</dd>
@@ -76,16 +83,39 @@ export class CvcAppOverview extends LitElement {
         </section>
 
         <section class="card">
-          <h3>Domaines <span class="cli">clever domain</span></h3>
+          <h3>
+            Domaines
+            <span class="row">
+              <span class="cli">clever domain</span>
+              <button type="button" class="ghost small" @click=${() => openAction(this, 'domain-add')}>Ajouter</button>
+            </span>
+          </h3>
           ${
             app.domains.length === 0
               ? html`<p class="muted">Aucun domaine.</p>`
-              : html`<ul class="plain">
+              : html`<ul class="plain domains">
                   ${app.domains.map(
                     (domain) =>
                       html`<li>
                         <a href="https://${domain.domain}" target="_blank" rel="noopener">${domain.domain}</a>
-                        ${domain.isPrimary ? html`<span class="badge info">principal</span>` : nothing}
+                        ${
+                          domain.isPrimary
+                            ? html`<span class="badge info">principal</span>`
+                            : html`<button
+                                type="button"
+                                class="link small"
+                                @click=${() => openAction(this, 'domain-primary', { domain: domain.domain })}
+                              >
+                                principal
+                              </button>`
+                        }
+                        <button
+                          type="button"
+                          class="link small danger"
+                          @click=${() => openAction(this, 'domain-rm', { domain: domain.domain })}
+                        >
+                          supprimer
+                        </button>
                       </li>`,
                   )}
                 </ul>`
@@ -133,6 +163,10 @@ export class CvcAppOverview extends LitElement {
         gap: 0.5rem;
         margin-bottom: 0.6rem;
       }
+      button.small {
+        padding: 0.15rem 0.5rem;
+        font-size: 0.8rem;
+      }
       dl {
         display: grid;
         grid-template-columns: max-content 1fr;
@@ -162,6 +196,16 @@ export class CvcAppOverview extends LitElement {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+      }
+      ul.domains a {
+        overflow-wrap: anywhere;
+      }
+      ul.domains button.link {
+        font-size: 0.8rem;
+        color: var(--cvc-muted);
+      }
+      ul.domains button.link.danger {
+        color: var(--cvc-danger);
       }
       .off {
         color: var(--cvc-muted);

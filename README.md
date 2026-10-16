@@ -4,7 +4,7 @@ Une console Clever Cloud alternative, 100 % front, sans backend.
 
 L'idée : garder le vocabulaire et la logique du CLI officiel ([clever-tools](https://github.com/CleverCloud/clever-tools)), mais dans une interface web pensée pour l'usage quotidien, avec une command palette au centre. Chaque écran affiche la commande `clever` équivalente.
 
-> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 1, MVP en lecture**.
+> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions**.
 
 ## Pourquoi pas le CLI lui-même ?
 
@@ -35,6 +35,7 @@ Piège rencontré : le client envoie ses `fetch` en `mode: 'same-origin'` par d�
 - Command palette (`⌘K` / `Ctrl+K`) : applications de toutes les organisations, organisations, onglets de la page courante, actions de session.
 - Page organisation : applications avec leur état, add-ons.
 - Page application : vue d'ensemble, instances, déploiements, variables d'environnement (valeurs masquées, copie, export `.env`), logs en direct avec filtre, pause et fenêtre de rejeu.
+- Actions, depuis la palette ou les boutons de la page : redémarrer, arrêter, annuler un déploiement, scaler, définir, supprimer ou importer des variables, ajouter, supprimer ou choisir le domaine principal. Chaque dialogue affiche en direct la commande `clever` équivalente.
 
 ## Lancer
 
@@ -66,7 +67,7 @@ pnpm spike:node     # vérification de @clevercloud/client côté Node, sans nav
 ## Organisation du code
 
 ```
-src/core/      vault (chiffrement, profils), session, routeur, modèle de palette, flow Console
+src/core/      vault (chiffrement, profils), session, routeur, modèle de palette, actions, flow Console
 src/data/      le seul module qui importe les commandes de @clevercloud/client
 src/ui/        composants Lit : shell, login, déverrouillage, palette, pages
 scripts/       vérifications hors navigateur
@@ -78,7 +79,7 @@ scripts/       vérifications hors navigateur
 | ----- | ---------------------------------------------------------------------------------------------- | ------- |
 | 0     | Spike : auth, orgas, apps, logs en direct                                                      | fait    |
 | 1     | MVP lecture : coffre chiffré, multi-comptes, page application, palette                         | fait    |
-| 2     | Actions : restart, stop, redeploy, cancel, scale, env, domaines, avec l'équivalent CLI affiché | à venir |
+| 2     | Actions : restart, stop, redeploy, cancel, scale, env, domaines, avec l'équivalent CLI affiché | fait    |
 | 3     | Confort : PWA, raccourcis, favoris, fr/en, CSP, déploiement statique sur Clever Cloud          | à venir |
 | 4     | Add-ons, backups, drains, network groups, tokens API, k8s                                      | à venir |
 

@@ -10,6 +10,7 @@ import './app/cvc-app-env.js';
 import './app/cvc-app-instances.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
+import { openAction } from './shared/events.js';
 import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -21,7 +22,7 @@ export const APP_TAB_LABELS: Record<AppTab, { label: string; cli: string }> = {
   logs: { label: 'Logs', cli: 'clever logs' },
 };
 
-/** One application: header, tabs, and the active tab's view. */
+/** One application: header with the main actions, tabs, and the active tab's view. */
 @customElement('cvc-app-page')
 export class CvcAppPage extends LitElement {
   @property({ attribute: false }) client!: CcApiClient;
@@ -30,6 +31,8 @@ export class CvcAppPage extends LitElement {
   @property() tab: AppTab = 'overview';
   /** The summary entry, shown while the full application loads. */
   @property({ attribute: false }) summaryApp: ApplicationSummary | null = null;
+  /** Bumped by the shell after an action so every view reloads. */
+  @property({ type: Number }) revision = 0;
 
   @state() private app: Application | null = null;
   @state() private error: string | null = null;
@@ -37,6 +40,8 @@ export class CvcAppPage extends LitElement {
   override willUpdate(changed: PropertyValues<this>): void {
     if (changed.has('client') || changed.has('ownerId') || changed.has('appId')) {
       this.app = null;
+      void this.load();
+    } else if (changed.has('revision')) {
       void this.load();
     }
   }
@@ -51,6 +56,9 @@ export class CvcAppPage extends LitElement {
       const app = await fetchApplication(client, ownerId, appId);
       if (this.appId === appId) {
         this.app = app;
+        this.dispatchEvent(
+          new CustomEvent<Application>('cvc-app-loaded', { detail: app, bubbles: true, composed: true }),
+        );
       }
     } catch (error) {
       this.error = describeError(error);
@@ -63,6 +71,7 @@ export class CvcAppPage extends LitElement {
     const status = state ? stateLabel(APP_STATE_LABELS, state) : null;
     const logo = this.app?.instance.variant.logoUrl ?? this.summaryApp?.variantLogoUrl;
     const variant = this.app?.instance.variant.name ?? this.summaryApp?.variantName;
+    const canStop = state != null && state !== 'SHOULD_BE_DOWN';
 
     return html`
       <header>
@@ -72,6 +81,8 @@ export class CvcAppPage extends LitElement {
           ${status ? html`<span class="badge ${status.tone}">${status.label}</span>` : nothing}
           <span class="muted small">${variant ?? ''}${this.app ? ` · ${this.app.zone}` : ''}</span>
           <span class="grow"></span>
+          <button type="button" @click=${() => openAction(this, 'restart')}>Redémarrer</button>
+          ${canStop ? html`<button type="button" class="ghost" @click=${() => openAction(this, 'stop')}>Arrêter</button>` : nothing}
           <a class="small" href="${CONSOLE_URL}/goto/${this.appId}" target="_blank" rel="noopener">Console ↗</a>
         </div>
         <nav class="tabs" aria-label="Sections de l'application">
@@ -102,15 +113,22 @@ export class CvcAppPage extends LitElement {
           .client=${this.client}
           ownerId=${this.ownerId}
           appId=${this.appId}
+          .revision=${this.revision}
         ></cvc-app-instances>`;
       case 'deployments':
         return html`<cvc-app-deployments
           .client=${this.client}
           ownerId=${this.ownerId}
           appId=${this.appId}
+          .revision=${this.revision}
         ></cvc-app-deployments>`;
       case 'env':
-        return html`<cvc-app-env .client=${this.client} ownerId=${this.ownerId} appId=${this.appId}></cvc-app-env>`;
+        return html`<cvc-app-env
+          .client=${this.client}
+          ownerId=${this.ownerId}
+          appId=${this.appId}
+          .revision=${this.revision}
+        ></cvc-app-env>`;
       case 'logs':
         return html`<cvc-app-logs .client=${this.client} ownerId=${this.ownerId} appId=${this.appId}></cvc-app-logs>`;
     }

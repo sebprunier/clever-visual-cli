@@ -3,7 +3,7 @@
  * Phase 1 ships navigation commands; phase 2 adds actions with forms.
  */
 
-export type PaletteGroup = 'Applications' | 'Organisations' | 'Page' | 'Session';
+export type PaletteGroup = 'Page' | 'Actions' | 'Applications' | 'Organisations' | 'Session';
 
 export interface PaletteCommand {
   id: string;
@@ -16,7 +16,7 @@ export interface PaletteCommand {
   run: () => void;
 }
 
-const GROUP_ORDER: PaletteGroup[] = ['Page', 'Applications', 'Organisations', 'Session'];
+const GROUP_ORDER: PaletteGroup[] = ['Page', 'Actions', 'Applications', 'Organisations', 'Session'];
 
 export function filterCommands(commands: readonly PaletteCommand[], query: string, limit = 50): PaletteCommand[] {
   const terms = normalise(query)

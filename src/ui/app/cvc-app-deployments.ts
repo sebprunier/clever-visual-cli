@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { fetchDeployments, type Deployment } from '../../data/api.js';
+import { openAction } from '../shared/events.js';
 import {
   DEPLOYMENT_ACTION_LABELS,
   DEPLOYMENT_STATE_LABELS,
@@ -19,13 +20,14 @@ export class CvcAppDeployments extends LitElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
+  @property({ type: Number }) revision = 0;
 
   @state() private deployments: Deployment[] | null = null;
   @state() private error: string | null = null;
   @state() private loading = false;
 
   override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('client') || changed.has('ownerId') || changed.has('appId')) {
+    if (changed.has('client') || changed.has('ownerId') || changed.has('appId') || changed.has('revision')) {
       void this.load();
     }
   }
@@ -72,6 +74,7 @@ export class CvcAppDeployments extends LitElement {
                       <th>Auteur</th>
                       <th>Cause</th>
                       <th>Inst.</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -80,6 +83,8 @@ export class CvcAppDeployments extends LitElement {
                       (deployment) => deployment.id,
                       (deployment) => {
                         const status = stateLabel(DEPLOYMENT_STATE_LABELS, deployment.state);
+                        const inProgress =
+                          deployment.state === 'WORK_IN_PROGRESS' || deployment.state === 'TASK_IN_PROGRESS';
                         return html`<tr>
                           <td title=${formatDateTime(deployment.date)}>
                             ${formatRelative(deployment.date)}
@@ -91,6 +96,19 @@ export class CvcAppDeployments extends LitElement {
                           <td>${deployment.author.name ?? html`<span class="muted">–</span>`}</td>
                           <td class="small">${deployment.cause ?? html`<span class="muted">–</span>`}</td>
                           <td>${deployment.instances}</td>
+                          <td class="actions">
+                            ${
+                              inProgress
+                                ? html`<button
+                                    type="button"
+                                    class="ghost small danger"
+                                    @click=${() => openAction(this, 'cancel-deploy', { deploymentId: deployment.id })}
+                                  >
+                                    Annuler
+                                  </button>`
+                                : nothing
+                            }
+                          </td>
                         </tr>`;
                       },
                     )}
@@ -111,6 +129,17 @@ export class CvcAppDeployments extends LitElement {
       .card.table {
         padding: 0 0.5rem;
         overflow-x: auto;
+      }
+      td.actions {
+        text-align: right;
+        white-space: nowrap;
+      }
+      button.small {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+      }
+      button.danger {
+        color: var(--cvc-danger);
       }
     `,
   ];
