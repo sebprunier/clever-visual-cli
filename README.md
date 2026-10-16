@@ -59,6 +59,14 @@ pnpm spike:node     # vérification de @clevercloud/client côté Node, sans nav
 - La clé de consumer OAuth embarquée est celle de clever-tools, publique par conception (voir `src/core/constants.ts`).
 - Rien ne part ailleurs que vers `api.clever-cloud.com`, `api-bridge.clever-cloud.com` et `console.clever-cloud.com`.
 
+## Déploiement
+
+Le site est publié sur GitHub Pages à chaque push sur `main` par le workflow `.github/workflows/deploy.yml` (typecheck, tests, build, publication) : <https://sebprunier.github.io/clever-visual-cli/>.
+
+- `CVC_BASE=/clever-visual-cli/` au build fixe le chemin de base ; sans cette variable le build vise la racine d'un hébergeur quelconque (Clever Cloud static, par exemple).
+- Le build de production injecte une Content Security Policy en balise `meta` : scripts et styles depuis le site uniquement, réseau limité aux API Clever Cloud, images depuis n'importe quelle origine https pour les logos.
+- À savoir : toutes les pages d'un même compte GitHub partagent l'origine `sebprunier.github.io`, donc le `localStorage` du coffre est visible par les autres projets publiés sous ce compte. Le coffre y est chiffré, mais un domaine personnalisé donne une origine isolée.
+
 ## Ce qui ne marchera pas sans backend
 
 - `clever deploy` (git push), `clever ssh`, accès direct aux bases.

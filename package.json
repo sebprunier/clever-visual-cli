@@ -4,6 +4,11 @@
   "description": "Une console Clever Cloud alternative, 100 % front, batie sur @clevercloud/client",
   "license": "Apache-2.0",
   "author": "Sébastien Prunier",
+  "homepage": "https://sebprunier.github.io/clever-visual-cli/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sebprunier/clever-visual-cli.git"
+  },
   "private": true,
   "type": "module",
   "engines": {

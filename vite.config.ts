@@ -46,8 +46,46 @@ function devCliProfile(): Plugin {
   };
 }
 
+/**
+ * Content Security Policy for the production build, as a meta tag because
+ * static hosts such as GitHub Pages send no custom headers. Scripts and
+ * styles only from the site itself (Lit uses constructable stylesheets, so no
+ * inline style is needed), network only to the Clever Cloud APIs, logos from
+ * any https origin. The dev server stays unrestricted because Vite's HMR
+ * injects inline styles.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' https: data:",
+  "font-src 'self'",
+  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
+function productionCsp(): Plugin {
+  return {
+    name: 'cvc-production-csp',
+    apply: 'build',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'meta',
+          attrs: { 'http-equiv': 'Content-Security-Policy', content: CONTENT_SECURITY_POLICY },
+          injectTo: 'head-prepend',
+        },
+      ];
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [devCliProfile()],
+  // GitHub Pages serves the site under /clever-visual-cli/ ; other hosts at the root.
+  base: process.env.CVC_BASE ?? '/',
+  plugins: [devCliProfile(), productionCsp()],
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
