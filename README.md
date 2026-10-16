@@ -4,7 +4,7 @@ Une console Clever Cloud alternative, 100 % front, sans backend.
 
 L'idée : garder le vocabulaire et la logique du CLI officiel ([clever-tools](https://github.com/CleverCloud/clever-tools)), mais dans une interface web pensée pour l'usage quotidien, avec une command palette au centre. Chaque écran affiche la commande `clever` équivalente.
 
-> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions**.
+> Projet communautaire, non affilié à Clever Cloud. Statut : **phase 2, lecture et actions, accueil repensé (prototype UX)**.
 
 ## Pourquoi pas le CLI lui-même ?
 
@@ -33,7 +33,7 @@ Piège rencontré : le client envoie ses `fetch` en `mode: 'same-origin'` par d�
 - Connexion par token API, via la Console (le parcours `clever login` dans une popup) ou avec un couple token/secret OAuth.
 - Plusieurs comptes, stockés chiffrés dans le navigateur ou seulement pour l'onglet.
 - Command palette (`⌘K` / `Ctrl+K`) : applications de toutes les organisations, organisations, onglets de la page courante, actions de session.
-- Page organisation : applications avec leur état, add-ons.
+- Accueil d’une organisation : liste dense des applications et add-ons, recherche avec filtres (`tag:`, `project:`, `env:`, `runtime:`, `state:`, `is:`), regroupement par stack (liens applications ↔ add-ons), projet, runtime ou état, bandeau « À surveiller » (déploiements échoués ou en cours), applications ouvertes récemment, dernier déploiement de chaque application en distinguant l’activité humaine de la maintenance plateforme.
 - Page application : vue d'ensemble, instances, déploiements, variables d'environnement (valeurs masquées, copie, export `.env`), logs en direct avec filtre, pause et fenêtre de rejeu.
 - Actions, depuis la palette ou les boutons de la page : redémarrer, arrêter, annuler un déploiement, scaler, définir, supprimer ou importer des variables, ajouter, supprimer ou choisir le domaine principal. Chaque dialogue affiche en direct la commande `clever` équivalente.
 
@@ -55,6 +55,7 @@ pnpm spike:node     # vérification de @clevercloud/client côté Node, sans nav
 
 - **Coffre chiffré** : les tokens sont chiffrés en AES-256-GCM avec une clé dérivée d'une phrase de passe par PBKDF2-SHA256 (600 000 itérations), et stockés en `localStorage`. Pour ne pas redemander la phrase à chaque rechargement, la clé brute est gardée en `sessionStorage` tant que l'onglet est ouvert ; "Verrouiller" l'efface.
 - **Session seulement** : JSON en clair en `sessionStorage`, disparaît avec l'onglet.
+- **Données d’accueil, non sensibles** : les liens applications ↔ add-ons (`cvc.links.*`), les préférences d’affichage par organisation (`cvc.home.*`) et les applications ouvertes récemment (`cvc.recents`) restent en `localStorage` ; « Tout effacer de ce navigateur » les supprime aussi.
 - Modèle de menace : le fichier de configuration de clever-tools est en clair sur disque. Une SPA statique sans script tiers n'est pas plus exposée. Le risque réel est une XSS via du contenu affiché (logs, noms, variables), d'où Lit (échappement par défaut), jamais d'`innerHTML`, et une CSP stricte en production (à venir avec le déploiement).
 - La clé de consumer OAuth embarquée est celle de clever-tools, publique par conception (voir `src/core/constants.ts`).
 - Rien ne part ailleurs que vers `api.clever-cloud.com`, `api-bridge.clever-cloud.com` et `console.clever-cloud.com`.

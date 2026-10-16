@@ -75,7 +75,10 @@ export function formatRelative(value: string | number | null | undefined, now = 
   if (abs < 86_400 * 30) {
     return relativeFormat.format(Math.round(diffSeconds / 86_400), 'day');
   }
-  return dateTimeFormat.format(date);
+  if (abs < 86_400 * 365) {
+    return relativeFormat.format(Math.round(diffSeconds / (86_400 * 30)), 'month');
+  }
+  return relativeFormat.format(Math.round(diffSeconds / (86_400 * 365)), 'year');
 }
 
 export function formatDateTime(value: string | number | null | undefined): string {

@@ -9,6 +9,8 @@ import {
   type ActionValues,
 } from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
+import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
+import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
 import { navigate, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
 import { Session } from '../core/session.js';
@@ -50,6 +52,7 @@ export class CvcApp extends LitElement {
   @query('cvc-command-palette') private palette?: CvcCommandPalette;
   @query('cvc-toaster') private toaster?: CvcToaster;
 
+  private readonly homeStore = new HomeStore();
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
@@ -72,6 +75,9 @@ export class CvcApp extends LitElement {
       this.route = route;
       if (route.kind === 'orga' || route.kind === 'app') {
         rememberOwner(route.ownerId);
+      }
+      if (route.kind === 'app') {
+        recordVisit(route.ownerId, route.appId);
       }
       if (route.kind !== 'app') {
         this.pendingAction = null;
@@ -135,6 +141,7 @@ export class CvcApp extends LitElement {
     this.phase = 'workspace';
     if (session.profile?.id !== active.id) {
       this.currentApp = null;
+      this.homeStore.forget();
       await session.activate(active);
     }
   }
@@ -166,6 +173,7 @@ export class CvcApp extends LitElement {
     this.session?.deactivate();
     this.session?.vault.destroy();
     clearClientCaches();
+    clearHomeStorage();
     void this.syncPhase();
   }
 
@@ -421,9 +429,17 @@ export class CvcApp extends LitElement {
     switch (this.route.kind) {
       case 'orga': {
         const orga = session.findOrganisation(this.route.ownerId);
-        return orga == null
-          ? html`<p class="empty">Organisation inconnue.</p>`
-          : html`<cvc-orga-page .orga=${orga}></cvc-orga-page>`;
+        const client = session.client;
+        if (orga == null || client == null) {
+          return html`<p class="empty">Organisation inconnue.</p>`;
+        }
+        return html`<cvc-orga-page
+          .orga=${orga}
+          .client=${client}
+          .store=${this.homeStore}
+          userId=${session.profile?.userId ?? ''}
+          .revision=${this.revision}
+        ></cvc-orga-page>`;
       }
       case 'app': {
         const client = session.client;

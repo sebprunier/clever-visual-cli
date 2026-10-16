@@ -14,6 +14,8 @@ import type { UpdateApplicationCommandInput } from '@clevercloud/client/cc-api-c
 import { CancelDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/cancel-deployment-command.js';
 import type { DeploymentLegacy } from '@clevercloud/client/cc-api-commands/deployment/deployment.types.js';
 import { ListDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/list-deployment-command.js';
+import type { Link } from '@clevercloud/client/cc-api-commands/link/link.types.js';
+import { ListLinkCommand } from '@clevercloud/client/cc-api-commands/link/list-link-command.js';
 import { CreateDomainCommand } from '@clevercloud/client/cc-api-commands/domain/create-domain-command.js';
 import { DeleteDomainCommand } from '@clevercloud/client/cc-api-commands/domain/delete-domain-command.js';
 import { SetPrimaryDomainCommand } from '@clevercloud/client/cc-api-commands/domain/set-primary-domain-command.js';
@@ -115,6 +117,34 @@ export function openRuntimeLogs(
       instanceId: options.instanceId,
     }),
   );
+}
+
+/** Every deployment of every application of the organisation. The backend ignores `limit` here. */
+export function fetchOrganisationDeployments(client: CcApiClient, ownerId: string): Promise<DeploymentLegacy[]> {
+  return client.send(new ListDeploymentCommand({ ownerId }));
+}
+
+export interface ApplicationLinks {
+  addonIds: string[];
+  applicationIds: string[];
+}
+
+/** What an application is linked to: add-ons, and applications it depends on. Two requests. */
+export async function fetchApplicationLinks(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+): Promise<ApplicationLinks> {
+  const links: Link[] = await client.send(new ListLinkCommand({ ownerId, applicationId }));
+  const result: ApplicationLinks = { addonIds: [], applicationIds: [] };
+  for (const link of links) {
+    if (link.type === 'link-to-addon') {
+      result.addonIds.push(link.addon.id);
+    } else {
+      result.applicationIds.push(link.application.id);
+    }
+  }
+  return result;
 }
 
 // --- writes ----------------------------------------------------------------
