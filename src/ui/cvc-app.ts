@@ -1,0 +1,549 @@
+import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
+import { customElement, query, state } from 'lit/decorators.js';
+import { clearClientCaches } from '../core/clever-client.js';
+import type { PaletteCommand } from '../core/palette.js';
+import { navigate, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
+import { Session } from '../core/session.js';
+import { Vault, type StoredProfile } from '../core/vault/vault.js';
+import './cvc-app-page.js';
+import { APP_TAB_LABELS } from './cvc-app-page.js';
+import './cvc-command-palette.js';
+import type { CvcCommandPalette } from './cvc-command-palette.js';
+import './cvc-login.js';
+import './cvc-orga-page.js';
+import './cvc-unlock.js';
+import { sharedStyles } from './shared/styles.js';
+
+type Phase = 'loading' | 'login' | 'adding' | 'unlock' | 'workspace';
+
+const LAST_OWNER_KEY = 'cvc.lastOwnerId';
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** Application shell: vault and session lifecycle, routing, top bar and command palette. */
+@customElement('cvc-app')
+export class CvcApp extends LitElement {
+  @state() private phase: Phase = 'loading';
+  @state() private route: Route = { kind: 'home' };
+  @state() private session: Session | null = null;
+
+  @query('cvc-command-palette') private palette?: CvcCommandPalette;
+
+  private unwatchRoute?: () => void;
+  private readonly onChange = () => this.requestUpdate();
+  private readonly onKeyDown = (event: KeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (this.phase === 'workspace') {
+        this.palette?.toggle();
+      }
+    }
+  };
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener('keydown', this.onKeyDown);
+    this.unwatchRoute = watchRoute((route) => {
+      this.route = route;
+      if (route.kind === 'orga' || route.kind === 'app') {
+        rememberOwner(route.ownerId);
+      }
+    });
+    void this.boot();
+  }
+
+  override disconnectedCallback(): void {
+    window.removeEventListener('keydown', this.onKeyDown);
+    this.unwatchRoute?.();
+    this.session?.removeEventListener('change', this.onChange);
+    this.session?.vault.removeEventListener('change', this.onChange);
+    super.disconnectedCallback();
+  }
+
+  override willUpdate(_changed: PropertyValues<this>): void {
+    // Home is a redirect to the last visited organisation once the summary is known.
+    if (this.phase === 'workspace' && this.route.kind === 'home' && this.session?.summary != null) {
+      const orgas = this.session.organisations;
+      const remembered = readOwner();
+      const target =
+        orgas.find((orga) => orga.id === remembered) ??
+        orgas.find((orga) => !orga.isPersonal && orga.applications.length > 0) ??
+        orgas[0];
+      if (target != null) {
+        navigate({ kind: 'orga', ownerId: target.id });
+      }
+    }
+  }
+
+  // --- lifecycle ---------------------------------------------------------
+
+  private async boot(): Promise<void> {
+    const vault = await Vault.load();
+    const session = new Session(vault);
+    session.addEventListener('change', this.onChange);
+    vault.addEventListener('change', this.onChange);
+    this.session = session;
+    await this.syncPhase();
+  }
+
+  /** Derives the phase from the vault, activating the stored profile when needed. */
+  private async syncPhase(): Promise<void> {
+    const session = this.session;
+    if (session == null) {
+      return;
+    }
+    const vault = session.vault;
+    if (vault.state === 'locked') {
+      this.phase = 'unlock';
+      return;
+    }
+    const active = vault.activeProfile;
+    if (active == null) {
+      session.deactivate();
+      this.phase = 'login';
+      return;
+    }
+    this.phase = 'workspace';
+    if (session.profile?.id !== active.id) {
+      await session.activate(active);
+    }
+  }
+
+  private lock(): void {
+    this.session?.deactivate();
+    this.session?.vault.lock();
+    void this.syncPhase();
+  }
+
+  private async forgetActiveAccount(): Promise<void> {
+    const session = this.session;
+    const profile = session?.profile;
+    if (session == null || profile == null) {
+      return;
+    }
+    session.deactivate();
+    clearClientCaches();
+    await session.vault.removeProfile(profile.id);
+    await this.syncPhase();
+  }
+
+  private async switchProfile(profile: StoredProfile): Promise<void> {
+    await this.session?.vault.setActiveProfile(profile.id);
+    await this.syncPhase();
+  }
+
+  private destroyEverything(): void {
+    this.session?.deactivate();
+    this.session?.vault.destroy();
+    clearClientCaches();
+    void this.syncPhase();
+  }
+
+  // --- palette -----------------------------------------------------------
+
+  private buildCommands(): PaletteCommand[] {
+    const session = this.session;
+    if (session == null) {
+      return [];
+    }
+    const commands: PaletteCommand[] = [];
+    const route = this.route;
+
+    if (route.kind === 'app') {
+      const current = session.findApplication(route.appId);
+      for (const tab of Object.keys(APP_TAB_LABELS) as AppTab[]) {
+        const { label, cli } = APP_TAB_LABELS[tab];
+        commands.push({
+          id: `tab:${tab}`,
+          title: label,
+          subtitle: current?.app.name,
+          group: 'Page',
+          cli,
+          run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
+        });
+      }
+    }
+
+    for (const orga of session.organisations) {
+      for (const app of orga.applications) {
+        if (app.isArchived) {
+          continue;
+        }
+        commands.push({
+          id: `app:${app.id}`,
+          title: app.name,
+          subtitle: `${orga.name} · ${app.variantName}`,
+          group: 'Applications',
+          keywords: [orga.name, app.variantName, app.id],
+          run: () => navigate({ kind: 'app', ownerId: orga.id, appId: app.id, tab: 'overview' }),
+        });
+      }
+    }
+
+    for (const orga of session.organisations) {
+      commands.push({
+        id: `orga:${orga.id}`,
+        title: orga.name,
+        subtitle: `${orga.applications.length} applications · ${orga.addons.length} add-ons`,
+        group: 'Organisations',
+        keywords: [orga.id],
+        run: () => navigate({ kind: 'orga', ownerId: orga.id }),
+      });
+    }
+
+    commands.push({
+      id: 'session:refresh',
+      title: 'Rafraîchir les données',
+      group: 'Session',
+      run: () => void session.refreshSummary(),
+    });
+    commands.push({
+      id: 'session:account',
+      title: 'Mon compte',
+      subtitle: session.profile?.email,
+      group: 'Session',
+      cli: 'clever profile',
+      run: () => navigate({ kind: 'account' }),
+    });
+    for (const profile of session.vault.profiles) {
+      if (profile.id !== session.profile?.id) {
+        commands.push({
+          id: `session:switch:${profile.id}`,
+          title: `Passer au compte ${profile.name ?? profile.email}`,
+          subtitle: profile.email,
+          group: 'Session',
+          cli: 'clever profile switch',
+          run: () => void this.switchProfile(profile),
+        });
+      }
+    }
+    commands.push({
+      id: 'session:add',
+      title: 'Ajouter un compte',
+      group: 'Session',
+      cli: 'clever login --alias',
+      run: () => (this.phase = 'adding'),
+    });
+    if (session.vault.mode === 'encrypted') {
+      commands.push({
+        id: 'session:lock',
+        title: 'Verrouiller le coffre',
+        group: 'Session',
+        run: () => this.lock(),
+      });
+    }
+    commands.push({
+      id: 'session:logout',
+      title: 'Se déconnecter',
+      subtitle: 'retire ce compte du navigateur',
+      group: 'Session',
+      cli: 'clever logout',
+      run: () => void this.forgetActiveAccount(),
+    });
+    return commands;
+  }
+
+  // --- rendering ---------------------------------------------------------
+
+  override render() {
+    const session = this.session;
+    if (session == null || this.phase === 'loading') {
+      return html`<p class="empty">Chargement…</p>`;
+    }
+    switch (this.phase) {
+      case 'login':
+        return html`<cvc-login .session=${session} @cvc-logged-in=${this.syncPhase}></cvc-login>`;
+      case 'adding':
+        return html`<cvc-login
+          .session=${session}
+          adding
+          @cvc-logged-in=${this.syncPhase}
+          @cvc-cancel=${() => (this.phase = 'workspace')}
+        ></cvc-login>`;
+      case 'unlock':
+        return html`<cvc-unlock
+          .vault=${session.vault}
+          @cvc-unlocked=${this.syncPhase}
+          @cvc-vault-forgotten=${this.syncPhase}
+        ></cvc-unlock>`;
+      case 'workspace':
+        return this.renderWorkspace(session);
+    }
+  }
+
+  private renderWorkspace(session: Session) {
+    const profile = session.profile;
+    const currentOwnerId = this.route.kind === 'orga' || this.route.kind === 'app' ? this.route.ownerId : '';
+    return html`
+      <header class="topbar">
+        <a class="brand" href="#/">clever-visual-cli</a>
+        ${
+          session.summary != null
+            ? html`<select
+                aria-label="Organisation"
+                .value=${currentOwnerId}
+                @change=${(event: Event) => navigate({ kind: 'orga', ownerId: (event.currentTarget as HTMLSelectElement).value })}
+              >
+                ${currentOwnerId === '' ? html`<option value="">Organisation…</option>` : nothing}
+                ${session.organisations.map(
+                  (orga) =>
+                    html`<option value=${orga.id} ?selected=${orga.id === currentOwnerId}>${orga.name}</option>`,
+                )}
+              </select>`
+            : nothing
+        }
+        <button type="button" class="search" @click=${() => this.palette?.open()}>
+          <span>Rechercher ou commander…</span>
+          <kbd>${IS_MAC ? '⌘K' : 'Ctrl+K'}</kbd>
+        </button>
+        <details class="menu">
+          <summary>${profile?.name ?? profile?.email ?? 'Compte'}</summary>
+          <div class="menu-items">
+            <span class="muted small">${profile?.email}</span>
+            <a href=${routeToHash({ kind: 'account' })}>Mon compte</a>
+            <button type="button" class="link" @click=${() => session.refreshSummary()}>Rafraîchir</button>
+            <button type="button" class="link" @click=${() => (this.phase = 'adding')}>Ajouter un compte</button>
+            ${
+              session.vault.mode === 'encrypted'
+                ? html`<button type="button" class="link" @click=${this.lock}>Verrouiller</button>`
+                : nothing
+            }
+            <button type="button" class="link" @click=${this.forgetActiveAccount}>Se déconnecter</button>
+          </div>
+        </details>
+      </header>
+      <main>${this.renderContent(session)}</main>
+      <cvc-command-palette .commands=${this.buildCommands()}></cvc-command-palette>
+    `;
+  }
+
+  private renderContent(session: Session) {
+    if (this.route.kind === 'account') {
+      return this.renderAccount(session);
+    }
+    if (session.summaryError != null) {
+      return html`<div class="stack">
+        <p class="error" role="alert">${session.summaryError}</p>
+        <div><button type="button" @click=${() => session.refreshSummary()}>Réessayer</button></div>
+      </div>`;
+    }
+    if (session.summary == null) {
+      return html`<p class="empty">Chargement des organisations…</p>`;
+    }
+    switch (this.route.kind) {
+      case 'orga': {
+        const orga = session.findOrganisation(this.route.ownerId);
+        return orga == null
+          ? html`<p class="empty">Organisation inconnue.</p>`
+          : html`<cvc-orga-page .orga=${orga}></cvc-orga-page>`;
+      }
+      case 'app': {
+        const client = session.client;
+        if (client == null) {
+          return nothing;
+        }
+        const found = session.findApplication(this.route.appId);
+        return html`<cvc-app-page
+          .client=${client}
+          ownerId=${this.route.ownerId}
+          appId=${this.route.appId}
+          tab=${this.route.tab}
+          .summaryApp=${found?.app ?? null}
+        ></cvc-app-page>`;
+      }
+      default:
+        return html`<p class="empty">Chargement…</p>`;
+    }
+  }
+
+  private renderAccount(session: Session) {
+    const vault = session.vault;
+    return html`
+      <div class="account stack">
+        <h1>Mon compte</h1>
+        <section class="card stack">
+          <h2>Comptes dans ce navigateur</h2>
+          <p class="muted small">
+            ${
+              vault.mode === 'encrypted'
+                ? 'Stockage chiffré (AES-GCM) dans localStorage, déverrouillé pour cet onglet.'
+                : 'Stockage de session uniquement : tout disparaît à la fermeture de l’onglet.'
+            }
+          </p>
+          <ul class="profiles">
+            ${vault.profiles.map(
+              (profile) =>
+                html`<li class="row">
+                  <span>
+                    <strong>${profile.name ?? profile.email}</strong>
+                    <span class="muted small"
+                      >${profile.email} · ${profile.credentials.type === 'api-token' ? 'token API' : 'OAuth'}</span
+                    >
+                  </span>
+                  ${
+                    profile.id === session.profile?.id
+                      ? html`<span class="badge ok">actif</span>`
+                      : html`<button type="button" class="ghost" @click=${() => this.switchProfile(profile)}>
+                          Utiliser
+                        </button>`
+                  }
+                </li>`,
+            )}
+          </ul>
+          <div class="row">
+            <button type="button" @click=${() => (this.phase = 'adding')}>Ajouter un compte</button>
+            ${vault.mode === 'encrypted' ? html`<button type="button" @click=${this.lock}>Verrouiller</button>` : nothing}
+            <button type="button" @click=${this.forgetActiveAccount}>Se déconnecter</button>
+            <button type="button" class="ghost danger" @click=${this.destroyEverything}>
+              Tout effacer de ce navigateur
+            </button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  static override styles = [
+    sharedStyles,
+    css`
+      :host {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid var(--cvc-border);
+        background: var(--cvc-surface);
+        flex: none;
+      }
+      .brand {
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex: 1 1 280px;
+        max-width: 480px;
+        color: var(--cvc-muted);
+        background: var(--cvc-bg);
+      }
+      .search kbd {
+        font-family: inherit;
+        font-size: 0.75rem;
+        border: 1px solid var(--cvc-border);
+        border-radius: 4px;
+        padding: 0 0.3rem;
+      }
+      .menu {
+        margin-left: auto;
+        position: relative;
+      }
+      .menu summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid var(--cvc-border);
+        border-radius: var(--cvc-radius);
+      }
+      .menu summary::-webkit-details-marker {
+        display: none;
+      }
+      .menu-items {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.3rem);
+        min-width: 220px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem 0.9rem;
+        background: var(--cvc-surface);
+        border: 1px solid var(--cvc-border);
+        border-radius: var(--cvc-radius);
+        box-shadow: 0 10px 30px rgb(0 0 0 / 20%);
+        z-index: 10;
+      }
+      .menu-items a,
+      .menu-items button.link {
+        text-align: left;
+        text-decoration: none;
+        color: var(--cvc-text);
+      }
+      main {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+      }
+      main > * {
+        flex: 1;
+        min-height: 0;
+      }
+      .account {
+        max-width: 720px;
+        flex: none;
+      }
+      .profiles {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .profiles li {
+        justify-content: space-between;
+      }
+      .profiles li > span {
+        display: flex;
+        flex-direction: column;
+      }
+      .profiles .badge,
+      .profiles button {
+        flex: none;
+      }
+      button.danger {
+        color: var(--cvc-danger);
+        border-color: var(--cvc-danger);
+      }
+      @media (max-width: 720px) {
+        main {
+          padding: 1rem;
+        }
+        .topbar {
+          flex-wrap: wrap;
+        }
+      }
+    `,
+  ];
+}
+
+function rememberOwner(ownerId: string): void {
+  try {
+    localStorage.setItem(LAST_OWNER_KEY, ownerId);
+  } catch {
+    // Not essential.
+  }
+}
+
+function readOwner(): string | null {
+  try {
+    return localStorage.getItem(LAST_OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'cvc-app': CvcApp;
+  }
+}

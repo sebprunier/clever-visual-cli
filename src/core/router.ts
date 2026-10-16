@@ -1,0 +1,78 @@
+/**
+ * Hash-based router: `#/orga/<ownerId>/app/<appId>/<tab>`.
+ *
+ * Hash routing needs no server-side rewrite, so the build runs unchanged on
+ * any static host (Clever Cloud static, GitHub Pages, a local `file://`).
+ */
+
+export const APP_TABS = ['overview', 'instances', 'deployments', 'env', 'logs'] as const;
+export type AppTab = (typeof APP_TABS)[number];
+
+export type Route =
+  | { kind: 'home' }
+  | { kind: 'orga'; ownerId: string }
+  | { kind: 'app'; ownerId: string; appId: string; tab: AppTab }
+  | { kind: 'account' };
+
+export function parseRoute(hash: string): Route {
+  const path = hash.replace(/^#/, '').replace(/^\/+/, '').replace(/\/+$/, '');
+  const segments = path
+    .split('/')
+    .filter((segment) => segment.length > 0)
+    .map(decodeURIComponent);
+
+  if (segments.length === 0) {
+    return { kind: 'home' };
+  }
+  if (segments[0] === 'account') {
+    return { kind: 'account' };
+  }
+  if (segments[0] === 'orga' && segments[1] != null) {
+    const ownerId = segments[1];
+    if (segments[2] === 'app' && segments[3] != null) {
+      const tab = isAppTab(segments[4]) ? segments[4] : 'overview';
+      return { kind: 'app', ownerId, appId: segments[3], tab };
+    }
+    return { kind: 'orga', ownerId };
+  }
+  return { kind: 'home' };
+}
+
+export function routeToHash(route: Route): string {
+  switch (route.kind) {
+    case 'home':
+      return '#/';
+    case 'account':
+      return '#/account';
+    case 'orga':
+      return `#/orga/${encodeURIComponent(route.ownerId)}`;
+    case 'app': {
+      const base = `#/orga/${encodeURIComponent(route.ownerId)}/app/${encodeURIComponent(route.appId)}`;
+      return route.tab === 'overview' ? base : `${base}/${route.tab}`;
+    }
+  }
+}
+
+export function navigate(route: Route): void {
+  const hash = routeToHash(route);
+  if (window.location.hash === hash) {
+    return;
+  }
+  window.location.hash = hash;
+}
+
+export function currentRoute(): Route {
+  return parseRoute(window.location.hash);
+}
+
+/** Calls `listener` now and on every hash change; returns the unsubscribe function. */
+export function watchRoute(listener: (route: Route) => void): () => void {
+  const handler = () => listener(currentRoute());
+  window.addEventListener('hashchange', handler);
+  handler();
+  return () => window.removeEventListener('hashchange', handler);
+}
+
+function isAppTab(value: string | undefined): value is AppTab {
+  return value != null && (APP_TABS as readonly string[]).includes(value);
+}
