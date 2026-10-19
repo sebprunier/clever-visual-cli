@@ -6,7 +6,8 @@
   --cvc-border: #d9dde3;
   --cvc-text: #1b1f24;
   --cvc-muted: #5c6670;
-  --cvc-accent: #c6362f;
+  /* A blue accent: red stays for errors, even if it is Clever Cloud's colour. */
+  --cvc-accent: #0969da;
   --cvc-accent-text: #ffffff;
   --cvc-danger: #b42318;
   --cvc-ok: #1a7f37;
@@ -23,7 +24,8 @@
     --cvc-border: #2b323b;
     --cvc-text: #e6e9ed;
     --cvc-muted: #9aa4af;
-    --cvc-accent: #ef5a52;
+    --cvc-accent: #58a6ff;
+    --cvc-accent-text: #0f1216;
     --cvc-danger: #ff6b61;
     --cvc-ok: #4cc26b;
     --cvc-warn: #e3b341;
