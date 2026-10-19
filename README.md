@@ -34,10 +34,11 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 - Sign in with an API token, through the Console (the `clever login` flow in a popup) or with an OAuth token/secret pair.
 - Several accounts, stored encrypted in the browser or for the tab only.
 - Command palette (`⌘K` / `Ctrl+K`): applications of every organisation, organisations, tabs of the current page, session actions, language.
-- Organisation home: a dense list of applications and add-ons, a "To watch" strip (failed or running deployments), recently opened applications, the last deployment of each application with human activity told apart from platform maintenance.
-  - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `has:project`, any `key:value` tag (`project:name`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes.
+- Organisation home: a dense list of applications and add-ons, with the last deployment of each application and human activity told apart from platform maintenance.
+  - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (the applications of the "To watch" card), `has:project`, any `key:value` tag (`project:name`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes.
   - **Group by** expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels (`project > env(prod,dev)`, the order in parentheses is optional). An add-on without a tag inherits those of its linked applications ("inferred"). Filter and grouping live in the URL, so a view can be bookmarked.
   - **Bulk tags**: checkboxes (shift+click for a range, "select all" on the filtered result), then add, remove or rename a tag on the selection, with the exact list of API calls before applying, a progress counter, and "Undo" in the notification, which replays the inverse. Clever Cloud imposes no tag convention; `project:<name>:<env>` and `env:<env>` are the author's.
+  - **Side column**, folded above the list on a narrow window: the Clever Cloud platform status read from the public status page (incidents in progress, last incident resolved, refreshed every five minutes), the applications to watch, the ones opened recently.
 - Application page: overview, instances, deployments, environment variables (hidden values, copy, `.env` export), live logs with filter, pause and replay window.
 - Actions, from the palette or the page buttons: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live.
 - Interface in English or French: the browser language by default, changeable from the account menu, the account page or the palette; the choice is remembered in the browser.
@@ -63,7 +64,7 @@ pnpm spike:node     # checks @clevercloud/client from Node, without a browser
 - **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`) and the language (`cvc.locale`) stay in `localStorage`; "Erase everything from this browser" removes them too.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production.
 - The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
-- Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com` and `console.clever-cloud.com`.
+- Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com` and `console.clever-cloud.com`, plus read-only calls to `www.clevercloudstatus.com` for the platform status.
 
 ## Deployment
 

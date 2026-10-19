@@ -27,10 +27,12 @@ import {
   type GroupingContext,
 } from '../core/home/grouping.js';
 import type { HomeStore } from '../core/home/home-store.js';
+import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { listRecents } from '../core/home/recents.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
 import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
+import './cvc-platform-status.js';
 import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
@@ -283,6 +285,8 @@ export class CvcOrgaPage extends CvcElement {
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
     };
     const filter = parseFilter(this.filterText);
+    const watch = watchList(apps, activity);
+    const watchIds = new Set(watch.map((item) => item.app.id));
     const matchApp = (app: ApplicationSummary) =>
       matchesFilter(filter, {
         kind: 'app',
@@ -292,6 +296,7 @@ export class CvcOrgaPage extends CvcElement {
         state: stateLabel(APP_STATE_LABELS, app.state).label,
         tags: app.customerTags,
         extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
+        flags: watchIds.has(app.id) ? ['watch'] : [],
       });
     const matchAddon = (addon: AddonSummary) =>
       matchesFilter(filter, {
@@ -307,7 +312,6 @@ export class CvcOrgaPage extends CvcElement {
     const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
     const tree = buildTree(grouping, visibleApps, visibleAddons, context);
     this.#order = this.displayOrder(tree, activity);
-    const watch = watchList(apps, activity);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
       .map((visit) => appById.get(visit.appId))
@@ -320,125 +324,134 @@ export class CvcOrgaPage extends CvcElement {
     );
 
     return html`
-      <header class="head">
-        <div class="row">
-          <h1>${this.orga.name}</h1>
-          <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
-          <span class="cli">clever applications list</span>
-          <span class="grow"></span>
+      <div class="layout">
+        <div class="main">
+          <header class="head">
+            <div class="row">
+              <h1>${this.orga.name}</h1>
+              <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
+              <span class="cli">clever applications list</span>
+              <span class="grow"></span>
+              ${
+                data.linksPending > 0
+                  ? html`<span class="muted small" title=${t('home.linksTitle')}
+                      >${t('home.linksProgress', { done: linksDone, total: apps.length })}</span
+                    >`
+                  : data.deploymentsLoading
+                    ? html`<span class="muted small">${t('home.activityLoading')}</span>`
+                    : nothing
+              }
+              <button
+                type="button"
+                class="ghost"
+                title=${t('home.refreshTitle')}
+                ?disabled=${data.deploymentsLoading || data.linksPending > 0}
+                @click=${() => {
+                  this.refresh({ force: true, forceLinks: true });
+                  void loadPlatformStatus({ force: true });
+                }}
+              >
+                ${t('common.refresh')}
+              </button>
+            </div>
+            <div class="row toolbar">
+              <label class="field filter">
+                <span class="muted small">${t('home.filter')}</span>
+                <input
+                  type="search"
+                  name="filter"
+                  placeholder=${t('home.filterPlaceholder')}
+                  aria-label=${t('home.filterAria')}
+                  autocomplete="off"
+                  spellcheck="false"
+                  .value=${this.filterText}
+                  @input=${(event: Event) => (this.filterText = (event.currentTarget as HTMLInputElement).value)}
+                />
+              </label>
+              <label class="field grouping">
+                <span class="muted small">${t('home.groupBy')}</span>
+                <input
+                  type="text"
+                  name="grouping"
+                  list="grouping-suggestions"
+                  placeholder=${t('home.groupByPlaceholder')}
+                  aria-label=${t('home.groupBy')}
+                  autocomplete="off"
+                  spellcheck="false"
+                  .value=${this.groupingText}
+                  @input=${(event: Event) => this.setGrouping((event.currentTarget as HTMLInputElement).value)}
+                />
+                <datalist id="grouping-suggestions">
+                  ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
+                </datalist>
+              </label>
+              <div class="seg" role="group" aria-label=${t('home.sort')}>
+                <span class="muted small">${t('home.sort')}</span>
+                <button
+                  type="button"
+                  class=${this.prefs.sort === 'name' ? 'on' : ''}
+                  aria-pressed=${this.prefs.sort === 'name'}
+                  @click=${() => this.setPrefs({ sort: 'name' })}
+                >
+                  ${t('home.sortName')}
+                </button>
+                <button
+                  type="button"
+                  class=${this.prefs.sort === 'activity' ? 'on' : ''}
+                  aria-pressed=${this.prefs.sort === 'activity'}
+                  title=${t('home.sortActivityTitle')}
+                  @click=${() => this.setPrefs({ sort: 'activity' })}
+                >
+                  ${t('home.sortActivity')}
+                </button>
+              </div>
+              <label class="small check">
+                <input
+                  type="checkbox"
+                  .checked=${this.prefs.showAddons}
+                  @change=${(event: Event) => this.setPrefs({ showAddons: (event.currentTarget as HTMLInputElement).checked })}
+                />
+                ${t('home.addons')}
+              </label>
+            </div>
+            <p class="muted small hint">
+              ${
+                filter.error != null
+                  ? html`<span class="danger">${t('home.filterError', { error: filter.error })}</span>`
+                  : grouping.error != null
+                    ? html`<span class="danger">${t('home.groupingError', { error: grouping.error })}</span>`
+                    : html`<code>is:app</code> <code>is:node</code> <code>is:watch</code> <code>project:shop</code>
+                        <code>env:prod</code> <code>has:project</code> <code>-env:prod</code> <code>AND</code>
+                        <code>OR</code> <code>( )</code> <span class="sep">·</span> <code>project > env(prod,dev)</code>
+                        <code>type</code> <code>runtime</code> <code>state</code>`
+              }
+              ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
+              ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
+            </p>
+            ${this.renderSelectionBar()}
+          </header>
           ${
-            data.linksPending > 0
-              ? html`<span class="muted small" title=${t('home.linksTitle')}
-                  >${t('home.linksProgress', { done: linksDone, total: apps.length })}</span
-                >`
-              : data.deploymentsLoading
-                ? html`<span class="muted small">${t('home.activityLoading')}</span>`
-                : nothing
+            tree.length === 1 && tree[0].level === 0
+              ? this.renderTable(tree[0], activity, context, data.linksPending > 0)
+              : repeat(
+                  tree,
+                  (node) => node.path,
+                  (node) => this.renderSection(node, activity, context, data.linksPending > 0),
+                )
           }
-          <button
-            type="button"
-            class="ghost"
-            title=${t('home.refreshTitle')}
-            ?disabled=${data.deploymentsLoading || data.linksPending > 0}
-            @click=${() => this.refresh({ force: true, forceLinks: true })}
-          >
-            ${t('common.refresh')}
-          </button>
-        </div>
-        <div class="row toolbar">
-          <label class="field filter">
-            <span class="muted small">${t('home.filter')}</span>
-            <input
-              type="search"
-              name="filter"
-              placeholder=${t('home.filterPlaceholder')}
-              aria-label=${t('home.filterAria')}
-              autocomplete="off"
-              spellcheck="false"
-              .value=${this.filterText}
-              @input=${(event: Event) => (this.filterText = (event.currentTarget as HTMLInputElement).value)}
-            />
-          </label>
-          <label class="field grouping">
-            <span class="muted small">${t('home.groupBy')}</span>
-            <input
-              type="text"
-              name="grouping"
-              list="grouping-suggestions"
-              placeholder=${t('home.groupByPlaceholder')}
-              aria-label=${t('home.groupBy')}
-              autocomplete="off"
-              spellcheck="false"
-              .value=${this.groupingText}
-              @input=${(event: Event) => this.setGrouping((event.currentTarget as HTMLInputElement).value)}
-            />
-            <datalist id="grouping-suggestions">
-              ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
-            </datalist>
-          </label>
-          <div class="seg" role="group" aria-label=${t('home.sort')}>
-            <span class="muted small">${t('home.sort')}</span>
-            <button
-              type="button"
-              class=${this.prefs.sort === 'name' ? 'on' : ''}
-              aria-pressed=${this.prefs.sort === 'name'}
-              @click=${() => this.setPrefs({ sort: 'name' })}
-            >
-              ${t('home.sortName')}
-            </button>
-            <button
-              type="button"
-              class=${this.prefs.sort === 'activity' ? 'on' : ''}
-              aria-pressed=${this.prefs.sort === 'activity'}
-              title=${t('home.sortActivityTitle')}
-              @click=${() => this.setPrefs({ sort: 'activity' })}
-            >
-              ${t('home.sortActivity')}
-            </button>
-          </div>
-          <label class="small check">
-            <input
-              type="checkbox"
-              .checked=${this.prefs.showAddons}
-              @change=${(event: Event) => this.setPrefs({ showAddons: (event.currentTarget as HTMLInputElement).checked })}
-            />
-            ${t('home.addons')}
-          </label>
-        </div>
-        <p class="muted small hint">
           ${
-            filter.error != null
-              ? html`<span class="danger">${t('home.filterError', { error: filter.error })}</span>`
-              : grouping.error != null
-                ? html`<span class="danger">${t('home.groupingError', { error: grouping.error })}</span>`
-                : html`<code>is:app</code> <code>is:node</code> <code>project:nom</code> <code>env:prod</code>
-                    <code>has:project</code> <code>-env:prod</code> <code>AND</code> <code>OR</code> <code>( )</code>
-                    <span class="sep">·</span> <code>project > env(prod,dev)</code> <code>type</code>
-                    <code>runtime</code> <code>state</code>`
+            visibleApps.length + visibleAddons.length === 0
+              ? html`<p class="empty">
+                  ${this.filterText.trim() === '' ? t('home.nothing') : t('home.noMatch', { query: this.filterText })}
+                </p>`
+              : nothing
           }
-          ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
-          ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
-        </p>
-        ${this.renderSelectionBar()}
-      </header>
-
-      ${this.renderWatch(watch)} ${this.renderRecents(recents)}
-      ${
-        tree.length === 1 && tree[0].level === 0
-          ? this.renderTable(tree[0], activity, context, data.linksPending > 0)
-          : repeat(
-              tree,
-              (node) => node.path,
-              (node) => this.renderSection(node, activity, context, data.linksPending > 0),
-            )
-      }
-      ${
-        visibleApps.length + visibleAddons.length === 0
-          ? html`<p class="empty">
-              ${this.filterText.trim() === '' ? t('home.nothing') : t('home.noMatch', { query: this.filterText })}
-            </p>`
-          : nothing
-      }
+        </div>
+        <aside class="side">
+          <cvc-platform-status></cvc-platform-status>
+          ${this.renderWatch(watch)} ${this.renderRecents(recents)}
+        </aside>
+      </div>
       ${
         this.tagDialog != null
           ? html`<cvc-tag-dialog
@@ -492,16 +505,31 @@ export class CvcOrgaPage extends CvcElement {
     if (items.length === 0) {
       return nothing;
     }
+    const filtering = /(^|\s)is:watch(\s|$)/i.test(this.filterText);
     return html`<section class="watch card">
-      <h2>${t('home.watch')}</h2>
+      <div class="row card-head">
+        <h2>${t('home.watch')} <span class="muted">${items.length}</span></h2>
+        <span class="grow"></span>
+        <button
+          type="button"
+          class="link ${filtering ? 'on' : ''}"
+          title=${t('home.watchFilter')}
+          aria-pressed=${filtering}
+          @click=${() => (this.filterText = toggleToken(this.filterText, 'is:watch'))}
+        >
+          is:watch
+        </button>
+      </div>
       <ul>
         ${items.map((item) => {
           const { label, tone } = WATCH_LABELS[item.kind];
-          return html`<li class="row">
-            <span class="badge ${tone}">${t(label)}</span>
-            <a href=${this.appHash(item.app.id, item.kind === 'failed' ? 'deployments' : 'overview')}
-              >${item.app.name}</a
-            >
+          return html`<li>
+            <span class="row">
+              <span class="badge ${tone}">${t(label)}</span>
+              <a href=${this.appHash(item.app.id, item.kind === 'failed' ? 'deployments' : 'overview')}
+                >${item.app.name}</a
+              >
+            </span>
             <span class="muted small">${this.describeWatch(item)}</span>
           </li>`;
         })}
@@ -538,9 +566,11 @@ export class CvcOrgaPage extends CvcElement {
     if (apps.length === 0) {
       return nothing;
     }
-    return html`<section class="recents row">
-      <span class="muted small">${t('home.recents')}</span>
-      ${apps.map((app) => html`<a class="chip" href=${this.appHash(app.id)}>${app.name}</a>`)}
+    return html`<section class="recents card">
+      <h2>${t('home.recents')}</h2>
+      <div class="row chips">
+        ${apps.map((app) => html`<a class="chip" href=${this.appHash(app.id)}>${app.name}</a>`)}
+      </div>
     </section>`;
   }
 
@@ -780,6 +810,22 @@ export class CvcOrgaPage extends CvcElement {
       :host {
         display: block;
       }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 1.25rem;
+        align-items: start;
+      }
+      .main {
+        min-width: 0;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: sticky;
+        top: 0;
+      }
       .grow {
         flex: 1;
       }
@@ -866,13 +912,32 @@ export class CvcOrgaPage extends CvcElement {
         font-size: 0.85rem;
       }
 
-      .watch {
+      .side .card {
         padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        border-color: color-mix(in srgb, var(--cvc-warn) 45%, var(--cvc-border));
       }
-      .watch h2 {
+      .side h2 {
+        margin: 0 0 0.4rem;
+        font-size: 0.95rem;
+      }
+      .card-head {
+        gap: 0.5rem;
         margin-bottom: 0.4rem;
+      }
+      .card-head h2 {
+        margin: 0;
+      }
+      .card-head .link {
+        font-family: var(--cvc-mono);
+        font-size: 0.8rem;
+        text-decoration: none;
+        color: var(--cvc-muted);
+      }
+      .card-head .link:hover,
+      .card-head .link.on {
+        color: var(--cvc-accent);
+      }
+      .watch {
+        border-color: color-mix(in srgb, var(--cvc-warn) 45%, var(--cvc-border));
       }
       .watch ul {
         list-style: none;
@@ -880,7 +945,22 @@ export class CvcOrgaPage extends CvcElement {
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
+        gap: 0.45rem;
+      }
+      .watch li {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+      .watch li .row {
+        gap: 0.4rem;
+        flex-wrap: nowrap;
+        min-width: 0;
+      }
+      .watch li a {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .watch a {
         font-weight: 500;
@@ -890,8 +970,8 @@ export class CvcOrgaPage extends CvcElement {
         text-decoration: underline;
       }
 
-      .recents {
-        margin-bottom: 1rem;
+      .recents .chips {
+        gap: 0.35rem;
       }
       .chip {
         text-decoration: none;
@@ -1052,6 +1132,22 @@ export class CvcOrgaPage extends CvcElement {
       }
       td.links a {
         text-decoration: none;
+      }
+      @media (max-width: 1100px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .side {
+          order: -1;
+          position: static;
+          flex-direction: row;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+        .side > * {
+          flex: 1 1 260px;
+          min-width: 0;
+        }
       }
       @media (max-width: 960px) {
         td.type,

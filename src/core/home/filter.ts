@@ -4,6 +4,7 @@
  *   api prod                       free text, every word must match the name, runtime or a tag
  *   is:app  is:addon               one kind only
  *   is:node  is:postgresql         runtime or add-on provider slug, like the Console's sidebar
+ *   is:watch                       applications listed under "To watch"
  *   project:shop  env:prod         any `<key>:<value>` matches the tag `key:value` (or `key:value:…`)
  *   has:project                    has a tag with this key
  *   tag:env  runtime:java  state:arrêtée  name:api
@@ -47,6 +48,8 @@ export interface FilterItem {
   tags: string[];
   /** Extra searchable words: ids, linked resource names... */
   extra?: string[];
+  /** Words for `is:` beyond the slugs: `watch` for an application listed under "To watch". */
+  flags?: string[];
 }
 
 /** Keys with a meaning of their own; any other key is a tag key. */
@@ -252,6 +255,7 @@ interface PreparedItem {
   kind: ItemKind;
   name: string;
   slugs: string[];
+  flags: string[];
   runtime: string;
   state: string;
   tags: string[];
@@ -261,6 +265,7 @@ interface PreparedItem {
 function prepare(item: FilterItem): PreparedItem {
   const name = normalise(item.name);
   const slugs = item.slugs.map(normalise);
+  const flags = (item.flags ?? []).map(normalise);
   const runtime = normalise(item.runtime);
   const tags = item.tags.map(normalise);
   const extra = (item.extra ?? []).map(normalise);
@@ -268,6 +273,7 @@ function prepare(item: FilterItem): PreparedItem {
     kind: item.kind,
     name,
     slugs,
+    flags,
     runtime,
     state: item.state == null ? '' : normalise(item.state),
     tags,
@@ -299,6 +305,9 @@ function evaluateTerm(key: string | null, value: string, item: PreparedItem): bo
       }
       if (value === 'addon' || value === 'add-on') {
         return item.kind === 'addon';
+      }
+      if (item.flags.includes(value)) {
+        return true;
       }
       return item.slugs.some((slug) => slug === value || slug.startsWith(value));
     case 'has':

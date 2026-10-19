@@ -60,7 +60,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self'",
   "img-src 'self' https: data:",
   "font-src 'self'",
-  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com",
+  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com https://www.clevercloudstatus.com",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",

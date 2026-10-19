@@ -96,3 +96,20 @@ describe('home filter', () => {
     expect(toggleToken('api', 'tag:MaVille')).toBe('api tag:MaVille');
   });
 });
+
+describe('is:watch', () => {
+  const failing: FilterItem = { ...api, name: 'API en échec', flags: ['watch'] };
+
+  it('matches the applications flagged to watch', () => {
+    const filter = parseFilter('is:watch');
+    expect(matchesFilter(filter, failing)).toBe(true);
+    expect(matchesFilter(filter, api)).toBe(false);
+    expect(matchesFilter(filter, db)).toBe(false);
+  });
+
+  it('combines with the other terms', () => {
+    expect(matchesFilter(parseFilter('is:watch env:prod'), failing)).toBe(true);
+    expect(matchesFilter(parseFilter('-is:watch'), api)).toBe(true);
+    expect(matchesFilter(parseFilter('runtime:watch'), failing)).toBe(false);
+  });
+});
