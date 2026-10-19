@@ -127,8 +127,13 @@ export class CvcOrgaPage extends CvcElement {
   @state() private prefs: HomePrefs = DEFAULT_PREFS;
   @state() private selected: ReadonlySet<string> = new Set();
   @state() private tagDialog: TagOperationKind | null = null;
+  /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
+  @state() private sideTall = false;
 
   @query('input[name="filter"]') private filterInput?: HTMLInputElement;
+  @query('aside.side') private sideElement?: HTMLElement;
+
+  #sideObserver: ResizeObserver | null = null;
 
   #activitySource: readonly Deployment[] | null = null;
   #activity: Map<string, AppActivity> = new Map();
@@ -171,7 +176,23 @@ export class CvcOrgaPage extends CvcElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.store?.removeEventListener('change', this.onStoreChange);
     this.costStore?.removeEventListener('change', this.onStoreChange);
+    this.#sideObserver?.disconnect();
+    this.#sideObserver = null;
     super.disconnectedCallback();
+  }
+
+  override firstUpdated(): void {
+    // A sticky column taller than the scroll area would hide its bottom until the list
+    // is scrolled to its end; watch both heights and let it scroll with the list instead.
+    const scroller = this.parentElement;
+    if (this.sideElement == null || scroller == null || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    this.#sideObserver = new ResizeObserver(() => {
+      this.sideTall = (this.sideElement?.offsetHeight ?? 0) > scroller.clientHeight;
+    });
+    this.#sideObserver.observe(this.sideElement);
+    this.#sideObserver.observe(scroller);
   }
 
   override willUpdate(changed: PropertyValues): void {
@@ -510,7 +531,7 @@ export class CvcOrgaPage extends CvcElement {
               : this.renderListTotal(tree, visibleApps.length + visibleAddons.length, costs)
           }
         </div>
-        <aside class="side">
+        <aside class="side ${this.sideTall ? 'tall' : ''}">
           <cvc-platform-status></cvc-platform-status>
           ${this.renderCostCard(visibleApps, visibleAddons, costs)} ${this.renderWatch(watch)}
           ${this.renderRecents(recents)}
@@ -1110,6 +1131,9 @@ export class CvcOrgaPage extends CvcElement {
         gap: 0.75rem;
         position: sticky;
         top: 0;
+      }
+      .side.tall {
+        position: static;
       }
       .grow {
         flex: 1;
