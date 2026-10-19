@@ -365,12 +365,14 @@ export const en = {
   'costs.hint.days30': 'Rolling sum of the daily consumptions.',
   'costs.hint.invoice': 'The lines of the latest invoice issued.',
   'costs.hint.estimate':
-    'One month at the current configuration: minimum instances for 720 hours and add-on plans, at the organisation’s prices.',
+    'One month where nothing changes: started applications at their minimum instances for 720 hours, stopped ones at 0, add-on plans, at the organisation’s prices.',
   'costs.columnHint': 'The selected line feeds the cost column and the totals of the list.',
   'costs.columnTitle.yesterday': 'Consumption of {date}',
   'costs.columnTitle.days30': 'Sum of the last 30 days of consumption',
   'costs.columnTitle.invoice': 'Invoice {number}, {month}',
-  'costs.columnTitle.estimate': 'Current configuration: minimum instances for 720 hours, add-on plans',
+  'costs.columnTitle.estimate':
+    'Current configuration: started applications at their minimum instances for 720 hours, stopped ones at 0, add-on plans',
+  'costs.ifStarted': 'Stopped: {amount} per month if started',
   'costs.daysProgress': '{done} / {total} days',
   'costs.listTotal': '{count} resources · {source}',
   'costs.listTotal_one': '{count} resource · {source}',
@@ -383,7 +385,7 @@ export const en = {
   'costs.about2':
     '“Yesterday” and “Last 30 days” come from the daily consumptions, computed each night for the day before: a resource at zero cost nothing over the period. The invoice is the latest one issued, resource by resource.',
   'costs.about3':
-    '“Current configuration” assumes every application runs the whole month with its minimum number of instances. Storage, traffic and add-ons without a known price are not counted, hence the dash.',
+    '“Current configuration” assumes a month where nothing changes: every started application runs with its minimum number of instances, a stopped one costs nothing. Storage, traffic and add-ons without a known price are not counted, hence the dash.',
   'costs.loading': 'loading…',
   'costs.unavailable': 'unavailable: {error}',
   'costs.unavailableShort': 'unavailable',

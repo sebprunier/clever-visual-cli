@@ -35,11 +35,11 @@ function node(partial: Partial<GroupNode>): GroupNode {
 }
 
 describe('estimateCosts', () => {
-  it('prices an application for 720 hours of its minimum instances and an add-on for its plan', () => {
+  it('prices a started application for 720 hours of its minimum instances and an add-on for its plan', () => {
     const table = estimateCosts(
       [
-        { id: 'app_1', hourlyPrice: 0.0444, minInstances: 2 },
-        { id: 'app_0', hourlyPrice: 0.0222, minInstances: 0 },
+        { id: 'app_1', hourlyPrice: 0.0444, minInstances: 2, running: true },
+        { id: 'app_0', hourlyPrice: 0.0222, minInstances: 0, running: true },
       ],
       [{ id: 'addon_1', realId: 'postgresql_1', monthlyPrice: 64 }],
       'EUR',
@@ -49,6 +49,13 @@ describe('estimateCosts', () => {
     expect(table.amounts.get('postgresql_1')).toBe(64);
     expect(table.period).toBeNull();
     expect(table.source).toBe('estimate');
+    expect(table.ifStarted?.size).toBe(0);
+  });
+
+  it('counts a stopped application for nothing and remembers what it would cost', () => {
+    const table = estimateCosts([{ id: 'app_down', hourlyPrice: 0.5, minInstances: 1, running: false }], [], 'EUR');
+    expect(table.amounts.get('app_down')).toBe(0);
+    expect(table.ifStarted?.get('app_down')).toBe(360);
   });
 });
 
@@ -185,7 +192,7 @@ describe('shownCost', () => {
 
   it('shows nothing for a resource the estimate cannot price', () => {
     const table = estimateCosts(
-      [{ id: 'app_1', hourlyPrice: 1, minInstances: 1 }],
+      [{ id: 'app_1', hourlyPrice: 1, minInstances: 1, running: true }],
       [{ id: 'addon_1', realId: 'keycloak_1', monthlyPrice: null }],
       'EUR',
     );

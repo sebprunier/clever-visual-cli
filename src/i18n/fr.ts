@@ -356,12 +356,14 @@ export const fr: Record<MessageKey, string> = {
   'costs.hint.days30': 'Somme glissante des consommations journalières.',
   'costs.hint.invoice': 'Les lignes de la dernière facture émise.',
   'costs.hint.estimate':
-    'Projection sur un mois : instances minimum pendant 720 h et plans des add-ons, aux tarifs de l’organisation.',
+    'Un mois où rien ne bouge : applications démarrées à leur nombre minimum d’instances pendant 720 h, arrêtées à 0, plans des add-ons, aux tarifs de l’organisation.',
   'costs.columnHint': 'La ligne cochée alimente la colonne des coûts et les totaux de la liste.',
   'costs.columnTitle.yesterday': 'Consommation du {date}',
   'costs.columnTitle.days30': 'Somme des 30 derniers jours de consommation',
   'costs.columnTitle.invoice': 'Facture {number}, {month}',
-  'costs.columnTitle.estimate': 'Configuration actuelle : instances minimum pendant 720 heures, plans des add-ons',
+  'costs.columnTitle.estimate':
+    'Configuration actuelle : applications démarrées à leur nombre minimum d’instances pendant 720 heures, arrêtées à 0, plans des add-ons',
+  'costs.ifStarted': 'Arrêtée : {amount} par mois si démarrée',
   'costs.daysProgress': '{done} / {total} jours',
   'costs.listTotal': '{count} ressources · {source}',
   'costs.listTotal_one': '{count} ressource · {source}',
@@ -375,7 +377,7 @@ export const fr: Record<MessageKey, string> = {
   'costs.about2':
     '« Hier » et « 30 derniers jours » viennent des consommations journalières, calculées chaque nuit pour la veille : une ressource à zéro n’a rien coûté sur la période. La facture est la dernière émise, ressource par ressource.',
   'costs.about3':
-    '« Configuration actuelle » suppose que chaque application tourne tout le mois avec son nombre minimum d’instances. Stockage, trafic et add-ons sans tarif connu ne sont pas comptés, d’où le tiret.',
+    '« Configuration actuelle » suppose un mois où rien ne bouge : chaque application démarrée tourne avec son nombre minimum d’instances, une application arrêtée ne coûte rien. Stockage, trafic et add-ons sans tarif connu ne sont pas comptés, d’où le tiret.',
   'costs.loading': 'chargement…',
   'costs.unavailable': 'indisponible : {error}',
   'costs.unavailableShort': 'indisponible',

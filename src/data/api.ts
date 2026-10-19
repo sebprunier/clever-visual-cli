@@ -334,6 +334,7 @@ export async function fetchPricing(client: CcApiClient, ownerId: string, prices:
           id: app.id,
           hourlyPrice: prices.hourly.get(priceId) ?? flavor.price,
           minInstances: app.instance.minInstances,
+          running: app.state === 'SHOULD_BE_UP',
         };
       }),
     addons: addons.map((addon) => {

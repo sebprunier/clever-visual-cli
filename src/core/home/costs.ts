@@ -3,11 +3,13 @@
  * shape: an amount per resource over a period, tax excluded, in the
  * organisation's currency.
  *
- * - `estimate`: the current configuration priced with the price system. A
- *   scaler size costs its hourly price for 720 hours (the 30-day month of
- *   Clever Cloud's pricing page) times the minimum number of instances; an
- *   add-on costs its plan. Storage, traffic and third party vendors are not
- *   included.
+ * - `estimate`: the current configuration priced with the price system, a
+ *   month where nothing changes. A started application costs the hourly
+ *   price of its scaler size for 720 hours (the 30-day month of Clever
+ *   Cloud's pricing page) times its minimum number of instances, a stopped
+ *   one costs nothing; an add-on costs its plan whatever the state of the
+ *   applications around it. Storage, traffic and third party vendors are
+ *   not included.
  * - `yesterday`: the last day computed by the billing system, one row per
  *   resource.
  * - `days30`: the sum of the last 30 daily consumptions computed by the
@@ -37,6 +39,8 @@ export interface CostTable {
   period: { from: string; to: string } | null;
   /** Invoice number, or empty. */
   reference: string;
+  /** Estimate only: what each stopped application would cost started. */
+  ifStarted?: ReadonlyMap<string, number>;
 }
 
 export interface CostRow {
@@ -50,6 +54,8 @@ export interface AppPricing {
   /** Price of one instance of the minimum size for one hour. */
   hourlyPrice: number;
   minInstances: number;
+  /** False for a stopped application, or one that never started. */
+  running: boolean;
 }
 
 /** What an add-on costs, as subscribed. */
@@ -66,15 +72,20 @@ export function estimateCosts(
   currency: string,
 ): CostTable {
   const amounts = new Map<string, number>();
+  const ifStarted = new Map<string, number>();
   for (const app of apps) {
-    amounts.set(app.id, app.hourlyPrice * Math.max(app.minInstances, 1) * HOURS_PER_MONTH);
+    const monthly = app.hourlyPrice * Math.max(app.minInstances, 1) * HOURS_PER_MONTH;
+    amounts.set(app.id, app.running ? monthly : 0);
+    if (!app.running) {
+      ifStarted.set(app.id, monthly);
+    }
   }
   for (const addon of addons) {
     if (addon.monthlyPrice != null) {
       amounts.set(addon.realId, addon.monthlyPrice);
     }
   }
-  return { source: 'estimate', currency, amounts, period: null, reference: '' };
+  return { source: 'estimate', currency, amounts, period: null, reference: '', ifStarted };
 }
 
 /** One day of consumption as the billing system computed it. */

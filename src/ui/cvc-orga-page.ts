@@ -785,7 +785,12 @@ export class CvcOrgaPage extends CvcElement {
       return html`<td class="cost muted small">…</td>`;
     }
     const amount = shownCost(costs, resource);
-    return html`<td class="cost small ${amount == null || amount === 0 ? 'muted' : ''}" title=${this.costTitle(costs)}>
+    const ifStarted = costs.ifStarted?.get(resource.id);
+    const title =
+      ifStarted == null
+        ? this.costTitle(costs)
+        : t('costs.ifStarted', { amount: formatMoney(ifStarted, costs.currency) });
+    return html`<td class="cost small ${amount == null || amount === 0 ? 'muted' : ''}" title=${title}>
       ${amount == null ? '—' : formatMoney(amount, costs.currency)}
     </td>`;
   }
