@@ -514,7 +514,7 @@ export class CvcOrgaPage extends CvcElement {
     const filtering = /(^|\s)is:watch(\s|$)/i.test(this.filterText);
     return html`<section class="watch card">
       <div class="row card-head">
-        <h2>${t('home.watch')} <span class="muted">${items.length}</span></h2>
+        <h2>${t('home.watch')} <span class="count">${items.length}</span></h2>
         <span class="grow"></span>
         <button
           type="button"
@@ -940,6 +940,22 @@ export class CvcOrgaPage extends CvcElement {
       }
       .card-head h2 {
         margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.5em;
+        padding: 0 0.45em;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.6;
+        color: var(--cvc-warn);
+        background: color-mix(in srgb, var(--cvc-warn) 14%, transparent);
       }
       .card-head .link {
         font-family: var(--cvc-mono);
