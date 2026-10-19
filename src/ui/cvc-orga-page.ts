@@ -55,6 +55,12 @@ interface HomePrefs {
   collapsed: string[];
 }
 
+/** An application opened in this browser, with the time of the last visit. */
+interface RecentApp {
+  app: ApplicationSummary;
+  at: number;
+}
+
 const DEFAULT_PREFS: HomePrefs = { grouping: null, sort: 'name', showAddons: true, collapsed: [] };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
@@ -314,8 +320,8 @@ export class CvcOrgaPage extends CvcElement {
     this.#order = this.displayOrder(tree, activity);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
-      .map((visit) => appById.get(visit.appId))
-      .filter((app): app is ApplicationSummary => app != null)
+      .map((visit) => ({ app: appById.get(visit.appId), at: visit.at }))
+      .filter((visit): visit is RecentApp => visit.app != null)
       .slice(0, MAX_RECENTS);
     const linksDone = apps.filter((app) => data.links[app.id] != null).length;
     const suggestions = groupingSuggestions([...apps, ...addons]);
@@ -562,14 +568,23 @@ export class CvcOrgaPage extends CvcElement {
     }
   }
 
-  private renderRecents(apps: ApplicationSummary[]) {
-    if (apps.length === 0) {
+  private renderRecents(visits: RecentApp[]) {
+    if (visits.length === 0) {
       return nothing;
     }
     return html`<section class="recents card">
       <h2>${t('home.recents')}</h2>
+      <p class="muted small">${t('home.recentsHint')}</p>
       <div class="row chips">
-        ${apps.map((app) => html`<a class="chip" href=${this.appHash(app.id)}>${app.name}</a>`)}
+        ${visits.map(
+          ({ app, at }) =>
+            html`<a
+              class="chip"
+              href=${this.appHash(app.id)}
+              title=${t('home.recentVisit', { when: formatRelative(at) })}
+              >${app.name}</a
+            >`,
+        )}
       </div>
     </section>`;
   }
@@ -970,6 +985,9 @@ export class CvcOrgaPage extends CvcElement {
         text-decoration: underline;
       }
 
+      .recents p {
+        margin-bottom: 0.5rem;
+      }
       .recents .chips {
         gap: 0.35rem;
       }
