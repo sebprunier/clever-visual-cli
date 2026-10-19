@@ -136,6 +136,8 @@ export class CvcOrgaPage extends CvcElement {
   #order: string[] = [];
   /** Columns of the list tables, one more when the costs show. */
   #columns = COLUMNS;
+  /** True while the selected cost source is still loading, for the placeholders of the list. */
+  #costsPending = false;
   #lastClicked: string | null = null;
 
   private readonly onStoreChange = () => this.requestUpdate();
@@ -370,6 +372,8 @@ export class CvcOrgaPage extends CvcElement {
     this.#order = this.displayOrder(tree, activity);
     const costs =
       this.prefs.costs && this.costStore != null ? this.costStore.table(this.orga.id, this.prefs.costSource) : null;
+    this.#costsPending =
+      costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
@@ -697,13 +701,18 @@ export class CvcOrgaPage extends CvcElement {
     </section>`;
   }
 
+  /** What a cost shows before its source answered: a spinner, or a dash when there is nothing to wait for. */
+  private renderCostPlaceholder() {
+    return this.#costsPending ? html`<span class="spinner"></span>` : '—';
+  }
+
   private renderGroupCost(node: GroupNode, costs: CostTable | null) {
     if (!this.prefs.costs) {
       return nothing;
     }
     return html`<span class="grow"></span>
       <span class="cost small ${costs == null ? 'muted' : ''}"
-        >${costs == null ? '…' : formatMoney(nodeCost(node, costs), costs.currency)}</span
+        >${costs == null ? this.renderCostPlaceholder() : formatMoney(nodeCost(node, costs), costs.currency)}</span
       >`;
   }
 
@@ -782,7 +791,7 @@ export class CvcOrgaPage extends CvcElement {
       return nothing;
     }
     if (costs == null) {
-      return html`<td class="cost muted small">…</td>`;
+      return html`<td class="cost muted small">${this.renderCostPlaceholder()}</td>`;
     }
     const amount = shownCost(costs, resource);
     const ifStarted = costs.ifStarted?.get(resource.id);
@@ -816,9 +825,15 @@ export class CvcOrgaPage extends CvcElement {
     return html`<div class="list-total" title=${costs == null ? nothing : this.costTitle(costs)}>
       <span class="muted small">${t('costs.listTotal', { count, source })}</span>
       <span class="cost small ${costs == null ? 'muted' : ''}"
-        >${costs == null ? '…' : formatMoney(totalCost(tree, costs), costs.currency)}</span
+        >${costs == null ? this.renderCostPlaceholder() : formatMoney(totalCost(tree, costs), costs.currency)}</span
       >
     </div>`;
+  }
+
+  /** Whether a source is still loading, so the list knows to show spinners rather than dashes. */
+  private isSourcePending(source: CostSource): boolean {
+    const data = this.costStore.get(this.orga.id);
+    return data.loading || this.sourceState(source, data).pending;
   }
 
   /** The label of a source and what it covers: a date, a period, a month. */
@@ -1457,11 +1472,13 @@ export class CvcOrgaPage extends CvcElement {
         font-size: 0.82rem;
         font-weight: 400;
       }
+      .loading .spinner {
+        margin-right: 0.35em;
+      }
       .spinner {
         display: inline-block;
         width: 0.7em;
         height: 0.7em;
-        margin-right: 0.35em;
         border: 2px solid color-mix(in srgb, var(--cvc-muted) 30%, transparent);
         border-top-color: var(--cvc-accent);
         border-radius: 50%;
