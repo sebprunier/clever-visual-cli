@@ -41,6 +41,7 @@ import {
 import type { HomeStore } from '../core/home/home-store.js';
 import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { listRecents } from '../core/home/recents.js';
+import { SORT_COLUMNS, sortNodes, toggleSort, type SortColumn, type SortSpec } from '../core/home/sorting.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
 import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
@@ -61,11 +62,9 @@ import {
 } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
-type SortMode = 'name' | 'activity';
-
 interface HomePrefs {
   grouping: string | null;
-  sort: SortMode;
+  sort: SortSpec;
   showAddons: boolean;
   collapsed: string[];
   costs: boolean;
@@ -80,7 +79,7 @@ interface RecentApp {
 
 const DEFAULT_PREFS: HomePrefs = {
   grouping: null,
-  sort: 'name',
+  sort: { column: 'name', direction: 'asc' },
   showAddons: true,
   collapsed: [],
   costs: false,
@@ -93,6 +92,14 @@ const COST_SOURCE_SPECS: Record<CostSource, { label: MessageKey; hint: MessageKe
   days30: { label: 'costs.days30', hint: 'costs.hint.days30', title: 'costs.columnTitle.days30' },
   invoice: { label: 'costs.invoice', hint: 'costs.hint.invoice', title: 'costs.columnTitle.invoice' },
   estimate: { label: 'costs.estimate', hint: 'costs.hint.estimate', title: 'costs.columnTitle.estimate' },
+};
+const COLUMN_LABELS: Record<SortColumn, MessageKey> = {
+  name: 'home.col.name',
+  type: 'home.col.type',
+  state: 'home.col.state',
+  activity: 'home.col.activity',
+  links: 'home.col.links',
+  cost: 'home.col.cost',
 };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
@@ -389,13 +396,17 @@ export class CvcOrgaPage extends CvcElement {
     const grouping = parseGrouping(this.groupingText);
     const visibleApps = apps.filter(matchApp);
     const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
-    const tree = buildTree(grouping, visibleApps, visibleAddons, context);
-    this.#order = this.displayOrder(tree, activity);
     const costs =
       this.prefs.costs && this.costStore != null ? this.costStore.table(this.orga.id, this.prefs.costSource) : null;
     this.#costsPending =
       costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
+    const tree = sortNodes(buildTree(grouping, visibleApps, visibleAddons, context), this.prefs.sort, {
+      activity,
+      grouping: context,
+      costs,
+    });
+    this.#order = this.displayOrder(tree);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
       .map((visit) => ({ app: appById.get(visit.appId), at: visit.at }))
@@ -469,26 +480,6 @@ export class CvcOrgaPage extends CvcElement {
                   ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
                 </datalist>
               </label>
-              <div class="seg" role="group" aria-label=${t('home.sort')}>
-                <span class="muted small">${t('home.sort')}</span>
-                <button
-                  type="button"
-                  class=${this.prefs.sort === 'name' ? 'on' : ''}
-                  aria-pressed=${this.prefs.sort === 'name'}
-                  @click=${() => this.setPrefs({ sort: 'name' })}
-                >
-                  ${t('home.sortName')}
-                </button>
-                <button
-                  type="button"
-                  class=${this.prefs.sort === 'activity' ? 'on' : ''}
-                  aria-pressed=${this.prefs.sort === 'activity'}
-                  title=${t('home.sortActivityTitle')}
-                  @click=${() => this.setPrefs({ sort: 'activity' })}
-                >
-                  ${t('home.sortActivity')}
-                </button>
-              </div>
               <label class="small check">
                 <input
                   type="checkbox"
@@ -514,6 +505,7 @@ export class CvcOrgaPage extends CvcElement {
             </p>
             ${this.renderSelectionBar()}
           </header>
+          ${visibleApps.length + visibleAddons.length > 0 ? this.renderColumns() : nothing}
           ${
             tree.length === 1 && tree[0].level === 0
               ? this.renderTable(tree[0], activity, context, data.linksPending > 0, costs)
@@ -553,35 +545,21 @@ export class CvcOrgaPage extends CvcElement {
     `;
   }
 
+  /** What the selection allows; the "select all" box itself sits in the column headers. */
   private renderSelectionBar() {
     const total = this.#order.length;
     const count = this.selected.size;
-    const all = total > 0 && count === total;
     return html`<div class="selection row ${count > 0 ? 'active' : ''}">
-      <label class="check">
-        <input
-          type="checkbox"
-          aria-label=${t('home.selectAllAria')}
-          .checked=${all}
-          .indeterminate=${count > 0 && !all}
-          ?disabled=${total === 0}
-          @change=${(event: Event) => ((event.currentTarget as HTMLInputElement).checked ? this.selectAll() : this.clearSelection())}
-        />
-        ${
-          count === 0
-            ? html`<span class="muted small">${t('home.selectAll', { count: total })}</span>`
-            : html`<span class="small">${t('home.selected', { count, total })}</span>`
-        }
-      </label>
       ${
-        count > 0
-          ? html`<button type="button" class="link small" @click=${this.clearSelection}>${t('home.selectNone')}</button>
+        count === 0
+          ? html`<span class="muted small">${t('home.selectionIdle')}</span>`
+          : html`<span class="small">${t('home.selected', { count, total })}</span>
+              <button type="button" class="link small" @click=${this.clearSelection}>${t('home.selectNone')}</button>
               <span class="muted small">${t('home.selectionHint')}</span>
               <span class="grow"></span>
               <button type="button" @click=${() => (this.tagDialog = 'add')}>${t('home.addTag')}</button>
               <button type="button" @click=${() => (this.tagDialog = 'remove')}>${t('home.removeTag')}</button>
               <button type="button" @click=${() => (this.tagDialog = 'rename')}>${t('home.renameTag')}</button>`
-          : nothing
       }
     </div>`;
   }
@@ -677,17 +655,8 @@ export class CvcOrgaPage extends CvcElement {
       .join(' · ');
   }
 
-  private sortedApps(node: GroupNode, activity: Map<string, AppActivity>): ApplicationSummary[] {
-    if (this.prefs.sort !== 'activity') {
-      return node.apps;
-    }
-    return [...node.apps].sort((a, b) =>
-      (activity.get(b.id)?.last.date ?? '').localeCompare(activity.get(a.id)?.last.date ?? ''),
-    );
-  }
-
-  /** Ids of the rows as displayed, collapsed groups excluded. */
-  private displayOrder(nodes: GroupNode[], activity: Map<string, AppActivity>): string[] {
+  /** Ids of the visible rows, in display order, from an already sorted tree. */
+  private displayOrder(nodes: GroupNode[]): string[] {
     const order: string[] = [];
     const walk = (node: GroupNode) => {
       if (node.level > 0 && this.prefs.collapsed.includes(node.path)) {
@@ -697,10 +666,69 @@ export class CvcOrgaPage extends CvcElement {
         node.children.forEach(walk);
         return;
       }
-      order.push(...this.sortedApps(node, activity).map((app) => app.id), ...node.addons.map((addon) => addon.id));
+      order.push(...node.apps.map((app) => app.id), ...node.addons.map((addon) => addon.id));
     };
     nodes.forEach(walk);
     return order;
+  }
+
+  private renderColgroup() {
+    return html`<colgroup>
+      <col class="check" />
+      <col class="logo" />
+      <col class="name" />
+      <col class="type" />
+      <col class="state" />
+      <col class="activity" />
+      <col class="links" />
+      ${this.prefs.costs ? html`<col class="cost" />` : nothing}
+    </colgroup>`;
+  }
+
+  /** The column headers: one table above the groups, so they line up with every list below. */
+  private renderColumns() {
+    const total = this.#order.length;
+    const count = this.selected.size;
+    const all = total > 0 && count === total;
+    return html`<table class="list columns">
+      ${this.renderColgroup()}
+      <thead>
+        <tr>
+          <th class="check">
+            <input
+              type="checkbox"
+              aria-label=${t('home.selectAll', { count: total })}
+              title=${t('home.selectAll', { count: total })}
+              .checked=${all}
+              .indeterminate=${count > 0 && !all}
+              ?disabled=${total === 0}
+              @change=${(event: Event) =>
+                (event.currentTarget as HTMLInputElement).checked ? this.selectAll() : this.clearSelection()}
+            />
+          </th>
+          <th class="logo"></th>
+          ${this.renderSortHeader('name')} ${this.renderSortHeader('type')} ${this.renderSortHeader('state')}
+          ${this.renderSortHeader('activity')} ${this.renderSortHeader('links')}
+          ${this.prefs.costs ? this.renderSortHeader('cost') : nothing}
+        </tr>
+      </thead>
+    </table>`;
+  }
+
+  private renderSortHeader(column: SortColumn) {
+    const { column: active, direction } = this.prefs.sort;
+    const on = active === column;
+    const label = t(COLUMN_LABELS[column]);
+    return html`<th class=${column} aria-sort=${on ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        class="sort ${on ? 'on' : ''}"
+        title=${t('home.sortBy', { column: label })}
+        @click=${() => this.setPrefs({ sort: toggleSort(this.prefs.sort, column) })}
+      >
+        ${label}<span class="arrow">${on ? (direction === 'asc' ? '▲' : '▼') : ''}</span>
+      </button>
+    </th>`;
   }
 
   private renderSection(
@@ -745,16 +773,7 @@ export class CvcOrgaPage extends CvcElement {
     costs: CostTable | null,
   ) {
     return html`<table class="list">
-      <colgroup>
-        <col class="check" />
-        <col class="logo" />
-        <col class="name" />
-        <col class="type" />
-        <col class="state" />
-        <col class="activity" />
-        <col class="links" />
-        ${this.prefs.costs ? html`<col class="cost" />` : nothing}
-      </colgroup>
+      ${this.renderColgroup()}
       <tbody>
         ${this.renderRows(node, activity, context, linksLoading, costs)}
       </tbody>
@@ -795,7 +814,7 @@ export class CvcOrgaPage extends CvcElement {
     }
     return html`
       ${repeat(
-        this.sortedApps(node, activity),
+        node.apps,
         (app) => app.id,
         (app) => this.renderAppRow(app, activity.get(app.id), context, linksLoading, costs),
       )}
@@ -1529,6 +1548,52 @@ export class CvcOrgaPage extends CvcElement {
       .costs .danger {
         color: var(--cvc-danger);
       }
+      table.list.columns {
+        background: transparent;
+        border: none;
+        margin-bottom: 0.3rem;
+      }
+      .columns th {
+        padding: 0.1rem 0.55rem;
+        text-align: left;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--cvc-muted);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .columns th.check {
+        padding: 0 0.3rem 0 0.6rem;
+      }
+      .columns th.check input {
+        margin: 0;
+        display: block;
+      }
+      .columns th.cost {
+        text-align: right;
+      }
+      .columns .sort {
+        background: none;
+        border: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      .columns .sort:hover,
+      .columns .sort.on {
+        color: var(--cvc-text);
+      }
+      .columns .sort.on {
+        font-weight: 600;
+      }
+      .columns .arrow {
+        display: inline-block;
+        width: 1em;
+        margin-left: 0.2em;
+        font-size: 0.7em;
+        vertical-align: 0.1em;
+      }
       td.check {
         padding: 0 0.3rem 0 0.6rem;
         user-select: none;
@@ -1609,7 +1674,9 @@ export class CvcOrgaPage extends CvcElement {
       }
       @media (max-width: 960px) {
         td.type,
-        td.links {
+        th.type,
+        td.links,
+        th.links {
           display: none;
         }
         col.type,
@@ -1637,7 +1704,7 @@ function readPrefs(ownerId: string): HomePrefs {
     const parsed = JSON.parse(raw) as Partial<HomePrefs>;
     return {
       grouping: typeof parsed.grouping === 'string' ? parsed.grouping : null,
-      sort: parsed.sort === 'activity' ? 'activity' : 'name',
+      sort: readSort(parsed.sort),
       showAddons: parsed.showAddons !== false,
       collapsed: Array.isArray(parsed.collapsed) ? parsed.collapsed.filter((id) => typeof id === 'string') : [],
       costs: parsed.costs === true,
@@ -1646,6 +1713,20 @@ function readPrefs(ownerId: string): HomePrefs {
   } catch {
     return DEFAULT_PREFS;
   }
+}
+
+/** Accepts a stored spec, and the `name` / `activity` words of the toggle that came before the column headers. */
+function readSort(value: unknown): SortSpec {
+  if (value === 'activity') {
+    return { column: 'activity', direction: 'desc' };
+  }
+  if (typeof value === 'object' && value != null) {
+    const { column, direction } = value as Partial<SortSpec>;
+    if (SORT_COLUMNS.includes(column as SortColumn)) {
+      return { column: column as SortColumn, direction: direction === 'desc' ? 'desc' : 'asc' };
+    }
+  }
+  return DEFAULT_PREFS.sort;
 }
 
 function writePrefs(ownerId: string, prefs: HomePrefs): void {
