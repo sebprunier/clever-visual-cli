@@ -640,13 +640,16 @@ export class CvcApp extends CvcElement {
         flex: 1;
         min-height: 0;
         overflow: auto;
-        padding: 1.25rem 1.5rem;
+        padding: 0 1.5rem 1.25rem;
         display: flex;
         flex-direction: column;
       }
+      /* The top padding sits on the page rather than on the scroll area, so a page's sticky
+         elements stick at the very top of it. */
       main > * {
         flex: 1;
         min-height: 0;
+        padding-top: 1.25rem;
       }
       .account {
         max-width: 720px;

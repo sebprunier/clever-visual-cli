@@ -562,9 +562,11 @@ export class CvcOrgaPage extends CvcElement {
               ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
               ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
             </p>
-            ${this.renderSelectionBar()}
           </header>
-          ${visibleApps.length + visibleAddons.length > 0 ? this.renderColumns() : nothing}
+          <div class="sticky-top">
+            ${this.renderSelectionBar()}
+            ${visibleApps.length + visibleAddons.length > 0 ? this.renderColumns() : nothing}
+          </div>
           ${
             tree.length === 1 && tree[0].level === 0
               ? this.renderTable(tree[0], activity, context, data.linksPending > 0, costs)
@@ -1269,7 +1271,19 @@ export class CvcOrgaPage extends CvcElement {
         display: flex;
         flex-direction: column;
         gap: 0.6rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.4rem;
+      }
+      /* The selection bar and the column headers stay in view while the list scrolls, so an
+         action is always one click away from a group picked at the bottom. */
+      .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.4rem 0 0.3rem;
+        background: var(--cvc-bg);
       }
       .toolbar {
         align-items: flex-end;
@@ -1682,7 +1696,6 @@ export class CvcOrgaPage extends CvcElement {
       table.list.columns {
         background: transparent;
         border: none;
-        margin-bottom: 0.3rem;
       }
       .columns th {
         padding: 0.1rem 0.55rem;
