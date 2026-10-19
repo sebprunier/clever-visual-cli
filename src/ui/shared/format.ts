@@ -68,6 +68,8 @@ interface Formatters {
   relative: Intl.RelativeTimeFormat;
   dateTime: Intl.DateTimeFormat;
   time: Intl.DateTimeFormat;
+  month: Intl.DateTimeFormat;
+  money: Map<string, Intl.NumberFormat>;
 }
 
 let formatters: Formatters | null = null;
@@ -80,6 +82,8 @@ function formats(): Formatters {
       relative: new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }),
       dateTime: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
       time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      month: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      money: new Map(),
     };
   }
   return formatters;
@@ -120,6 +124,34 @@ export function formatDateTime(value: string | number | null | undefined): strin
 export function formatTime(value: string | number | null | undefined): string {
   const date = toDate(value);
   return date == null ? '' : formats().time.format(date);
+}
+
+/** "September 2026", in UTC so a period starting at midnight UTC names the right month. */
+export function formatMonth(value: string | number | null | undefined): string {
+  const date = toDate(value);
+  return date == null ? '' : formats().month.format(date);
+}
+
+/** "1 234 €" above ten, "7.41 €" below: a column of costs stays readable while small add-ons keep their cents. */
+export function formatMoney(amount: number, currency: string): string {
+  const { locale, money } = formats();
+  const digits = Math.abs(amount) < 10 ? 2 : 0;
+  const key = `${currency}/${digits}`;
+  let format = money.get(key);
+  if (format == null) {
+    try {
+      format = new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+    } catch {
+      format = new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    }
+    money.set(key, format);
+  }
+  return format.format(amount);
 }
 
 export function shortCommit(commitId: string | null | undefined): string {

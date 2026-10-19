@@ -11,6 +11,7 @@ import {
 } from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
+import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
@@ -55,6 +56,7 @@ export class CvcApp extends CvcElement {
   @query('cvc-toaster') private toaster?: CvcToaster;
 
   private readonly homeStore = new HomeStore();
+  private readonly costStore = new CostStore();
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
@@ -154,6 +156,7 @@ export class CvcApp extends CvcElement {
     if (session.profile?.id !== active.id) {
       this.currentApp = null;
       this.homeStore.forget();
+      this.costStore.forget();
       await session.activate(active);
     }
   }
@@ -186,6 +189,8 @@ export class CvcApp extends CvcElement {
     this.session?.vault.destroy();
     clearClientCaches();
     clearHomeStorage();
+    clearCostStorage();
+    this.costStore.forget();
     void this.syncPhase();
   }
 
@@ -472,6 +477,7 @@ export class CvcApp extends CvcElement {
           .orga=${orga}
           .client=${client}
           .store=${this.homeStore}
+          .costStore=${this.costStore}
           userId=${session.profile?.userId ?? ''}
           .revision=${this.revision}
         ></cvc-orga-page>`;

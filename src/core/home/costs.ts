@@ -1,0 +1,192 @@
+/**
+ * Costs of applications and add-ons, from three sources normalised to one
+ * shape: an amount per resource for one month, tax excluded, in the
+ * organisation's currency.
+ *
+ * - `estimate`: the current configuration priced with the price system. A
+ *   scaler size costs its hourly price for 720 hours (the 30-day month of
+ *   Clever Cloud's pricing page) times the minimum number of instances; an
+ *   add-on costs its plan. Storage, traffic and third party vendors are not
+ *   included.
+ * - `days30`: the sum of the last 30 daily consumptions computed by the
+ *   billing system, one row per resource, the figures behind the Console's
+ *   consumption page.
+ * - `invoice`: the lines of the latest invoice, a closed month.
+ *
+ * Resources are keyed by the id the billing system uses: the application id,
+ * the add-on real id (`postgresql_…`, `bucket_…`), or the add-on id for third
+ * party vendors.
+ */
+import type { GroupNode } from './grouping.js';
+
+export const HOURS_PER_MONTH = 720;
+
+export type CostSource = 'estimate' | 'days30' | 'invoice';
+
+export const COST_SOURCES: readonly CostSource[] = ['days30', 'invoice', 'estimate'];
+
+export interface CostTable {
+  source: CostSource;
+  currency: string;
+  /** Amount for one month per resource id. */
+  amounts: ReadonlyMap<string, number>;
+  /** The days summed or the invoice period; null for an estimate. */
+  period: { from: string; to: string } | null;
+  /** Invoice number, or empty. */
+  reference: string;
+}
+
+export interface CostRow {
+  id: string;
+  amount: number;
+}
+
+/** What an application costs to run, as configured. */
+export interface AppPricing {
+  id: string;
+  /** Price of one instance of the minimum size for one hour. */
+  hourlyPrice: number;
+  minInstances: number;
+}
+
+/** What an add-on costs, as subscribed. */
+export interface AddonPricing {
+  id: string;
+  realId: string;
+  monthlyPrice: number;
+}
+
+export function estimateCosts(
+  apps: readonly AppPricing[],
+  addons: readonly AddonPricing[],
+  currency: string,
+): CostTable {
+  const amounts = new Map<string, number>();
+  for (const app of apps) {
+    amounts.set(app.id, app.hourlyPrice * Math.max(app.minInstances, 1) * HOURS_PER_MONTH);
+  }
+  for (const addon of addons) {
+    amounts.set(addon.realId, addon.monthlyPrice);
+  }
+  return { source: 'estimate', currency, amounts, period: null, reference: '' };
+}
+
+/** One day of consumption as the billing system computed it. */
+export interface DailyConsumption {
+  /** `YYYY-MM-DD`. */
+  date: string;
+  rows: CostRow[];
+}
+
+export function sumDays(days: readonly DailyConsumption[], currency: string): CostTable {
+  const amounts = new Map<string, number>();
+  for (const day of days) {
+    for (const row of day.rows) {
+      amounts.set(row.id, (amounts.get(row.id) ?? 0) + row.amount);
+    }
+  }
+  const dates = days.map((day) => day.date).sort();
+  return {
+    source: 'days30',
+    currency,
+    amounts,
+    period: dates.length === 0 ? null : { from: dates[0], to: dates[dates.length - 1] },
+    reference: '',
+  };
+}
+
+export function dayTotal(day: DailyConsumption | null | undefined): number | null {
+  if (day == null) {
+    return null;
+  }
+  return day.rows.reduce((total, row) => total + row.amount, 0);
+}
+
+/** The lines of one invoice, already reduced to one amount per resource. */
+export interface InvoiceLines {
+  number: string;
+  from: string;
+  to: string;
+  currency: string;
+  rows: CostRow[];
+}
+
+export function invoiceCosts(invoice: InvoiceLines): CostTable {
+  const amounts = new Map<string, number>();
+  for (const row of invoice.rows) {
+    amounts.set(row.id, (amounts.get(row.id) ?? 0) + row.amount);
+  }
+  return {
+    source: 'invoice',
+    currency: invoice.currency,
+    amounts,
+    period: { from: invoice.from, to: invoice.to },
+    reference: invoice.number,
+  };
+}
+
+/** The `count` days before today, oldest first, as `YYYY-MM-DD` in UTC. */
+export function lastDays(count: number, now = Date.now()): string[] {
+  const today = new Date(now);
+  const start = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const days: string[] = [];
+  for (let offset = count; offset >= 1; offset -= 1) {
+    days.push(new Date(start - offset * 86_400_000).toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+// --- lookups -----------------------------------------------------------------
+
+interface Keyed {
+  id: string;
+  realId?: string;
+}
+
+/** The amount of one resource, or null when the table has no line for it. */
+export function resourceCost(table: CostTable, resource: Keyed): number | null {
+  const byReal = resource.realId == null ? undefined : table.amounts.get(resource.realId);
+  return byReal ?? table.amounts.get(resource.id) ?? null;
+}
+
+/** The sum of a group and its sub-groups; resources without a line count for zero. */
+export function nodeCost(node: GroupNode, table: CostTable): number {
+  let total = 0;
+  for (const app of node.apps) {
+    total += resourceCost(table, app) ?? 0;
+  }
+  for (const addon of node.addons) {
+    total += resourceCost(table, addon) ?? 0;
+  }
+  for (const child of node.children) {
+    total += nodeCost(child, table);
+  }
+  return total;
+}
+
+export function totalCost(nodes: readonly GroupNode[], table: CostTable): number {
+  return nodes.reduce((total, node) => total + nodeCost(node, table), 0);
+}
+
+/**
+ * The lines of the table that match none of the given resources: deleted
+ * resources, or ones hidden by the filter.
+ */
+export function unlistedCost(table: CostTable, resources: readonly Keyed[]): { amount: number; count: number } {
+  const known = new Set<string>();
+  for (const resource of resources) {
+    known.add(resource.id);
+    if (resource.realId != null) {
+      known.add(resource.realId);
+    }
+  }
+  let amount = 0;
+  let count = 0;
+  for (const [id, value] of table.amounts) {
+    if (!known.has(id)) {
+      amount += value;
+      count += 1;
+    }
+  }
+  return { amount, count };
+}

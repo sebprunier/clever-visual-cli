@@ -26,6 +26,17 @@ import {
   type GroupNode,
   type GroupingContext,
 } from '../core/home/grouping.js';
+import type { CostStore } from '../core/home/cost-store.js';
+import {
+  COST_SOURCES,
+  dayTotal,
+  nodeCost,
+  resourceCost,
+  totalCost,
+  unlistedCost,
+  type CostSource,
+  type CostTable,
+} from '../core/home/costs.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { listRecents } from '../core/home/recents.js';
@@ -41,6 +52,8 @@ import {
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
   formatDateTime,
+  formatMoney,
+  formatMonth,
   formatRelative,
   stateLabel,
 } from './shared/format.js';
@@ -53,6 +66,8 @@ interface HomePrefs {
   sort: SortMode;
   showAddons: boolean;
   collapsed: string[];
+  costs: boolean;
+  costSource: CostSource;
 }
 
 /** An application opened in this browser, with the time of the last visit. */
@@ -61,7 +76,20 @@ interface RecentApp {
   at: number;
 }
 
-const DEFAULT_PREFS: HomePrefs = { grouping: null, sort: 'name', showAddons: true, collapsed: [] };
+const DEFAULT_PREFS: HomePrefs = {
+  grouping: null,
+  sort: 'name',
+  showAddons: true,
+  collapsed: [],
+  costs: false,
+  costSource: 'days30',
+};
+
+const COST_SOURCE_LABELS: Record<CostSource, { label: MessageKey; title: MessageKey }> = {
+  days30: { label: 'costs.source.days30', title: 'costs.columnTitle.days30' },
+  invoice: { label: 'costs.source.invoice', title: 'costs.columnTitle.invoice' },
+  estimate: { label: 'costs.source.estimate', title: 'costs.columnTitle.estimate' },
+};
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
 const COLUMNS = 7;
@@ -84,6 +112,7 @@ export class CvcOrgaPage extends CvcElement {
   @property({ attribute: false }) orga!: OrganisationSummary;
   @property({ attribute: false }) client!: CcApiClient;
   @property({ attribute: false }) store!: HomeStore;
+  @property({ attribute: false }) costStore!: CostStore;
   /** Id of the signed-in user, to say "toi" in the activity column. */
   @property() userId = '';
   /** Bumped by the shell after an action so the activity reloads. */
@@ -101,6 +130,8 @@ export class CvcOrgaPage extends CvcElement {
   #activity: Map<string, AppActivity> = new Map();
   /** Ids of the visible rows in display order, for shift-click ranges and "select all". */
   #order: string[] = [];
+  /** Columns of the list tables, one more when the costs show. */
+  #columns = COLUMNS;
   #lastClicked: string | null = null;
 
   private readonly onStoreChange = () => this.requestUpdate();
@@ -133,6 +164,7 @@ export class CvcOrgaPage extends CvcElement {
   override disconnectedCallback(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     this.store?.removeEventListener('change', this.onStoreChange);
+    this.costStore?.removeEventListener('change', this.onStoreChange);
     super.disconnectedCallback();
   }
 
@@ -140,6 +172,10 @@ export class CvcOrgaPage extends CvcElement {
     if (changed.has('store')) {
       (changed.get('store') as HomeStore | undefined)?.removeEventListener('change', this.onStoreChange);
       this.store?.addEventListener('change', this.onStoreChange);
+    }
+    if (changed.has('costStore')) {
+      (changed.get('costStore') as CostStore | undefined)?.removeEventListener('change', this.onStoreChange);
+      this.costStore?.addEventListener('change', this.onStoreChange);
     }
     if (changed.has('orga')) {
       const previous = changed.get('orga') as OrganisationSummary | undefined;
@@ -168,6 +204,16 @@ export class CvcOrgaPage extends CvcElement {
     }
     const appIds = this.orga.applications.filter((app) => !app.isArchived).map((app) => app.id);
     void this.store.refresh(this.client, this.orga.id, appIds, options);
+    if (this.prefs.costs) {
+      void this.costStore?.refresh(this.client, this.orga.id, { force: options.force });
+    }
+  }
+
+  private toggleCosts(on: boolean): void {
+    this.setPrefs({ costs: on });
+    if (on && this.client != null && this.costStore != null) {
+      void this.costStore.refresh(this.client, this.orga.id);
+    }
   }
 
   private setPrefs(patch: Partial<HomePrefs>): void {
@@ -318,6 +364,9 @@ export class CvcOrgaPage extends CvcElement {
     const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
     const tree = buildTree(grouping, visibleApps, visibleAddons, context);
     this.#order = this.displayOrder(tree, activity);
+    const costs =
+      this.prefs.costs && this.costStore != null ? this.costStore.table(this.orga.id, this.prefs.costSource) : null;
+    this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
       .map((visit) => ({ app: appById.get(visit.appId), at: visit.at }))
@@ -336,6 +385,14 @@ export class CvcOrgaPage extends CvcElement {
             <div class="row">
               <h1>${this.orga.name}</h1>
               <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
+              ${
+                costs != null
+                  ? html`<span class="small cost-total" title=${this.costTitle(costs)}
+                      >${t('costs.total', { amount: formatMoney(totalCost(tree, costs), costs.currency) })}
+                      <span class="muted">${t('costs.taxExcluded')}</span></span
+                    >`
+                  : nothing
+              }
               <span class="cli">clever applications list</span>
               <span class="grow"></span>
               ${
@@ -419,6 +476,31 @@ export class CvcOrgaPage extends CvcElement {
                 />
                 ${t('home.addons')}
               </label>
+              <label class="small check">
+                <input
+                  type="checkbox"
+                  .checked=${this.prefs.costs}
+                  @change=${(event: Event) => this.toggleCosts((event.currentTarget as HTMLInputElement).checked)}
+                />
+                ${t('costs.toggle')}
+              </label>
+              ${
+                this.prefs.costs
+                  ? html`<div class="seg" role="group" aria-label=${t('costs.sourceAria')}>
+                      ${COST_SOURCES.map(
+                        (source) =>
+                          html`<button
+                            type="button"
+                            class=${this.prefs.costSource === source ? 'on' : ''}
+                            aria-pressed=${this.prefs.costSource === source}
+                            @click=${() => this.setPrefs({ costSource: source })}
+                          >
+                            ${t(COST_SOURCE_LABELS[source].label)}
+                          </button>`,
+                      )}
+                    </div>`
+                  : nothing
+              }
             </div>
             <p class="muted small hint">
               ${
@@ -438,11 +520,11 @@ export class CvcOrgaPage extends CvcElement {
           </header>
           ${
             tree.length === 1 && tree[0].level === 0
-              ? this.renderTable(tree[0], activity, context, data.linksPending > 0)
+              ? this.renderTable(tree[0], activity, context, data.linksPending > 0, costs)
               : repeat(
                   tree,
                   (node) => node.path,
-                  (node) => this.renderSection(node, activity, context, data.linksPending > 0),
+                  (node) => this.renderSection(node, activity, context, data.linksPending > 0, costs),
                 )
           }
           ${
@@ -455,7 +537,8 @@ export class CvcOrgaPage extends CvcElement {
         </div>
         <aside class="side">
           <cvc-platform-status></cvc-platform-status>
-          ${this.renderWatch(watch)} ${this.renderRecents(recents)}
+          ${this.prefs.costs ? this.renderCostCard(apps, addons, costs) : nothing} ${this.renderWatch(watch)}
+          ${this.renderRecents(recents)}
         </aside>
       </div>
       ${
@@ -629,6 +712,7 @@ export class CvcOrgaPage extends CvcElement {
     activity: Map<string, AppActivity>,
     context: GroupingContext,
     linksLoading: boolean,
+    costs: CostTable | null,
   ) {
     const collapsed = this.prefs.collapsed.includes(node.path);
     return html`<section class="group ${node.missing ? 'missing' : ''}">
@@ -636,9 +720,20 @@ export class CvcOrgaPage extends CvcElement {
         <span class="chevron">${collapsed ? '▸' : '▾'}</span>
         <span class="group-name">${node.label}</span>
         <span class="muted small">${this.counts(node)}</span>
+        ${this.renderGroupCost(node, costs)}
       </button>
-      ${collapsed ? nothing : this.renderTable(node, activity, context, linksLoading)}
+      ${collapsed ? nothing : this.renderTable(node, activity, context, linksLoading, costs)}
     </section>`;
+  }
+
+  private renderGroupCost(node: GroupNode, costs: CostTable | null) {
+    if (!this.prefs.costs) {
+      return nothing;
+    }
+    return html`<span class="grow"></span>
+      <span class="cost small ${costs == null ? 'muted' : ''}"
+        >${costs == null ? '…' : formatMoney(nodeCost(node, costs), costs.currency)}</span
+      >`;
   }
 
   private renderTable(
@@ -646,6 +741,7 @@ export class CvcOrgaPage extends CvcElement {
     activity: Map<string, AppActivity>,
     context: GroupingContext,
     linksLoading: boolean,
+    costs: CostTable | null,
   ) {
     return html`<table class="list">
       <colgroup>
@@ -656,9 +752,10 @@ export class CvcOrgaPage extends CvcElement {
         <col class="state" />
         <col class="activity" />
         <col class="links" />
+        ${this.prefs.costs ? html`<col class="cost" />` : nothing}
       </colgroup>
       <tbody>
-        ${this.renderRows(node, activity, context, linksLoading)}
+        ${this.renderRows(node, activity, context, linksLoading, costs)}
       </tbody>
     </table>`;
   }
@@ -668,6 +765,7 @@ export class CvcOrgaPage extends CvcElement {
     activity: Map<string, AppActivity>,
     context: GroupingContext,
     linksLoading: boolean,
+    costs: CostTable | null,
   ): unknown {
     if (node.children.length > 0) {
       return repeat(
@@ -676,7 +774,7 @@ export class CvcOrgaPage extends CvcElement {
         (child) => {
           const collapsed = this.prefs.collapsed.includes(child.path);
           return html`<tr class="sub level-${child.level} ${child.missing ? 'missing' : ''}">
-              <td colspan=${COLUMNS}>
+              <td colspan=${this.#columns}>
                 <button
                   type="button"
                   class="sub-head"
@@ -686,10 +784,11 @@ export class CvcOrgaPage extends CvcElement {
                   <span class="chevron">${collapsed ? '▸' : '▾'}</span>
                   <span class="group-name">${child.label}</span>
                   <span class="muted small">${this.counts(child)}</span>
+                  ${this.renderGroupCost(child, costs)}
                 </button>
               </td>
             </tr>
-            ${collapsed ? nothing : this.renderRows(child, activity, context, linksLoading)}`;
+            ${collapsed ? nothing : this.renderRows(child, activity, context, linksLoading, costs)}`;
         },
       );
     }
@@ -697,14 +796,85 @@ export class CvcOrgaPage extends CvcElement {
       ${repeat(
         this.sortedApps(node, activity),
         (app) => app.id,
-        (app) => this.renderAppRow(app, activity.get(app.id), context, linksLoading),
+        (app) => this.renderAppRow(app, activity.get(app.id), context, linksLoading, costs),
       )}
       ${repeat(
         node.addons,
         (addon) => addon.id,
-        (addon) => this.renderAddonRow(addon, context, node.inferred.has(addon.id)),
+        (addon) => this.renderAddonRow(addon, context, node.inferred.has(addon.id), costs),
       )}
     `;
+  }
+
+  private renderCost(costs: CostTable | null, resource: { id: string; realId?: string }) {
+    if (!this.prefs.costs) {
+      return nothing;
+    }
+    if (costs == null) {
+      return html`<td class="cost muted small">…</td>`;
+    }
+    const amount = resourceCost(costs, resource);
+    return html`<td class="cost small ${amount == null ? 'muted' : ''}" title=${this.costTitle(costs)}>
+      ${amount == null ? '—' : formatMoney(amount, costs.currency)}
+    </td>`;
+  }
+
+  private costTitle(costs: CostTable): string {
+    const spec = COST_SOURCE_LABELS[costs.source];
+    return costs.source === 'invoice'
+      ? t(spec.title, { number: costs.reference, month: formatMonth(costs.period?.from) })
+      : t(spec.title);
+  }
+
+  private renderCostCard(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+    const ownerId = this.orga.id;
+    const data = this.costStore.get(ownerId);
+    const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
+    const yesterday = dayTotal(this.costStore.yesterday(ownerId));
+    const days = this.costStore.recentDays(ownerId);
+    const daysTable = this.costStore.table(ownerId, 'days30');
+    const invoiceTable = this.costStore.table(ownerId, 'invoice');
+    const sum = (table: CostTable | null) =>
+      table == null ? null : [...table.amounts.values()].reduce((total, amount) => total + amount, 0);
+    const amount = (value: number | null, pending: boolean, error: string | null) =>
+      error != null && value == null
+        ? html`<span class="danger small" title=${error}>${t('costs.unavailableShort')}</span>`
+        : value == null
+          ? html`<span class="muted small">${pending ? t('costs.loading') : '—'}</span>`
+          : formatMoney(value, currency);
+    const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
+    const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
+    const invoiceLabel =
+      data.invoice != null
+        ? t('costs.invoice', { month: formatMonth(data.invoice.from) })
+        : data.invoiceAt > 0
+          ? t('costs.noInvoice')
+          : t('costs.invoice', { month: '…' });
+    return html`<section class="costs card">
+      <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
+      <dl>
+        <dt>${t('costs.yesterday')}</dt>
+        <dd>${amount(yesterday, data.daysPending > 0, data.daysError)}</dd>
+        <dt>
+          ${days.length >= 30 || days.length === 0 ? t('costs.days30') : t('costs.days30Partial', { count: days.length })}
+        </dt>
+        <dd>${amount(sum(daysTable), data.daysPending > 0, data.daysError)}</dd>
+        <dt>${invoiceLabel}</dt>
+        <dd>${amount(sum(invoiceTable), data.invoiceLoading, data.invoiceError)}</dd>
+        <dt title=${t('costs.estimateHint')}>${t('costs.estimate')}</dt>
+        <dd title=${t('costs.estimateHint')}>
+          ${amount(sum(data.estimate), data.estimateLoading, data.estimateError)}
+        </dd>
+      </dl>
+      ${errors.map((error) => html`<p class="danger small">${t('costs.unavailable', { error })}</p>`)}
+      ${
+        unlisted != null && unlisted.count > 0 && costs != null
+          ? html`<p class="muted small" title=${t('costs.unlistedTitle')}>
+              ${t('costs.unlisted', { amount: formatMoney(unlisted.amount, costs.currency), count: unlisted.count })}
+            </p>`
+          : nothing
+      }
+    </section>`;
   }
 
   private renderCheck(id: string, name: string) {
@@ -723,6 +893,7 @@ export class CvcOrgaPage extends CvcElement {
     activity: AppActivity | undefined,
     context: GroupingContext,
     linksLoading: boolean,
+    costs: CostTable | null,
   ) {
     const status = stateLabel(APP_STATE_LABELS, app.state);
     const addons = linkedAddons(app.id, context);
@@ -754,6 +925,7 @@ export class CvcOrgaPage extends CvcElement {
         ${addons.length > MAX_LINK_ICONS ? html`<span class="muted small">+${addons.length - MAX_LINK_ICONS}</span>` : nothing}
         ${context.links[app.id] == null && linksLoading ? html`<span class="muted small">…</span>` : nothing}
       </td>
+      ${this.renderCost(costs, app)}
     </tr>`;
   }
 
@@ -783,7 +955,7 @@ export class CvcOrgaPage extends CvcElement {
     </td>`;
   }
 
-  private renderAddonRow(addon: AddonSummary, context: GroupingContext, inferred: boolean) {
+  private renderAddonRow(addon: AddonSummary, context: GroupingContext, inferred: boolean, costs: CostTable | null) {
     const apps = linkedApps(addon.id, context);
     return html`<tr class="addon ${this.selected.has(addon.id) ? 'selected' : ''}">
       ${this.renderCheck(addon.id, addon.name)}
@@ -803,6 +975,7 @@ export class CvcOrgaPage extends CvcElement {
           >${t('common.console')}</a
         >
       </td>
+      ${this.renderCost(costs, addon)}
     </tr>`;
   }
 
@@ -1105,6 +1278,46 @@ export class CvcOrgaPage extends CvcElement {
       col.links {
         width: 11rem;
       }
+      col.cost {
+        width: 6.5rem;
+      }
+      td.cost {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .group-head .cost,
+      .sub-head .cost {
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        padding-right: 0.55rem;
+      }
+      .cost-total {
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+      .costs dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.3rem 0.75rem;
+        align-items: baseline;
+      }
+      .costs dt {
+        color: var(--cvc-muted);
+        font-size: 0.85rem;
+      }
+      .costs dd {
+        margin: 0;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+      .costs p {
+        margin-top: 0.5rem;
+      }
+      .costs .danger {
+        color: var(--cvc-danger);
+      }
       td.check {
         padding: 0 0.3rem 0 0.6rem;
         user-select: none;
@@ -1216,6 +1429,8 @@ function readPrefs(ownerId: string): HomePrefs {
       sort: parsed.sort === 'activity' ? 'activity' : 'name',
       showAddons: parsed.showAddons !== false,
       collapsed: Array.isArray(parsed.collapsed) ? parsed.collapsed.filter((id) => typeof id === 'string') : [],
+      costs: parsed.costs === true,
+      costSource: COST_SOURCES.includes(parsed.costSource as CostSource) ? (parsed.costSource as CostSource) : 'days30',
     };
   } catch {
     return DEFAULT_PREFS;

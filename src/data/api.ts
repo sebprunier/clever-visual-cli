@@ -5,7 +5,9 @@
  * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
+import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
 import type { Application } from '@clevercloud/client/cc-api-commands/application/application.types.js';
+import { ListApplicationCommand } from '@clevercloud/client/cc-api-commands/application/list-application-command.js';
 import { DeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/deploy-application-command.js';
 import { GetApplicationCommand } from '@clevercloud/client/cc-api-commands/application/get-application-command.js';
 import { UndeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/undeploy-application-command.js';
@@ -25,6 +27,8 @@ import type { GetEnvironmentCommandOutput } from '@clevercloud/client/cc-api-com
 import { GetEnvironmentCommand } from '@clevercloud/client/cc-api-commands/environment/get-environment-command.js';
 import { UpdateEnvironmentCommand } from '@clevercloud/client/cc-api-commands/environment/update-environment-command.js';
 import type { Instance } from '@clevercloud/client/cc-api-commands/instance/instance.types.js';
+import { GetInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/get-invoice-command.js';
+import { ListInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/list-invoice-command.js';
 import { ListApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/list-application-instance-command.js';
 import type { LogsStream } from '@clevercloud/client/cc-api-commands/log/abstract-logs-stream-command.js';
 import type { ApplicationRuntimeLog } from '@clevercloud/client/cc-api-commands/log/log.types.js';
@@ -36,11 +40,21 @@ import type {
   ApplicationSummary,
   OrganisationSummary,
 } from '@clevercloud/client/cc-api-commands/organisation/organisation.types.js';
+import { GetPriceSystemCommand } from '@clevercloud/client/cc-api-commands/price-system/get-price-system-command.js';
+import type { GetPriceSystemCommandOutput } from '@clevercloud/client/cc-api-commands/price-system/get-price-system-command.types.js';
 import { GetProfileCommand } from '@clevercloud/client/cc-api-commands/profile/get-profile-command.js';
 import { CreateTagCommand } from '@clevercloud/client/cc-api-commands/tag/create-tag-command.js';
 import { DeleteTagCommand } from '@clevercloud/client/cc-api-commands/tag/delete-tag-command.js';
 import type { Profile } from '@clevercloud/client/cc-api-commands/profile/profile.types.js';
 import { ERROR_TYPES, parseRaw } from '@clevercloud/client/utils/environment-utils.js';
+import {
+  HOURS_PER_MONTH,
+  type AddonPricing,
+  type AppPricing,
+  type CostRow,
+  type DailyConsumption,
+  type InvoiceLines,
+} from '../core/home/costs.js';
 import { t } from '../core/i18n.js';
 import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
 
@@ -270,6 +284,158 @@ export function removeTag(client: CcApiClient, target: TagTarget, tag: string): 
 // --- helpers ---------------------------------------------------------------
 
 /** Parses `NAME=value` lines the way clever-tools and the Console do, with translated error messages. */
+// --- costs -------------------------------------------------------------------
+
+/** The prices the organisation is billed with: hourly price per `source.flavor` key. */
+export interface PriceSystem {
+  currency: string;
+  hourly: ReadonlyMap<string, number>;
+}
+
+/**
+ * The API wants a zone even though the runtime price keys (`apps.xs`,
+ * `postgresql.s_hug`) do not depend on it; Paris serves as the reference.
+ */
+const PRICE_SYSTEM_ZONE = 'par';
+
+export async function fetchPriceSystem(client: CcApiClient, ownerId: string): Promise<PriceSystem> {
+  const system = await client.send(new GetPriceSystemCommand({ ownerId, zone: PRICE_SYSTEM_ZONE }));
+  const hourly = new Map<string, number>();
+  for (const runtime of system.runtimes) {
+    if (!hourly.has(runtime.priceId)) {
+      hourly.set(runtime.priceId, runtime.price);
+    }
+  }
+  return { currency: system.currency, hourly };
+}
+
+export interface Pricing {
+  apps: AppPricing[];
+  addons: AddonPricing[];
+}
+
+/**
+ * What every application and add-on of the organisation costs as configured.
+ * The organisation's price system wins over the public price carried by the
+ * scaler size or the plan, so negotiated prices apply.
+ */
+export async function fetchPricing(client: CcApiClient, ownerId: string, prices: PriceSystem): Promise<Pricing> {
+  const [apps, addons] = await Promise.all([
+    client.send(new ListApplicationCommand({ ownerId, withBranches: false })),
+    client.send(new ListAddonCommand({ ownerId })),
+  ]);
+  return {
+    apps: apps
+      .filter((app) => !app.isArchived)
+      .map((app) => {
+        const flavor = app.instance.minFlavor;
+        const priceId = flavor.priceId ?? `apps.${flavor.name.toLowerCase()}`;
+        return {
+          id: app.id,
+          hourlyPrice: prices.hourly.get(priceId) ?? flavor.price,
+          minInstances: app.instance.minInstances,
+        };
+      }),
+    addons: addons.map((addon) => {
+      const hourly = addon.plan.priceId == null ? undefined : prices.hourly.get(addon.plan.priceId);
+      return {
+        id: addon.id,
+        realId: addon.realId,
+        monthlyPrice: hourly == null ? addon.plan.price : hourly * HOURS_PER_MONTH,
+      };
+    }),
+  };
+}
+
+interface RawConsumptionDay {
+  date: string;
+  consumption: Array<{ app_id: string; app_name: string; price: number }>;
+}
+
+/**
+ * `GET /v4/billing/organisations/:id/consumption`, the call behind the
+ * Console's consumption page. The client has no command for it yet, so this
+ * one borrows the plumbing of a simple command. The API ignores `from` and
+ * `to`; `date` selects one day, yesterday by default, and `currency` is
+ * required.
+ */
+class DailyConsumptionCommand extends GetPriceSystemCommand {
+  readonly #ownerId: string;
+  readonly #date: string;
+  readonly #currency: string;
+
+  constructor(ownerId: string, date: string, currency: string) {
+    super({ ownerId });
+    this.#ownerId = ownerId;
+    this.#date = date;
+    this.#currency = currency;
+  }
+
+  override toRequestParams(): ReturnType<GetPriceSystemCommand['toRequestParams']> {
+    const query = new URLSearchParams({ currency: this.#currency, date: this.#date });
+    return {
+      method: 'GET',
+      url: `/v4/billing/organisations/${encodeURIComponent(this.#ownerId)}/consumption?${query}`,
+      headers: new Headers({ Accept: 'application/json' }),
+    };
+  }
+
+  override transformCommandOutput(response: unknown): GetPriceSystemCommandOutput {
+    return response as GetPriceSystemCommandOutput;
+  }
+}
+
+/** The consumption of one day per resource, or null when the billing system has not computed that day yet. */
+export async function fetchDailyConsumption(
+  client: CcApiClient,
+  ownerId: string,
+  date: string,
+  currency: string,
+): Promise<DailyConsumption | null> {
+  const response = (await client.send(new DailyConsumptionCommand(ownerId, date, currency))) as unknown;
+  const days = Array.isArray(response) ? (response as RawConsumptionDay[]) : [];
+  const day = days.find((candidate) => candidate.date === date);
+  if (day == null || !Array.isArray(day.consumption)) {
+    return null;
+  }
+  return { date, rows: day.consumption.map((row) => ({ id: row.app_id, amount: row.price })) };
+}
+
+export interface InvoiceRef {
+  number: string;
+  emittedAt: string;
+}
+
+/** The most recent invoice (credit notes excluded), or null for an organisation never billed. */
+export async function fetchLatestInvoice(client: CcApiClient, ownerId: string): Promise<InvoiceRef | null> {
+  const invoices = await client.send(new ListInvoiceCommand({ ownerId, limit: 6 }));
+  const latest = invoices
+    .filter((invoice) => invoice.kind === 'INVOICE')
+    .sort((a, b) => b.emittedAt.localeCompare(a.emittedAt))[0];
+  return latest == null ? null : { number: latest.invoiceNumber, emittedAt: latest.emittedAt };
+}
+
+/** The lines of one invoice reduced to one amount per resource: uptimes, metered resources and vendors. */
+export async function fetchInvoiceLines(
+  client: CcApiClient,
+  ownerId: string,
+  invoiceNumber: string,
+): Promise<InvoiceLines> {
+  const invoice = await client.send(new GetInvoiceCommand({ ownerId, invoiceNumber }));
+  const rows: CostRow[] = [
+    ...invoice.uptimes.map((line) => ({ id: line.applicationId, amount: line.price.amount })),
+    ...invoice.countables.map((line) => ({ id: line.applicationId, amount: line.price.amount })),
+    ...invoice.vendorConsumptions.map((line) => ({ id: line.applicationId, amount: line.price.amount })),
+  ];
+  return {
+    number: invoice.invoiceNumber,
+    from: invoice.consumptionStartedAt,
+    to: invoice.consumptionEndedAt,
+    currency: invoice.currency,
+    rows,
+  };
+}
+
 export function parseEnvFile(raw: string): { variables: EnvironmentVariable[]; errors: string[] } {
   const { variables, errors } = parseRaw(raw, { mode: 'simple' });
   return {
