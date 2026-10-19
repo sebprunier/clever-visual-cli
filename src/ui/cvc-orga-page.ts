@@ -42,12 +42,15 @@ import type { HomeStore } from '../core/home/home-store.js';
 import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { listRecents } from '../core/home/recents.js';
 import { SORT_COLUMNS, sortNodes, toggleSort, type SortColumn, type SortSpec } from '../core/home/sorting.js';
+import type { BulkApp, BulkKind } from '../core/home/bulk.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
 import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
 import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
+import './cvc-bulk-dialog.js';
+import type { BulkDoneDetail } from './cvc-bulk-dialog.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
 import {
   APP_STATE_LABELS,
@@ -134,6 +137,7 @@ export class CvcOrgaPage extends CvcElement {
   @state() private prefs: HomePrefs = DEFAULT_PREFS;
   @state() private selected: ReadonlySet<string> = new Set();
   @state() private tagDialog: TagOperationKind | null = null;
+  @state() private bulkDialog: BulkKind | null = null;
   /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
   @state() private sideTall = false;
 
@@ -168,7 +172,13 @@ export class CvcOrgaPage extends CvcElement {
       event.preventDefault();
       this.filterInput?.focus();
       this.filterInput?.select();
-    } else if (event.key === 'Escape' && !event.defaultPrevented && this.tagDialog == null && this.selected.size > 0) {
+    } else if (
+      event.key === 'Escape' &&
+      !event.defaultPrevented &&
+      this.tagDialog == null &&
+      this.bulkDialog == null &&
+      this.selected.size > 0
+    ) {
       // A dialog closing on Escape prevents the default, so the selection survives it.
       this.clearSelection();
     }
@@ -305,6 +315,27 @@ export class CvcOrgaPage extends CvcElement {
     this.selected = next;
   }
 
+  /** Every application and add-on under a node, collapsed sub-groups included. */
+  private groupIds(node: GroupNode): string[] {
+    return [
+      ...node.apps.map((app) => app.id),
+      ...node.addons.map((addon) => addon.id),
+      ...node.children.flatMap((child) => this.groupIds(child)),
+    ];
+  }
+
+  private toggleGroupSelection(ids: string[], select: boolean): void {
+    const next = new Set(this.selected);
+    for (const id of ids) {
+      if (select) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+    }
+    this.selected = next;
+  }
+
   private selectAll(): void {
     this.selected = new Set(this.#order);
   }
@@ -312,6 +343,17 @@ export class CvcOrgaPage extends CvcElement {
   private clearSelection(): void {
     this.selected = new Set();
     this.#lastClicked = null;
+  }
+
+  /** The applications of the selection, for a restart or a stop; add-ons are only counted. */
+  private get selectedApps(): BulkApp[] {
+    return this.orga.applications
+      .filter((app) => this.selected.has(app.id))
+      .map((app): BulkApp => ({ id: app.id, name: app.name, state: app.state }));
+  }
+
+  private get selectedAddonCount(): number {
+    return this.orga.addons.filter((addon) => this.selected.has(addon.id)).length;
   }
 
   private get selectedResources(): TagResource[] {
@@ -339,6 +381,23 @@ export class CvcOrgaPage extends CvcElement {
       action: done > 0 ? { label: t('tags.undo'), run: () => void this.undo(result.done) } : undefined,
     });
     requestSummaryRefresh(this);
+  }
+
+  private onBulkDone(event: CustomEvent<BulkDoneDetail>): void {
+    const { kind, result } = event.detail;
+    this.bulkDialog = null;
+    const done = result.done.length;
+    const failed = result.failed.length;
+    pushToast(this, {
+      kind: failed === 0 ? 'success' : 'error',
+      message:
+        failed === 0
+          ? t(kind === 'restart' ? 'bulk.restart.done' : 'bulk.stop.done', { count: done })
+          : t('bulk.partial', { done, failed, error: result.failed[0].error }),
+    });
+    this.selected = new Set();
+    requestSummaryRefresh(this);
+    this.refresh({ force: true });
   }
 
   private async undo(steps: TagStep[]): Promise<void> {
@@ -542,6 +601,19 @@ export class CvcOrgaPage extends CvcElement {
             ></cvc-tag-dialog>`
           : nothing
       }
+      ${
+        this.bulkDialog != null
+          ? html`<cvc-bulk-dialog
+              .client=${this.client}
+              ownerId=${this.orga.id}
+              kind=${this.bulkDialog}
+              .apps=${this.selectedApps}
+              .addons=${this.selectedAddonCount}
+              @cvc-bulk-close=${() => (this.bulkDialog = null)}
+              @cvc-bulk-done=${this.onBulkDone}
+            ></cvc-bulk-dialog>`
+          : nothing
+      }
     `;
   }
 
@@ -549,6 +621,7 @@ export class CvcOrgaPage extends CvcElement {
   private renderSelectionBar() {
     const total = this.#order.length;
     const count = this.selected.size;
+    const hasApps = this.orga.applications.some((app) => this.selected.has(app.id));
     return html`<div class="selection row ${count > 0 ? 'active' : ''}">
       ${
         count === 0
@@ -559,7 +632,14 @@ export class CvcOrgaPage extends CvcElement {
               <span class="grow"></span>
               <button type="button" @click=${() => (this.tagDialog = 'add')}>${t('home.addTag')}</button>
               <button type="button" @click=${() => (this.tagDialog = 'remove')}>${t('home.removeTag')}</button>
-              <button type="button" @click=${() => (this.tagDialog = 'rename')}>${t('home.renameTag')}</button>`
+              <button type="button" @click=${() => (this.tagDialog = 'rename')}>${t('home.renameTag')}</button>
+              <span class="sep"></span>
+              <button type="button" ?disabled=${!hasApps} @click=${() => (this.bulkDialog = 'restart')}>
+                ${t('home.restart')}
+              </button>
+              <button type="button" ?disabled=${!hasApps} @click=${() => (this.bulkDialog = 'stop')}>
+                ${t('home.stop')}
+              </button>`
       }
     </div>`;
   }
@@ -740,14 +820,39 @@ export class CvcOrgaPage extends CvcElement {
   ) {
     const collapsed = this.prefs.collapsed.includes(node.path);
     return html`<section class="group ${node.missing ? 'missing' : ''}">
-      <button type="button" class="group-head" aria-expanded=${!collapsed} @click=${() => this.toggleGroup(node.path)}>
-        <span class="chevron">${collapsed ? '▸' : '▾'}</span>
-        <span class="group-name">${node.label}</span>
-        <span class="muted small">${this.counts(node)}</span>
+      <div class="group-head">
+        ${this.renderGroupCheck(node)}
+        <button
+          type="button"
+          class="group-toggle"
+          aria-expanded=${!collapsed}
+          @click=${() => this.toggleGroup(node.path)}
+        >
+          <span class="chevron">${collapsed ? '▸' : '▾'}</span>
+          <span class="group-name">${node.label}</span>
+          <span class="muted small">${this.counts(node)}</span>
+        </button>
         ${this.renderGroupCost(node, costs)}
-      </button>
+      </div>
       ${collapsed ? nothing : this.renderTable(node, activity, context, linksLoading, costs)}
     </section>`;
+  }
+
+  /** The box that selects or clears every resource of a group, sub-groups included. */
+  private renderGroupCheck(node: GroupNode) {
+    const ids = this.groupIds(node);
+    const all = ids.length > 0 && ids.every((id) => this.selected.has(id));
+    const some = !all && ids.some((id) => this.selected.has(id));
+    return html`<input
+      type="checkbox"
+      class="group-check"
+      aria-label=${t('home.selectGroup', { name: node.label })}
+      title=${t('home.selectGroup', { name: node.label })}
+      .checked=${all}
+      .indeterminate=${some}
+      ?disabled=${ids.length === 0}
+      @change=${() => this.toggleGroupSelection(ids, !all)}
+    />`;
   }
 
   /** What a cost shows before its source answered: a spinner, or a dash when there is nothing to wait for. */
@@ -795,17 +900,20 @@ export class CvcOrgaPage extends CvcElement {
           const collapsed = this.prefs.collapsed.includes(child.path);
           return html`<tr class="sub level-${child.level} ${child.missing ? 'missing' : ''}">
               <td colspan=${this.#columns}>
-                <button
-                  type="button"
-                  class="sub-head"
-                  aria-expanded=${!collapsed}
-                  @click=${() => this.toggleGroup(child.path)}
-                >
-                  <span class="chevron">${collapsed ? '▸' : '▾'}</span>
-                  <span class="group-name">${child.label}</span>
-                  <span class="muted small">${this.counts(child)}</span>
+                <div class="sub-head">
+                  ${this.renderGroupCheck(child)}
+                  <button
+                    type="button"
+                    class="group-toggle"
+                    aria-expanded=${!collapsed}
+                    @click=${() => this.toggleGroup(child.path)}
+                  >
+                    <span class="chevron">${collapsed ? '▸' : '▾'}</span>
+                    <span class="group-name">${child.label}</span>
+                    <span class="muted small">${this.counts(child)}</span>
+                  </button>
                   ${this.renderGroupCost(child, costs)}
-                </button>
+                </div>
               </td>
             </tr>
             ${collapsed ? nothing : this.renderRows(child, activity, context, linksLoading, costs)}`;
@@ -1235,6 +1343,12 @@ export class CvcOrgaPage extends CvcElement {
         background: color-mix(in srgb, var(--cvc-accent) 7%, var(--cvc-surface));
         border-color: color-mix(in srgb, var(--cvc-accent) 35%, var(--cvc-border));
       }
+      .selection .sep {
+        width: 1px;
+        height: 1.2rem;
+        margin: 0 0.2rem;
+        background: var(--cvc-border);
+      }
       .selection button:not(.link) {
         padding: 0.25rem 0.7rem;
         font-size: 0.85rem;
@@ -1341,11 +1455,28 @@ export class CvcOrgaPage extends CvcElement {
         align-items: center;
         gap: 0.5rem;
         width: 100%;
+        box-sizing: border-box;
+        padding: 0.3rem 0.4rem 0.3rem 0.65rem;
+        font-weight: 600;
+      }
+      .group-toggle {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
         text-align: left;
         background: transparent;
         border: none;
-        padding: 0.3rem 0.4rem;
+        padding: 0;
+        font: inherit;
         font-weight: 600;
+        color: inherit;
+        cursor: pointer;
+      }
+      .group-check {
+        margin: 0;
+        flex: none;
       }
       .group-head:hover,
       .sub-head:hover {
@@ -1369,7 +1500,7 @@ export class CvcOrgaPage extends CvcElement {
         font-size: 0.9rem;
       }
       .sub-head {
-        padding: 0.15rem 0.4rem;
+        padding: 0.15rem 0.4rem 0.15rem 0.3rem;
         font-size: 0.95rem;
       }
 

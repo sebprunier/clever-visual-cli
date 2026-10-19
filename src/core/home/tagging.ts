@@ -25,12 +25,14 @@ export interface TagStep {
   tag: string;
 }
 
-export interface TagRunResult {
-  done: TagStep[];
-  failed: Array<{ step: TagStep; error: string }>;
+export interface RunResult<T> {
+  done: T[];
+  failed: Array<{ step: T; error: string }>;
 }
 
-export type StepExecutor = (step: TagStep) => Promise<void>;
+export type TagRunResult = RunResult<TagStep>;
+
+export type StepExecutor<T = TagStep> = (step: T) => Promise<void>;
 
 export interface RunOptions {
   onProgress?: (done: number, total: number) => void;
@@ -119,13 +121,14 @@ export function apiExecutor(client: CcApiClient, ownerId: string): StepExecutor 
 }
 
 /** Runs the steps with a small concurrency; a failure never stops the others. */
-export async function runSteps(
-  steps: readonly TagStep[],
-  execute: StepExecutor,
+/** Runs the steps with a small concurrency; the bulk restart and stop reuse it with their own steps. */
+export async function runSteps<T>(
+  steps: readonly T[],
+  execute: StepExecutor<T>,
   options: RunOptions = {},
-): Promise<TagRunResult> {
+): Promise<RunResult<T>> {
   const describe = options.describe ?? ((error: unknown) => (error instanceof Error ? error.message : String(error)));
-  const result: TagRunResult = { done: [], failed: [] };
+  const result: RunResult<T> = { done: [], failed: [] };
   let next = 0;
   let completed = 0;
   const worker = async () => {
