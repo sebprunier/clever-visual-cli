@@ -69,6 +69,7 @@ interface Formatters {
   dateTime: Intl.DateTimeFormat;
   time: Intl.DateTimeFormat;
   month: Intl.DateTimeFormat;
+  day: Intl.DateTimeFormat;
   money: Map<string, Intl.NumberFormat>;
 }
 
@@ -83,6 +84,7 @@ function formats(): Formatters {
       dateTime: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
       time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       month: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      day: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
       money: new Map(),
     };
   }
@@ -132,10 +134,16 @@ export function formatMonth(value: string | number | null | undefined): string {
   return date == null ? '' : formats().month.format(date);
 }
 
-/** "1 234 €" above ten, "7.41 €" below: a column of costs stays readable while small add-ons keep their cents. */
+/** "18 Oct", in UTC like the days of the billing system. */
+export function formatDay(value: string | number | null | undefined): string {
+  const date = toDate(value);
+  return date == null ? '' : formats().day.format(date);
+}
+
+/** "1 234 €" above ten, "7.41 €" below, "0 €" for nothing: a column of costs stays readable while small add-ons keep their cents. */
 export function formatMoney(amount: number, currency: string): string {
   const { locale, money } = formats();
-  const digits = Math.abs(amount) < 10 ? 2 : 0;
+  const digits = amount !== 0 && Math.abs(amount) < 10 ? 2 : 0;
   const key = `${currency}/${digits}`;
   let format = money.get(key);
   if (format == null) {

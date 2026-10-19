@@ -16,6 +16,7 @@ import {
 } from '../../data/api.js';
 import { describeError } from '../clever-client.js';
 import {
+  dayCosts,
   estimateCosts,
   invoiceCosts,
   lastDays,
@@ -26,7 +27,8 @@ import {
   type InvoiceLines,
 } from './costs.js';
 
-const DAYS = 30;
+/** Size of the rolling window of daily consumptions. */
+export const COST_DAYS = 30;
 const ESTIMATE_TTL = 60 * 60_000;
 const INVOICE_CHECK_TTL = 6 * 60 * 60_000;
 const DAYS_CONCURRENCY = 4;
@@ -34,6 +36,8 @@ const DAYS_CONCURRENCY = 4;
 export interface OwnerCosts {
   /** Currency of the organisation, known once the price system answered. */
   currency: string | null;
+  /** True from the start of a refresh to its end, before the sources report their own state. */
+  loading: boolean;
   estimate: CostTable | null;
   estimateAt: number;
   estimateLoading: boolean;
@@ -60,7 +64,7 @@ interface Stored {
 export class CostStore extends EventTarget {
   #data = new Map<string, OwnerCosts>();
   #inflight = new Map<string, Promise<void>>();
-  #daysTable = new Map<string, { keys: string; table: CostTable }>();
+  #tables = new Map<string, { keys: string; table: CostTable }>();
 
   get(ownerId: string): OwnerCosts {
     let data = this.#data.get(ownerId);
@@ -68,6 +72,7 @@ export class CostStore extends EventTarget {
       const stored = readStored(ownerId);
       data = {
         currency: null,
+        loading: false,
         estimate: null,
         estimateAt: 0,
         estimateLoading: false,
@@ -93,7 +98,7 @@ export class CostStore extends EventTarget {
   /** The days of the window that are known, oldest first. */
   recentDays(ownerId: string): DailyConsumption[] {
     const data = this.get(ownerId);
-    return lastDays(DAYS)
+    return lastDays(COST_DAYS)
       .map((date) => data.days[date])
       .filter((day): day is DailyConsumption => day != null);
   }
@@ -106,26 +111,38 @@ export class CostStore extends EventTarget {
   /** The table of one source, or null while it is unknown. */
   table(ownerId: string, source: CostSource): CostTable | null {
     const data = this.get(ownerId);
+    const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
     switch (source) {
       case 'estimate':
         return data.estimate;
       case 'invoice':
         return data.invoice == null ? null : invoiceCosts(data.invoice);
+      case 'yesterday': {
+        const day = this.yesterday(ownerId);
+        return day == null
+          ? null
+          : this.#memo(`${ownerId}/yesterday`, `${currency}:${day.date}`, () => dayCosts(day, currency));
+      }
       case 'days30': {
         const days = this.recentDays(ownerId);
         if (days.length === 0) {
           return null;
         }
-        const keys = days.map((day) => day.date).join(',');
-        const memo = this.#daysTable.get(ownerId);
-        if (memo != null && memo.keys === keys) {
-          return memo.table;
-        }
-        const table = sumDays(days, data.currency ?? data.invoice?.currency ?? 'EUR');
-        this.#daysTable.set(ownerId, { keys, table });
-        return table;
+        const keys = `${currency}:${days.map((day) => day.date).join(',')}`;
+        return this.#memo(`${ownerId}/days30`, keys, () => sumDays(days, currency));
       }
     }
+  }
+
+  /** A table is built once per set of days: the lists read it on every render. */
+  #memo(key: string, keys: string, build: () => CostTable): CostTable {
+    const memo = this.#tables.get(key);
+    if (memo != null && memo.keys === keys) {
+      return memo.table;
+    }
+    const table = build();
+    this.#tables.set(key, { keys, table });
+    return table;
   }
 
   /** Loads what is missing or stale; resolves when everything settled. */
@@ -146,29 +163,35 @@ export class CostStore extends EventTarget {
 
   forget(): void {
     this.#data.clear();
-    this.#daysTable.clear();
+    this.#tables.clear();
     this.#emit();
   }
 
   async #run(client: CcApiClient, ownerId: string, options: CostRefreshOptions): Promise<void> {
     const data = this.get(ownerId);
-    let prices: PriceSystem;
+    data.loading = true;
+    this.#emit();
     try {
-      prices = await fetchPriceSystem(client, ownerId);
-    } catch (error) {
-      const message = describeError(error);
-      data.estimateError = message;
-      data.daysError = message;
-      data.invoiceError = message;
+      let prices: PriceSystem;
+      try {
+        prices = await fetchPriceSystem(client, ownerId);
+      } catch (error) {
+        const message = describeError(error);
+        data.estimateError = message;
+        data.daysError = message;
+        data.invoiceError = message;
+        return;
+      }
+      data.currency = prices.currency;
+      await Promise.all([
+        this.#refreshEstimate(client, ownerId, prices, options),
+        this.#refreshDays(client, ownerId, prices.currency, options),
+        this.#refreshInvoice(client, ownerId, options),
+      ]);
+    } finally {
+      data.loading = false;
       this.#emit();
-      return;
     }
-    data.currency = prices.currency;
-    await Promise.all([
-      this.#refreshEstimate(client, ownerId, prices, options),
-      this.#refreshDays(client, ownerId, prices.currency, options),
-      this.#refreshInvoice(client, ownerId, options),
-    ]);
   }
 
   async #refreshEstimate(
@@ -207,7 +230,7 @@ export class CostStore extends EventTarget {
     if (data.daysPending > 0) {
       return;
     }
-    const wanted = lastDays(DAYS);
+    const wanted = lastDays(COST_DAYS);
     for (const date of Object.keys(data.days)) {
       if (!wanted.includes(date)) {
         delete data.days[date];
@@ -241,9 +264,7 @@ export class CostStore extends EventTarget {
         } finally {
           completed += 1;
           data.daysPending = todo.length - completed;
-          if (completed % 5 === 0 || data.daysPending === 0) {
-            this.#emit();
-          }
+          this.#emit();
         }
       }
     };

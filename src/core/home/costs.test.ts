@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import type { GroupNode } from './grouping.js';
 import {
+  dayCosts,
   dayTotal,
   estimateCosts,
   invoiceCosts,
   lastDays,
   nodeCost,
   resourceCost,
+  shownCost,
   sumDays,
   totalCost,
   unlistedCost,
@@ -153,5 +155,41 @@ describe('lookups', () => {
   it('reports what the list does not show', () => {
     const unlisted = unlistedCost(table, [app('app_1'), app('app_2'), addon('addon_1', 'postgresql_1')]);
     expect(unlisted).toEqual({ amount: 11, count: 2 });
+  });
+});
+
+describe('dayCosts', () => {
+  it('turns one day into the yesterday source', () => {
+    const table = dayCosts(
+      {
+        date: '2026-10-18',
+        rows: [
+          { id: 'app_1', amount: 2 },
+          { id: 'app_1', amount: 3 },
+        ],
+      },
+      'EUR',
+    );
+    expect(table.source).toBe('yesterday');
+    expect(table.amounts.get('app_1')).toBe(5);
+    expect(table.period).toEqual({ from: '2026-10-18', to: '2026-10-18' });
+  });
+});
+
+describe('shownCost', () => {
+  it('shows zero for a resource a billed period does not mention', () => {
+    const table = sumDays([{ date: '2026-10-18', rows: [{ id: 'app_1', amount: 10 }] }], 'EUR');
+    expect(shownCost(table, app('app_1'))).toBe(10);
+    expect(shownCost(table, app('app_stopped'))).toBe(0);
+  });
+
+  it('shows nothing for a resource the estimate cannot price', () => {
+    const table = estimateCosts(
+      [{ id: 'app_1', hourlyPrice: 1, minInstances: 1 }],
+      [{ id: 'addon_1', realId: 'keycloak_1', monthlyPrice: null }],
+      'EUR',
+    );
+    expect(shownCost(table, app('app_1'))).toBe(720);
+    expect(shownCost(table, addon('addon_1', 'keycloak_1'))).toBeNull();
   });
 });

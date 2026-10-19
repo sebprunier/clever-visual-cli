@@ -341,7 +341,8 @@ export async function fetchPricing(client: CcApiClient, ownerId: string, prices:
       return {
         id: addon.id,
         realId: addon.realId,
-        monthlyPrice: hourly == null ? addon.plan.price : hourly * HOURS_PER_MONTH,
+        monthlyPrice:
+          hourly != null ? hourly * HOURS_PER_MONTH : typeof addon.plan.price === 'number' ? addon.plan.price : null,
       };
     }),
   };

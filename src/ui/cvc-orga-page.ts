@@ -26,12 +26,13 @@ import {
   type GroupNode,
   type GroupingContext,
 } from '../core/home/grouping.js';
-import type { CostStore } from '../core/home/cost-store.js';
+import { COST_DAYS, type CostStore, type OwnerCosts } from '../core/home/cost-store.js';
 import {
   COST_SOURCES,
   dayTotal,
+  lastDays,
   nodeCost,
-  resourceCost,
+  shownCost,
   totalCost,
   unlistedCost,
   type CostSource,
@@ -52,6 +53,7 @@ import {
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
   formatDateTime,
+  formatDay,
   formatMoney,
   formatMonth,
   formatRelative,
@@ -85,10 +87,12 @@ const DEFAULT_PREFS: HomePrefs = {
   costSource: 'days30',
 };
 
-const COST_SOURCE_LABELS: Record<CostSource, { label: MessageKey; title: MessageKey }> = {
-  days30: { label: 'costs.source.days30', title: 'costs.columnTitle.days30' },
-  invoice: { label: 'costs.source.invoice', title: 'costs.columnTitle.invoice' },
-  estimate: { label: 'costs.source.estimate', title: 'costs.columnTitle.estimate' },
+/** Per source: its line in the costs card and the title of the column cells. */
+const COST_SOURCE_SPECS: Record<CostSource, { label: MessageKey; hint: MessageKey; title: MessageKey }> = {
+  yesterday: { label: 'costs.yesterday', hint: 'costs.hint.yesterday', title: 'costs.columnTitle.yesterday' },
+  days30: { label: 'costs.days30', hint: 'costs.hint.days30', title: 'costs.columnTitle.days30' },
+  invoice: { label: 'costs.invoice', hint: 'costs.hint.invoice', title: 'costs.columnTitle.invoice' },
+  estimate: { label: 'costs.estimate', hint: 'costs.hint.estimate', title: 'costs.columnTitle.estimate' },
 };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
@@ -385,14 +389,6 @@ export class CvcOrgaPage extends CvcElement {
             <div class="row">
               <h1>${this.orga.name}</h1>
               <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
-              ${
-                costs != null
-                  ? html`<span class="small cost-total" title=${this.costTitle(costs)}
-                      >${t('costs.total', { amount: formatMoney(totalCost(tree, costs), costs.currency) })}
-                      <span class="muted">${t('costs.taxExcluded')}</span></span
-                    >`
-                  : nothing
-              }
               <span class="cli">clever applications list</span>
               <span class="grow"></span>
               ${
@@ -476,31 +472,6 @@ export class CvcOrgaPage extends CvcElement {
                 />
                 ${t('home.addons')}
               </label>
-              <label class="small check">
-                <input
-                  type="checkbox"
-                  .checked=${this.prefs.costs}
-                  @change=${(event: Event) => this.toggleCosts((event.currentTarget as HTMLInputElement).checked)}
-                />
-                ${t('costs.toggle')}
-              </label>
-              ${
-                this.prefs.costs
-                  ? html`<div class="seg" role="group" aria-label=${t('costs.sourceAria')}>
-                      ${COST_SOURCES.map(
-                        (source) =>
-                          html`<button
-                            type="button"
-                            class=${this.prefs.costSource === source ? 'on' : ''}
-                            aria-pressed=${this.prefs.costSource === source}
-                            @click=${() => this.setPrefs({ costSource: source })}
-                          >
-                            ${t(COST_SOURCE_LABELS[source].label)}
-                          </button>`,
-                      )}
-                    </div>`
-                  : nothing
-              }
             </div>
             <p class="muted small hint">
               ${
@@ -532,12 +503,12 @@ export class CvcOrgaPage extends CvcElement {
               ? html`<p class="empty">
                   ${this.filterText.trim() === '' ? t('home.nothing') : t('home.noMatch', { query: this.filterText })}
                 </p>`
-              : nothing
+              : this.renderListTotal(tree, visibleApps.length + visibleAddons.length, costs)
           }
         </div>
         <aside class="side">
           <cvc-platform-status></cvc-platform-status>
-          ${this.prefs.costs ? this.renderCostCard(apps, addons, costs) : nothing} ${this.renderWatch(watch)}
+          ${this.renderCostCard(visibleApps, visibleAddons, costs)} ${this.renderWatch(watch)}
           ${this.renderRecents(recents)}
         </aside>
       </div>
@@ -813,68 +784,174 @@ export class CvcOrgaPage extends CvcElement {
     if (costs == null) {
       return html`<td class="cost muted small">…</td>`;
     }
-    const amount = resourceCost(costs, resource);
-    return html`<td class="cost small ${amount == null ? 'muted' : ''}" title=${this.costTitle(costs)}>
+    const amount = shownCost(costs, resource);
+    return html`<td class="cost small ${amount == null || amount === 0 ? 'muted' : ''}" title=${this.costTitle(costs)}>
       ${amount == null ? '—' : formatMoney(amount, costs.currency)}
     </td>`;
   }
 
   private costTitle(costs: CostTable): string {
-    const spec = COST_SOURCE_LABELS[costs.source];
-    return costs.source === 'invoice'
-      ? t(spec.title, { number: costs.reference, month: formatMonth(costs.period?.from) })
-      : t(spec.title);
+    switch (costs.source) {
+      case 'invoice':
+        return t('costs.columnTitle.invoice', { number: costs.reference, month: formatMonth(costs.period?.from) });
+      case 'yesterday':
+        return t('costs.columnTitle.yesterday', { date: formatDay(costs.period?.from) });
+      default:
+        return t(COST_SOURCE_SPECS[costs.source].title);
+    }
   }
 
-  private renderCostCard(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+  /** The total of the visible list, under the cost column, named after its source. */
+  private renderListTotal(tree: GroupNode[], count: number, costs: CostTable | null) {
+    if (!this.prefs.costs) {
+      return nothing;
+    }
+    const { label, detail } = this.describeSource(this.prefs.costSource);
+    const source = detail === '' ? label : `${label}, ${detail}`;
+    return html`<div class="list-total" title=${costs == null ? nothing : this.costTitle(costs)}>
+      <span class="muted small">${t('costs.listTotal', { count, source })}</span>
+      <span class="cost small ${costs == null ? 'muted' : ''}"
+        >${costs == null ? '…' : formatMoney(totalCost(tree, costs), costs.currency)}</span
+      >
+    </div>`;
+  }
+
+  /** The label of a source and what it covers: a date, a period, a month. */
+  private describeSource(source: CostSource): { label: string; detail: string } {
     const ownerId = this.orga.id;
-    const data = this.costStore.get(ownerId);
-    const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
-    const yesterday = dayTotal(this.costStore.yesterday(ownerId));
-    const days = this.costStore.recentDays(ownerId);
-    const daysTable = this.costStore.table(ownerId, 'days30');
-    const invoiceTable = this.costStore.table(ownerId, 'invoice');
+    const spec = COST_SOURCE_SPECS[source];
+    switch (source) {
+      case 'yesterday':
+        return { label: t(spec.label), detail: formatDay(lastDays(1)[0]) };
+      case 'days30': {
+        const days = this.costStore.recentDays(ownerId);
+        const label =
+          days.length === 0 || days.length >= COST_DAYS
+            ? t(spec.label)
+            : t('costs.days30Partial', { count: days.length });
+        const detail = days.length === 0 ? '' : `${formatDay(days[0].date)} – ${formatDay(days[days.length - 1].date)}`;
+        return { label, detail };
+      }
+      case 'invoice': {
+        const data = this.costStore.get(ownerId);
+        return data.invoice == null
+          ? { label: data.invoiceAt > 0 ? t('costs.noInvoice') : t(spec.label), detail: '' }
+          : { label: t(spec.label), detail: formatMonth(data.invoice.from) };
+      }
+      case 'estimate':
+        return { label: t(spec.label), detail: '' };
+    }
+  }
+
+  /** The amount of one source and what is known of its loading. */
+  private sourceState(
+    source: CostSource,
+    data: OwnerCosts,
+  ): { value: number | null; pending: boolean; error: string | null; progress: string | null } {
+    const ownerId = this.orga.id;
     const sum = (table: CostTable | null) =>
       table == null ? null : [...table.amounts.values()].reduce((total, amount) => total + amount, 0);
-    const amount = (value: number | null, pending: boolean, error: string | null) =>
-      error != null && value == null
-        ? html`<span class="danger small" title=${error}>${t('costs.unavailableShort')}</span>`
-        : value == null
-          ? html`<span class="muted small">${pending ? t('costs.loading') : '—'}</span>`
-          : formatMoney(value, currency);
+    switch (source) {
+      case 'yesterday':
+        return {
+          value: dayTotal(this.costStore.yesterday(ownerId)),
+          pending: data.daysPending > 0,
+          error: data.daysError,
+          progress: null,
+        };
+      case 'days30': {
+        const pending = data.daysPending > 0;
+        return {
+          value: sum(this.costStore.table(ownerId, 'days30')),
+          pending,
+          error: data.daysError,
+          progress: pending
+            ? t('costs.daysProgress', { done: this.costStore.recentDays(ownerId).length, total: COST_DAYS })
+            : null,
+        };
+      }
+      case 'invoice':
+        return {
+          value: sum(this.costStore.table(ownerId, 'invoice')),
+          pending: data.invoiceLoading,
+          error: data.invoiceError,
+          progress: null,
+        };
+      case 'estimate':
+        return { value: sum(data.estimate), pending: data.estimateLoading, error: data.estimateError, progress: null };
+    }
+  }
+
+  /**
+   * The costs card: an invitation while the costs are off, then one line per
+   * source, each a radio button that picks what the cost column shows. The
+   * resources are the visible ones, so the card can say what the list leaves out.
+   */
+  private renderCostCard(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+    if (!this.prefs.costs) {
+      return html`<section class="costs card">
+        <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
+        <p class="muted small">${t('costs.intro')}</p>
+        <button type="button" class="primary show" @click=${() => this.toggleCosts(true)}>${t('costs.show')}</button>
+      </section>`;
+    }
+    const data = this.costStore.get(this.orga.id);
+    const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
     const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
     const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
-    const invoiceLabel =
-      data.invoice != null
-        ? t('costs.invoice', { month: formatMonth(data.invoice.from) })
-        : data.invoiceAt > 0
-          ? t('costs.noInvoice')
-          : t('costs.invoice', { month: '…' });
     return html`<section class="costs card">
-      <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
-      <dl>
-        <dt>${t('costs.yesterday')}</dt>
-        <dd>${amount(yesterday, data.daysPending > 0, data.daysError)}</dd>
-        <dt>
-          ${days.length >= 30 || days.length === 0 ? t('costs.days30') : t('costs.days30Partial', { count: days.length })}
-        </dt>
-        <dd>${amount(sum(daysTable), data.daysPending > 0, data.daysError)}</dd>
-        <dt>${invoiceLabel}</dt>
-        <dd>${amount(sum(invoiceTable), data.invoiceLoading, data.invoiceError)}</dd>
-        <dt title=${t('costs.estimateHint')}>${t('costs.estimate')}</dt>
-        <dd title=${t('costs.estimateHint')}>
-          ${amount(sum(data.estimate), data.estimateLoading, data.estimateError)}
-        </dd>
-      </dl>
+      <div class="row card-head">
+        <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
+        <span class="grow"></span>
+        <button type="button" class="link text" @click=${() => this.toggleCosts(false)}>${t('costs.hide')}</button>
+      </div>
+      <div class="sources" role="radiogroup" aria-label=${t('costs.sourceAria')}>
+        ${COST_SOURCES.map((source) => this.renderSource(source, data, currency))}
+      </div>
+      <p class="muted small">${t('costs.columnHint')}</p>
       ${errors.map((error) => html`<p class="danger small">${t('costs.unavailable', { error })}</p>`)}
       ${
         unlisted != null && unlisted.count > 0 && costs != null
-          ? html`<p class="muted small" title=${t('costs.unlistedTitle')}>
+          ? html`<p class="muted small">
               ${t('costs.unlisted', { amount: formatMoney(unlisted.amount, costs.currency), count: unlisted.count })}
             </p>`
           : nothing
       }
+      <details>
+        <summary>${t('costs.about')}</summary>
+        <p>${t('costs.about1')}</p>
+        <p>${t('costs.about2')}</p>
+        <p>${t('costs.about3')}</p>
+      </details>
     </section>`;
+  }
+
+  private renderSource(source: CostSource, data: OwnerCosts, currency: string) {
+    const { label, detail } = this.describeSource(source);
+    const state = this.sourceState(source, data);
+    const pending = state.pending || data.loading;
+    const selected = this.prefs.costSource === source;
+    const amount =
+      state.error != null && state.value == null
+        ? html`<span class="danger" title=${state.error}>${t('costs.unavailableShort')}</span>`
+        : pending && (state.value == null || state.progress != null)
+          ? html`<span class="muted loading"
+              ><span class="spinner"></span>${state.progress ?? t('costs.loading')}</span
+            >`
+          : state.value == null
+            ? html`<span class="muted">—</span>`
+            : formatMoney(state.value, currency);
+    return html`<label class="source ${selected ? 'on' : ''}">
+      <input
+        type="radio"
+        name="cost-source"
+        .checked=${selected}
+        @change=${() => this.setPrefs({ costSource: source })}
+      />
+      <span class="label">${label} ${detail === '' ? nothing : html`<span class="muted">${detail}</span>`}</span>
+      <span class="amount">${amount}</span>
+      <span class="hint muted">${t(COST_SOURCE_SPECS[source].hint)}</span>
+    </label>`;
   }
 
   private renderCheck(id: string, name: string) {
@@ -1291,29 +1368,117 @@ export class CvcOrgaPage extends CvcElement {
         font-weight: 500;
         padding-right: 0.55rem;
       }
-      .cost-total {
-        font-variant-numeric: tabular-nums;
-        font-weight: 500;
-      }
-      .costs dl {
-        margin: 0;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.3rem 0.75rem;
+      .list-total {
+        display: flex;
+        justify-content: flex-end;
         align-items: baseline;
+        gap: 0.75rem;
+        padding: 0.4rem 0.4rem 0;
       }
-      .costs dt {
-        color: var(--cvc-muted);
+      .list-total .cost {
+        min-width: 6.5rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        padding-right: 0.55rem;
+      }
+      .costs p {
+        margin: 0.5rem 0 0;
+      }
+      .costs .show {
+        margin-top: 0.6rem;
+        padding: 0.3rem 0.8rem;
         font-size: 0.85rem;
       }
-      .costs dd {
-        margin: 0;
+      .card-head .link.text {
+        font-family: inherit;
+      }
+      .sources {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        margin: 0 -0.5rem;
+      }
+      .source {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+          'radio label amount'
+          'radio hint hint';
+        column-gap: 0.5rem;
+        row-gap: 0.1rem;
+        align-items: baseline;
+        padding: 0.3rem 0.5rem;
+        border-radius: var(--cvc-radius);
+        cursor: pointer;
+      }
+      .source:hover {
+        background: color-mix(in srgb, var(--cvc-muted) 8%, transparent);
+      }
+      .source.on {
+        background: color-mix(in srgb, var(--cvc-accent) 8%, transparent);
+      }
+      .source input {
+        grid-area: radio;
+        margin: 0.2rem 0 0;
+        align-self: start;
+      }
+      .source .label {
+        grid-area: label;
+        font-size: 0.85rem;
+        color: var(--cvc-muted);
+      }
+      .source.on .label {
+        color: var(--cvc-text);
+        font-weight: 600;
+      }
+      .source .label .muted {
+        font-weight: 400;
+        white-space: nowrap;
+      }
+      .source .amount {
+        grid-area: amount;
         text-align: right;
         font-variant-numeric: tabular-nums;
         font-weight: 500;
+        white-space: nowrap;
       }
-      .costs p {
-        margin-top: 0.5rem;
+      .source .hint {
+        grid-area: hint;
+        font-size: 0.78rem;
+        line-height: 1.3;
+      }
+      .loading {
+        font-size: 0.82rem;
+        font-weight: 400;
+      }
+      .spinner {
+        display: inline-block;
+        width: 0.7em;
+        height: 0.7em;
+        margin-right: 0.35em;
+        border: 2px solid color-mix(in srgb, var(--cvc-muted) 30%, transparent);
+        border-top-color: var(--cvc-accent);
+        border-radius: 50%;
+        vertical-align: -0.05em;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .costs details {
+        margin-top: 0.6rem;
+        font-size: 0.8rem;
+        color: var(--cvc-muted);
+      }
+      .costs summary {
+        cursor: pointer;
+      }
+      .costs details p {
+        margin: 0.4rem 0 0;
+        line-height: 1.35;
       }
       .costs .danger {
         color: var(--cvc-danger);

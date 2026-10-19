@@ -1,6 +1,6 @@
 /**
- * Costs of applications and add-ons, from three sources normalised to one
- * shape: an amount per resource for one month, tax excluded, in the
+ * Costs of applications and add-ons, from four sources normalised to one
+ * shape: an amount per resource over a period, tax excluded, in the
  * organisation's currency.
  *
  * - `estimate`: the current configuration priced with the price system. A
@@ -8,6 +8,8 @@
  *   Clever Cloud's pricing page) times the minimum number of instances; an
  *   add-on costs its plan. Storage, traffic and third party vendors are not
  *   included.
+ * - `yesterday`: the last day computed by the billing system, one row per
+ *   resource.
  * - `days30`: the sum of the last 30 daily consumptions computed by the
  *   billing system, one row per resource, the figures behind the Console's
  *   consumption page.
@@ -21,14 +23,15 @@ import type { GroupNode } from './grouping.js';
 
 export const HOURS_PER_MONTH = 720;
 
-export type CostSource = 'estimate' | 'days30' | 'invoice';
+export type CostSource = 'yesterday' | 'days30' | 'invoice' | 'estimate';
 
-export const COST_SOURCES: readonly CostSource[] = ['days30', 'invoice', 'estimate'];
+/** In display order. */
+export const COST_SOURCES: readonly CostSource[] = ['yesterday', 'days30', 'invoice', 'estimate'];
 
 export interface CostTable {
   source: CostSource;
   currency: string;
-  /** Amount for one month per resource id. */
+  /** Amount per resource id over the period. */
   amounts: ReadonlyMap<string, number>;
   /** The days summed or the invoice period; null for an estimate. */
   period: { from: string; to: string } | null;
@@ -53,7 +56,8 @@ export interface AppPricing {
 export interface AddonPricing {
   id: string;
   realId: string;
-  monthlyPrice: number;
+  /** Null when the plan has no known price. */
+  monthlyPrice: number | null;
 }
 
 export function estimateCosts(
@@ -66,7 +70,9 @@ export function estimateCosts(
     amounts.set(app.id, app.hourlyPrice * Math.max(app.minInstances, 1) * HOURS_PER_MONTH);
   }
   for (const addon of addons) {
-    amounts.set(addon.realId, addon.monthlyPrice);
+    if (addon.monthlyPrice != null) {
+      amounts.set(addon.realId, addon.monthlyPrice);
+    }
   }
   return { source: 'estimate', currency, amounts, period: null, reference: '' };
 }
@@ -93,6 +99,11 @@ export function sumDays(days: readonly DailyConsumption[], currency: string): Co
     period: dates.length === 0 ? null : { from: dates[0], to: dates[dates.length - 1] },
     reference: '',
   };
+}
+
+/** One day as a table, the `yesterday` source. */
+export function dayCosts(day: DailyConsumption, currency: string): CostTable {
+  return { ...sumDays([day], currency), source: 'yesterday' };
 }
 
 export function dayTotal(day: DailyConsumption | null | undefined): number | null {
@@ -147,6 +158,14 @@ interface Keyed {
 export function resourceCost(table: CostTable, resource: Keyed): number | null {
   const byReal = resource.realId == null ? undefined : table.amounts.get(resource.realId);
   return byReal ?? table.amounts.get(resource.id) ?? null;
+}
+
+/**
+ * What a row shows: a resource absent from a billed period cost nothing,
+ * while the estimate simply has no price for it.
+ */
+export function shownCost(table: CostTable, resource: Keyed): number | null {
+  return resourceCost(table, resource) ?? (table.source === 'estimate' ? null : 0);
 }
 
 /** The sum of a group and its sub-groups; resources without a line count for zero. */
