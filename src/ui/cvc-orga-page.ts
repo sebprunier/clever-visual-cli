@@ -505,9 +505,9 @@ export class CvcOrgaPage extends CvcElement {
               <div class="title">
                 <h1>${this.orga.name}</h1>
                 <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
+                <span class="cli">clever applications list</span>
               </div>
               <span class="grow"></span>
-              <span class="cli">clever applications list</span>
               ${
                 data.linksPending > 0
                   ? html`<span class="muted small" title=${t('home.linksTitle')}

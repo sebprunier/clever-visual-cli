@@ -87,9 +87,10 @@ describe('sortNodes', () => {
     addonCount: 0,
     ...partial,
   });
+  // In the order the grouping built them: an explicit `env(prod,dev)` puts "beta" first here.
   const tree = [
-    node({ path: 'p', label: 'alpha', apps: [app('b'), app('a')] }),
     node({ path: 'q', label: 'beta', addons: [addon('db')] }),
+    node({ path: 'p', label: 'alpha', apps: [app('b'), app('a')] }),
     node({ path: 'm', label: 'sans project', missing: true, apps: [app('x')] }),
   ];
 
@@ -101,10 +102,10 @@ describe('sortNodes', () => {
     expect(asc.map((group) => group.label)).toEqual(['beta', 'alpha', 'sans project']);
   });
 
-  it('leaves groups alphabetical for the other columns and does not touch the input', () => {
+  it('keeps the order of the grouping for the other columns and does not touch the input', () => {
     const sorted = sortNodes(tree, { column: 'name', direction: 'asc' }, context);
-    expect(sorted.map((group) => group.label)).toEqual(['alpha', 'beta', 'sans project']);
-    expect(names(sorted[0].apps)).toEqual(['a', 'b']);
-    expect(names(tree[0].apps)).toEqual(['b', 'a']);
+    expect(sorted.map((group) => group.label)).toEqual(['beta', 'alpha', 'sans project']);
+    expect(names(sorted[1].apps)).toEqual(['a', 'b']);
+    expect(names(tree[1].apps)).toEqual(['b', 'a']);
   });
 });

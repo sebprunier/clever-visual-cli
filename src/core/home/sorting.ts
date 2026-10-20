@@ -5,7 +5,8 @@
  * for an add-on (state, activity) falls back to its name, and a missing value
  * (no deployment yet, no cost known) goes last whatever the direction.
  * Sorting by cost also orders the groups by their total; the other columns
- * leave the groups alphabetical, the "missing" group last.
+ * leave the groups as the grouping built them: an explicit order such as
+ * `env(prod,dev)` first, then alphabetical, the "missing" group last.
  */
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import type { AppActivity } from './activity.js';
@@ -66,18 +67,15 @@ export function sortNodes(nodes: readonly GroupNode[], spec: SortSpec, context: 
     children: sortNodes(node.children, spec, context),
   }));
   const costs = spec.column === 'cost' ? context.costs : null;
+  if (costs == null) {
+    return sorted;
+  }
   const sign = spec.direction === 'asc' ? 1 : -1;
   return sorted.sort((a, b) => {
     if (a.missing !== b.missing) {
       return Number(a.missing) - Number(b.missing);
     }
-    if (costs != null) {
-      const order = (nodeCost(a, costs) - nodeCost(b, costs)) * sign;
-      if (order !== 0) {
-        return order;
-      }
-    }
-    return a.label.localeCompare(b.label, 'fr');
+    return (nodeCost(a, costs) - nodeCost(b, costs)) * sign || a.label.localeCompare(b.label, 'fr');
   });
 }
 
