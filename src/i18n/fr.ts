@@ -260,6 +260,7 @@ export const fr: Record<MessageKey, string> = {
   'logs.modeAria': 'Type de logs',
   'logs.mode.app': 'Application',
   'logs.mode.access': 'Accès',
+  'logs.mode.both': 'Les deux',
   'logs.lines': 'lignes',
   'logs.since': 'Depuis',
   'logs.filter': 'Filtrer les lignes…',

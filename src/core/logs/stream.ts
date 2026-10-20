@@ -16,7 +16,7 @@ export interface LogLineBase {
 /** Opens the stream from a date; the caller binds the client, organisation and application. */
 export type LogOpener<T> = (since: Date) => Promise<LogsStream<T>>;
 
-/** Lines kept per stream; the oldest go first. */
+/** Lines kept per stream by default; the oldest go first. */
 export const MAX_LINES = 2000;
 
 export class LogStream<T extends LogLineBase> extends EventTarget {
@@ -29,14 +29,17 @@ export class LogStream<T extends LogLineBase> extends EventTarget {
   version = 0;
 
   readonly #open: LogOpener<T>;
+  readonly #maxLines: number;
   #stream: LogsStream<T> | null = null;
   #pending: T[] = [];
   #flushScheduled = false;
   #generation = 0;
 
-  constructor(open: LogOpener<T>) {
+  /** `maxLines`: more for a busy kind of logs, such as the access logs. */
+  constructor(open: LogOpener<T>, maxLines = MAX_LINES) {
     super();
     this.#open = open;
+    this.#maxLines = maxLines;
   }
 
   get running(): boolean {
@@ -60,7 +63,9 @@ export class LogStream<T extends LogLineBase> extends EventTarget {
       }
       stream
         .onOpen(() => {
+          // Opened, or reopened after a lost connection: an error from before no longer holds.
           this.status = 'open';
+          this.error = null;
           this.#emit();
         })
         .onLog((log) => this.#enqueue(log))
@@ -142,7 +147,7 @@ export class LogStream<T extends LogLineBase> extends EventTarget {
     }
     const lines = [...this.lines, ...this.#pending];
     this.#pending = [];
-    this.lines = lines.length > MAX_LINES ? lines.slice(lines.length - MAX_LINES) : lines;
+    this.lines = lines.length > this.#maxLines ? lines.slice(lines.length - this.#maxLines) : lines;
     this.version += 1;
     this.#emit();
   }

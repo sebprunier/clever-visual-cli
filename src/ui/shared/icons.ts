@@ -26,6 +26,18 @@ export const ICON_LOGS = html`<svg class="icon" viewBox="0 0 24 24" width="14" h
   <path d="M12 17h7" style=${ATTRS} />
 </svg>`;
 
+export const ICON_PAUSE = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <rect x="6.5" y="5" width="3.5" height="14" rx="1" style="fill: currentColor" />
+  <rect x="14" y="5" width="3.5" height="14" rx="1" style="fill: currentColor" />
+</svg>`;
+
+/** A bin: clears what is shown, nothing else. */
+export const ICON_CLEAR = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <path d="M4 7h16" style=${ATTRS} />
+  <path d="M9 7V4.5h6V7" style=${ATTRS} />
+  <path d="M6.5 7l1 13h9l1-13" style=${ATTRS} />
+</svg>`;
+
 export const ICON_START = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
   <path
     d="M7 4.5v15l12-7.5z"

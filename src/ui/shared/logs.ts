@@ -3,7 +3,7 @@
  * words, and the look of a runtime line, so the application tab and the
  * multi-application page read the same.
  */
-import { css, html } from 'lit';
+import { css, html, nothing } from 'lit';
 import type { StreamStatus } from '../../core/logs/stream.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import type { ApplicationRuntimeLog } from '../../data/api.js';
@@ -55,10 +55,14 @@ export function runtimeSearchText(log: ApplicationRuntimeLog): string {
   return `${log.service} ${log.message}`.toLowerCase();
 }
 
-/** Time, service and message, coloured by severity. */
-export function renderRuntimeLine(log: ApplicationRuntimeLog) {
-  return html`<div class="line sev-${log.severity}">
+/**
+ * Time, service and message, coloured by severity. `lead` goes after the time (the source of the
+ * line in a merged view), `style` on the line (its tint).
+ */
+export function renderRuntimeLine(log: ApplicationRuntimeLog, lead: unknown = nothing, style = '') {
+  return html`<div class="line sev-${log.severity}" style=${style}>
     <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
+    ${lead}
     <span class="service" title=${log.instanceId}>${log.service}</span>
     <span class="message">${log.message}</span>
   </div>`;

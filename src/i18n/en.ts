@@ -267,6 +267,7 @@ export const en = {
   'logs.modeAria': 'Kind of logs',
   'logs.mode.app': 'Application',
   'logs.mode.access': 'Access',
+  'logs.mode.both': 'Both',
   'logs.lines': 'lines',
   'logs.since': 'Since',
   'logs.filter': 'Filter lines…',

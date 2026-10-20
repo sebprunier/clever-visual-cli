@@ -41,7 +41,7 @@ A dense list of every application and add-on, with the last deployment of each a
 
 - **Overview**, arranged by use: a band with the state, the running instances, the last deployment, the cost of yesterday and of the last 30 days, and the primary domain; scaling (dedicated build included), the options, the first domains and the recent activity; aside, the runtime, deployment and identifiers to read or copy. Changes go through "Edit", which shows the `clever` command.
 - **Domains**: all of them, the primary first, with a filter for applications that have dozens.
-- **Logs**: the application's or, one switch away, the access logs (status, method, path, duration, size, client), with filter, pause and a replay window.
+- **Logs**: the application's, the access logs (status, method, path, duration, size, client), or both interleaved by date, the requests on a light tint; with filter, pause and a replay window.
 - **Activity**, **environment variables** (hidden values, copy, `.env` export), and **dependencies**: the linked add-ons and applications, link and unlink, and the applications that depend on this one.
 - Exposed configuration, TCP redirections, metrics and network groups stay with the Console.
 
