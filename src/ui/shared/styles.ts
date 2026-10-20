@@ -115,6 +115,11 @@ export const sharedStyles = css`
     border: 1px solid var(--cvc-border);
     border-radius: var(--cvc-radius);
     padding: 1rem 1.25rem;
+    box-shadow: var(--cvc-shadow);
+    transition: box-shadow 0.15s;
+  }
+  .card:hover {
+    box-shadow: var(--cvc-shadow-hover);
   }
 
   .badge {
@@ -187,6 +192,7 @@ export const sharedStyles = css`
   }
   th {
     font-weight: 600;
+    font-family: var(--cvc-label-font);
     color: var(--cvc-muted);
     font-size: 0.8rem;
     text-transform: uppercase;

@@ -1,3 +1,8 @@
+/*
+ * Structural defaults and the light palette as a fallback for a page without
+ * JavaScript. The palettes themselves (light, dark, modern) live in
+ * src/core/themes.ts, which sets them on <html> at startup.
+ */
 :root {
   --cvc-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --cvc-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -6,7 +11,6 @@
   --cvc-border: #d9dde3;
   --cvc-text: #1b1f24;
   --cvc-muted: #5c6670;
-  /* A blue accent: red stays for errors, even if it is Clever Cloud's colour. */
   --cvc-accent: #0969da;
   --cvc-accent-text: #ffffff;
   --cvc-danger: #b42318;
@@ -14,6 +18,12 @@
   --cvc-warn: #9a6700;
   --cvc-info: #0969da;
   --cvc-radius: 8px;
+  --cvc-shadow: none;
+  --cvc-shadow-hover: none;
+  --cvc-shadow-pop: 0 8px 24px rgb(0 0 0 / 16%);
+  --cvc-backdrop: rgb(0 0 0 / 35%);
+  --cvc-glow: none;
+  --cvc-label-font: var(--cvc-font);
   color-scheme: light dark;
 }
 
@@ -31,6 +41,23 @@
     --cvc-warn: #e3b341;
     --cvc-info: #58a6ff;
   }
+}
+
+/* Set by the inline script of index.html before the first paint, so a chosen theme never flashes another one. */
+:root[data-theme='light'] {
+  --cvc-bg: #f6f7f9;
+  --cvc-text: #1b1f24;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --cvc-bg: #0f1216;
+  --cvc-text: #e6e9ed;
+  color-scheme: dark;
+}
+:root[data-theme='modern'] {
+  --cvc-bg: #0a0d17;
+  --cvc-text: #e8ecf5;
+  color-scheme: dark;
 }
 
 * {

@@ -220,7 +220,7 @@ export class CvcActionDialog extends CvcElement {
       .backdrop {
         position: fixed;
         inset: 0;
-        background: rgb(0 0 0 / 35%);
+        background: var(--cvc-backdrop);
         z-index: 40;
       }
       .dialog {
@@ -238,7 +238,7 @@ export class CvcActionDialog extends CvcElement {
         background: var(--cvc-surface);
         border: 1px solid var(--cvc-border);
         border-radius: 12px;
-        box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
+        box-shadow: var(--cvc-shadow-pop);
         z-index: 41;
       }
       header p {

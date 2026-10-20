@@ -5,6 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f7f9" />
+    <script>
+      // The chosen theme before the first paint (src/core/themes.ts takes over once loaded).
+      try {
+        var theme = localStorage.getItem('cvc.theme');
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          theme === 'light' || theme === 'dark' || theme === 'modern' ? theme : dark ? 'dark' : 'light';
+      } catch (error) {
+        // Storage unavailable: the stylesheet follows the system.
+      }
+    </script>
     <title>clever-visual-cli</title>
     <link rel="stylesheet" href="/src/index.css" />
     <script type="module" src="/src/main.ts"></script>

@@ -89,5 +89,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // The theme test reads the stylesheet's fallback palette.
+    css: { include: [/index\.css/] },
   },
 });

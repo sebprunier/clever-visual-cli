@@ -546,6 +546,7 @@ export class CvcAppNav extends CvcElement {
       font-weight: 600;
       color: var(--cvc-accent);
       background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
+      box-shadow: var(--cvc-glow);
     }
     .item.addon {
       color: var(--cvc-muted);

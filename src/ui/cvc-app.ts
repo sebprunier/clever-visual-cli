@@ -11,6 +11,7 @@ import {
 } from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
+import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
 import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
@@ -97,6 +98,7 @@ export class CvcApp extends CvcElement {
     this.addEventListener('cvc-open-action', this.onOpenAction);
     this.addEventListener('cvc-toast', this.onToast);
     this.addEventListener('cvc-refresh-summary', this.onRefreshSummary);
+    window.addEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
       if (route.kind === 'orga' || route.kind === 'app') {
@@ -118,6 +120,7 @@ export class CvcApp extends CvcElement {
     this.removeEventListener('cvc-open-action', this.onOpenAction);
     this.removeEventListener('cvc-toast', this.onToast);
     this.removeEventListener('cvc-refresh-summary', this.onRefreshSummary);
+    window.removeEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute?.();
     this.session?.removeEventListener('change', this.onChange);
     this.session?.vault.removeEventListener('change', this.onChange);
@@ -360,6 +363,17 @@ export class CvcApp extends CvcElement {
         });
       }
     }
+    for (const theme of THEMES) {
+      if (theme.id !== getTheme()) {
+        commands.push({
+          id: `session:theme:${theme.id}`,
+          title: t('palette.theme', { name: t(theme.label) }),
+          group: 'Session',
+          keywords: ['theme', 'thème', 'apparence', 'appearance', theme.id],
+          run: () => setTheme(theme.id),
+        });
+      }
+    }
     if (session.vault.mode === 'encrypted') {
       commands.push({
         id: 'session:lock',
@@ -461,6 +475,18 @@ export class CvcApp extends CvcElement {
                 ${LOCALES.map(
                   (locale) =>
                     html`<option value=${locale.id} ?selected=${locale.id === getLocale()}>${locale.label}</option>`,
+                )}
+              </select>
+            </label>
+            <label class="lang">
+              ${t('theme.label')}
+              <select
+                aria-label=${t('theme.label')}
+                @change=${(event: Event) => setTheme((event.currentTarget as HTMLSelectElement).value as ThemeId)}
+              >
+                ${THEMES.map(
+                  (theme) =>
+                    html`<option value=${theme.id} ?selected=${theme.id === getTheme()}>${t(theme.label)}</option>`,
                 )}
               </select>
             </label>
@@ -611,6 +637,23 @@ export class CvcApp extends CvcElement {
             )}
           </div>
         </section>
+        <section class="card stack">
+          <h2>${t('theme.label')}</h2>
+          <div class="row">
+            ${THEMES.map(
+              (theme) =>
+                html`<button
+                  type="button"
+                  class=${theme.id === getTheme() ? 'primary' : 'ghost'}
+                  aria-pressed=${theme.id === getTheme()}
+                  @click=${() => setTheme(theme.id)}
+                >
+                  ${t(theme.label)}
+                </button>`,
+            )}
+          </div>
+          <p class="muted small">${t('theme.hint')}</p>
+        </section>
       </div>
     `;
   }
@@ -713,7 +756,7 @@ export class CvcApp extends CvcElement {
         background: var(--cvc-surface);
         border: 1px solid var(--cvc-border);
         border-radius: var(--cvc-radius);
-        box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+        box-shadow: var(--cvc-shadow-pop);
         z-index: 10;
       }
       .menu-items .item {

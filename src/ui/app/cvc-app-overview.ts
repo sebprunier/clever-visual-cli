@@ -495,6 +495,7 @@ export class CvcAppOverview extends CvcElement {
         min-width: 0;
       }
       .fact .label {
+        font-family: var(--cvc-label-font);
         font-size: 0.75rem;
         color: var(--cvc-muted);
       }
@@ -575,6 +576,7 @@ export class CvcAppOverview extends CvcElement {
         margin: 0;
       }
       dt {
+        font-family: var(--cvc-label-font);
         color: var(--cvc-muted);
         font-size: 0.85rem;
       }

@@ -1630,6 +1630,9 @@ export class CvcOrgaPage extends CvcElement {
       .list tr.selected td {
         background: color-mix(in srgb, var(--cvc-accent) 9%, transparent);
       }
+      .field > label {
+        font-family: var(--cvc-label-font);
+      }
       col.check {
         width: 2rem;
       }

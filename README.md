@@ -17,6 +17,7 @@ It is a visual CLI first. Every screen shows the `clever` command it stands for,
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
 - **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands target clever-tools 5.2 or later.
 - **English and French**, picked from the browser, switchable from the account menu.
+- **Themes**: system (follows the computer's light or dark setting), light, dark, and a modern look after the Clever Cloud technologies page. Every palette is checked for WCAG AA contrast by the tests.
 - **Open source**, Apache-2.0, built in the open, one feature at a time.
 
 ## What it does today
@@ -60,7 +61,6 @@ Features, bugs and questions start as [issues](https://github.com/sebprunier/cle
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
 - [#3](https://github.com/sebprunier/clever-visual-cli/issues/3) Logs of a set of applications: a grid, or one merged feed.
-- [#4](https://github.com/sebprunier/clever-visual-cli/issues/4) Themes: light, dark and a modern look, chosen in the app.
 - [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, then what each family offers (backups, buckets, operator versions…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.

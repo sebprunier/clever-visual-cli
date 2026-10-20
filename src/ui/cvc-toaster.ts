@@ -84,7 +84,7 @@ export class CvcToaster extends CvcElement {
         max-width: min(480px, calc(100vw - 2rem));
         padding: 0.7rem 0.9rem 0.7rem 1rem;
         border-radius: var(--cvc-radius);
-        box-shadow: 0 10px 30px rgb(0 0 0 / 25%);
+        box-shadow: var(--cvc-shadow-pop);
         background: var(--cvc-surface);
         border: 1px solid var(--cvc-border);
         border-left: 4px solid var(--cvc-info);

@@ -202,7 +202,7 @@ export class CvcMenuButton extends CvcElement {
         background: var(--cvc-surface);
         border: 1px solid var(--cvc-border);
         border-radius: var(--cvc-radius);
-        box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+        box-shadow: var(--cvc-shadow-pop);
       }
       [popover]:popover-open {
         display: flex;
