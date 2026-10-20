@@ -6,6 +6,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { CONSOLE_URL } from '../core/constants.js';
 import { databaseProduct, type AddonWatchItem } from '../core/addons/database.js';
+import { operatorKind, operatorProduct, type OperatorWatchItem } from '../core/addons/operator.js';
 import {
   describeOrigin,
   indexActivity,
@@ -281,6 +282,7 @@ export class CvcOrgaPage extends CvcElement {
       { force: options.force },
     );
     void this.addonStore?.versions.refresh(this.client, this.orga.id, this.orga.addons);
+    void this.addonStore?.operators.refresh(this.client, this.orga.id, this.orga.addons);
   }
 
   private toggleCosts(on: boolean): void {
@@ -453,6 +455,7 @@ export class CvcOrgaPage extends CvcElement {
       addonStateLabel,
       dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
       offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
+      operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
     });
     this.#order = displayOrder(tree, this.prefs.collapsed);
     const appById = new Map(apps.map((app) => [app.id, app]));
@@ -711,7 +714,7 @@ export class CvcOrgaPage extends CvcElement {
     </div>`;
   }
 
-  private renderWatch(items: WatchItem[], addonItems: AddonWatchItem[]) {
+  private renderWatch(items: WatchItem[], addonItems: Array<AddonWatchItem | OperatorWatchItem>) {
     const total = items.length + addonItems.length;
     if (total === 0) {
       return nothing;
@@ -749,21 +752,34 @@ export class CvcOrgaPage extends CvcElement {
             <span class="muted small">${this.describeWatch(item)}</span>
           </li>`;
         })}
-        ${databaseItems.map(
-          (item) =>
-            html`<li>
-              <span class="row">
-                <span class="badge warn">${t('watch.retired')}</span>
-                <a href=${this.addonHash(item.addon.id)}>${item.addon.name}</a>
-              </span>
-              <span class="muted small">
-                ${t('watch.retiredText', {
-                  product: databaseProduct(item.addon.providerId),
-                  version: item.version,
-                  range: formatVersionRange(item.offered),
-                })}
-              </span>
-            </li>`,
+        ${databaseItems.map((item) =>
+          item.kind === 'retired'
+            ? html`<li>
+                <span class="row">
+                  <span class="badge warn">${t('watch.retired')}</span>
+                  <a href=${this.addonHash(item.addon.id)}>${item.addon.name}</a>
+                </span>
+                <span class="muted small">
+                  ${t('watch.retiredText', {
+                    product: databaseProduct(item.addon.providerId),
+                    version: item.version,
+                    range: formatVersionRange(item.offered),
+                  })}
+                </span>
+              </li>`
+            : html`<li>
+                <span class="row">
+                  <span class="badge info">${t('watch.update')}</span>
+                  <a href=${this.addonHash(item.addon.id)}>${item.addon.name}</a>
+                </span>
+                <span class="muted small">
+                  ${t('watch.updateText', {
+                    product: operatorProduct(operatorKind(item.addon.providerId) ?? 'keycloak'),
+                    installed: item.installed,
+                    latest: item.latest,
+                  })}
+                </span>
+              </li>`,
         )}
       </ul>
       ${

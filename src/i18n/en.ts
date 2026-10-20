@@ -610,6 +610,8 @@ export const en = {
   'watch.paymentText': 'payment default',
   'watch.retired': 'outdated',
   'watch.retiredText': '{product} {version}; Clever Cloud offers {range}',
+  'watch.update': 'update',
+  'watch.updateText': '{product} {installed}; {latest} is out',
   'operator.version': 'Version',
   'operator.versionValue': '{version} (Java {java})',
   'operator.updateOut': '{version} is out',

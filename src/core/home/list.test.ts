@@ -85,9 +85,31 @@ describe('databases to watch', () => {
         offeredVersions: () => ['13', '14', '15'],
       }),
     );
-    expect(list.addonWatch.map((item) => [item.addon.id, item.version])).toEqual([['shop-db', '11']]);
+    expect(list.addonWatch.map((item) => [item.addon.id, item.kind === 'retired' ? item.version : null])).toEqual([
+      ['shop-db', '11'],
+    ]);
     expect(list.visibleAddons.map((addon) => addon.id)).toEqual(['shop-db']);
     expect(list.visibleApps).toEqual([]);
+  });
+
+  it('lists an operator with an update out', () => {
+    const list = buildHomeList(
+      input({
+        addons: [
+          {
+            id: 'auth',
+            realId: 'keycloak_1',
+            name: 'auth',
+            providerId: 'keycloak',
+            customerTags: [],
+          } as unknown as AddonSummary,
+        ],
+        filterText: 'is:watch',
+        operatorVersions: () => ({ installed: '26.7.2', latest: '26.8.0', available: ['26.8.0'], needUpdate: true }),
+      }),
+    );
+    expect(list.addonWatch.map((item) => [item.kind, item.addon.id])).toEqual([['update', 'auth']]);
+    expect(list.visibleAddons.map((addon) => addon.id)).toEqual(['auth']);
   });
 
   it('lists nothing while versions are unknown', () => {

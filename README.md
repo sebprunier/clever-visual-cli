@@ -23,7 +23,7 @@ Then come the extras, the few things a screen does better than a terminal:
 - filtering and grouping a whole organisation by tags, as in `project > env(prod,dev)`;
 - costs per project and environment, from the billing data;
 - acting on a selection: tags, restarts, stops, the logs of several applications side by side;
-- one "To watch" card for failed deployments, stuck starts and databases on a retired version;
+- one "To watch" card for failed deployments, stuck starts, databases on a retired version and operators with an update out;
 - browsing a Cellar bucket, editing a configuration provider as a draft.
 
 ## Why it was easy
@@ -55,7 +55,7 @@ A dense list of every application and add-on, with the last deployment of each a
 - **Sort** by any column from the header row: name, type, state, activity, links, cost. The order applies inside each group; sorting by cost also orders the groups by their total.
 - **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection, actions grouped in menus: "Tags" to add, remove or rename a tag, "Applications" to view their logs together, restart or stop them. Each action shows the exact list and the `clever` commands before confirming, ready to copy as a script (tags go through `clever curl`, clever-tools having no tag command), then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
 - **Costs**, on demand: yesterday, the last 30 days, the latest invoice, and what the current configuration costs for a month where nothing changes. The selected source feeds a cost column, a total per group and sub-group (so `project > env` answers "what does the production of this project cost") and the total of the filtered list. Daily figures are the consumptions the billing system computes, the ones behind the Console's consumption page; the estimate prices started applications at their minimum instances for 720 hours, stopped ones at zero, plus add-on plans. Tax excluded, billing rights required.
-- **Side column**: the Clever Cloud platform status from the public status page, the applications to watch (failed deployment, stuck start, moderation, payment) and the databases on a version Clever Cloud no longer offers, folded past a handful of entries, the applications opened recently.
+- **Side column**: the Clever Cloud platform status from the public status page, the applications to watch (failed deployment, stuck start, moderation, payment) the databases on a version Clever Cloud no longer offers and the operators with an update out, folded past a handful of entries, the applications opened recently.
 
 ### Application page
 
@@ -129,7 +129,7 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 
 - **Encrypted vault**: tokens are encrypted with AES-256-GCM under a key derived from a passphrase with PBKDF2-SHA256 (600 000 iterations), and stored in `localStorage`. So that the passphrase is not asked on every reload, the raw key is kept in `sessionStorage` while the tab is open; "Lock" erases it.
 - **Session only**: plain JSON in `sessionStorage`, gone with the tab.
-- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan and the database versions, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`), the language (`cvc.locale`) and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
+- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan, the database versions and the operators' version checks, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`, `cvc.operator-versions.*`), the language (`cvc.locale`) and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production.
 - The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
 

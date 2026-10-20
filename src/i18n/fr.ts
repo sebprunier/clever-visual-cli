@@ -605,6 +605,8 @@ export const fr: Record<MessageKey, string> = {
   'watch.paymentText': 'défaut de paiement',
   'watch.retired': 'obsolète',
   'watch.retiredText': '{product} {version} ; Clever Cloud propose {range}',
+  'watch.update': 'mise à jour',
+  'watch.updateText': '{product} {installed} ; {latest} disponible',
   'operator.version': 'Version',
   'operator.versionValue': '{version} (Java {java})',
   'operator.updateOut': '{version} disponible',

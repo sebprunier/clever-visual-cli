@@ -149,7 +149,7 @@ export class CvcAddonPage extends CvcElement {
       void this.loadCellar(client, ownerId, addonId, summary.realId);
     }
     if (operatorKind(providerId) != null && summary != null) {
-      void this.loadOperator(client, addonId, summary.realId, providerId);
+      void this.loadOperator(client, ownerId, addonId, summary.realId, providerId);
     }
     try {
       const addon = await fetchAddon(client, ownerId, addonId);
@@ -188,7 +188,13 @@ export class CvcAddonPage extends CvcElement {
     }
   }
 
-  private async loadOperator(client: CcApiClient, addonId: string, realId: string, providerId: string): Promise<void> {
+  private async loadOperator(
+    client: CcApiClient,
+    ownerId: string,
+    addonId: string,
+    realId: string,
+    providerId: string,
+  ): Promise<void> {
     const kind = operatorKind(providerId);
     if (kind == null) {
       return;
@@ -202,6 +208,8 @@ export class CvcAddonPage extends CvcElement {
       if (this.addonId === addonId) {
         this.operator = details;
         this.operatorVersions = versions;
+        // The home page's "To watch" follows what this page just read.
+        this.addonStore?.operators.remember(ownerId, addonId, versions);
       }
     } catch (error) {
       this.operatorError = describeError(error);
@@ -212,7 +220,7 @@ export class CvcAddonPage extends CvcElement {
   private reloadOperator(): void {
     const summary = this.orga.addons.find((addon) => addon.id === this.addonId);
     if (summary != null) {
-      void this.loadOperator(this.client, summary.id, summary.realId, summary.providerId);
+      void this.loadOperator(this.client, this.orga.id, summary.id, summary.realId, summary.providerId);
       void this.addonStore?.refreshOne(this.client, this.orga.id, summary.id);
     }
   }

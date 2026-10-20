@@ -3,8 +3,9 @@
  * the filter keeps, how the grouping arranges them, in which order. The home
  * page and the column of an application page build the same list from it.
  */
-import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
+import type { AddonSummary, ApplicationSummary, OperatorVersions } from '../../data/api.js';
 import { addonWatchList, type AddonWatchItem } from '../addons/database.js';
+import { operatorWatchList, type OperatorWatchItem } from '../addons/operator.js';
 import { watchList, type AppActivity, type WatchItem } from './activity.js';
 import type { AddonState } from './addon-state.js';
 import type { CostTable } from './costs.js';
@@ -39,6 +40,8 @@ export interface HomeListInput {
   /** The version of a database add-on and the ones its provider offers, null while unknown: "To watch". */
   dbVersion?: (addon: AddonSummary) => string | null;
   offeredVersions?: (providerId: string) => readonly string[] | null;
+  /** The version check of an operator, null while unknown: "To watch" too. */
+  operatorVersions?: (addon: AddonSummary) => OperatorVersions | null;
 }
 
 export interface HomeList {
@@ -47,8 +50,8 @@ export interface HomeList {
   grouping: ParsedGrouping;
   /** What deserves attention, whatever the filter. */
   watch: WatchItem[];
-  /** The add-ons that deserve attention: databases on a retired version. */
-  addonWatch: AddonWatchItem[];
+  /** The add-ons that deserve attention: databases on a retired version, then operators with an update out. */
+  addonWatch: Array<AddonWatchItem | OperatorWatchItem>;
   visibleApps: ApplicationSummary[];
   visibleAddons: AddonSummary[];
   /** The groups, sorted; one level-0 node when the grouping is empty. */
@@ -70,7 +73,10 @@ export function buildHomeList(input: HomeListInput): HomeList {
   };
   const filter = parseFilter(input.filterText);
   const watch = watchList(apps, activity);
-  const addonWatch = addonWatchList(addons, input.dbVersion ?? (() => null), input.offeredVersions ?? (() => null));
+  const addonWatch = [
+    ...addonWatchList(addons, input.dbVersion ?? (() => null), input.offeredVersions ?? (() => null)),
+    ...operatorWatchList(addons, input.operatorVersions ?? (() => null)),
+  ];
   const watchIds = new Set([...watch.map((item) => item.app.id), ...addonWatch.map((item) => item.addon.id)]);
   const visibleApps = apps.filter((app) =>
     matchesFilter(filter, {
