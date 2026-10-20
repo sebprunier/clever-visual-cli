@@ -213,9 +213,17 @@ export const fr: Record<MessageKey, string> = {
   'backups.hint':
     'Une sauvegarde par jour, gardée quelques jours. Les liens de téléchargement valent deux heures : la liste se recharge avant qu’ils expirent.',
   'backups.none': 'Aucune sauvegarde pour l’instant.',
+  'backups.snapshotHint':
+    'Un snapshot par jour, gardé quelques jours sauf s’il n’a pas de date de suppression ; chacun se restaure avec la commande que donne l’API.',
+  'backups.slowSnapshots': 'L’API prend du temps quand un add-on garde beaucoup de snapshots.',
+  'backups.snapshot': 'Snapshot',
   'backups.never': 'jamais',
+  'backups.seeInKibana': 'Voir dans Kibana',
   'backups.showAll': 'Voir les {count} plus anciennes',
   'backups.showFewer': 'Ne voir que les plus récentes',
+  'backups.noRestoreCommand': 'L’API ne donne pas de commande de restauration pour ce snapshot.',
+  'backups.snapshotWarning':
+    'Elasticsearch ne restaure pas par-dessus un index ouvert qui existe déjà : le fermer ou le supprimer avant.',
   'backups.noneShared': 'Aucune sauvegarde : ce plan mutualisé n’en fait pas.',
   'backups.taken': 'Prise',
   'backups.deleted': 'Supprimée',

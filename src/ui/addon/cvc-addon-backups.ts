@@ -1,7 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { backupUse, SHARED_WITHOUT_BACKUPS } from '../../core/addons/database.js';
+import { backupUse, SHARED_WITHOUT_BACKUPS, SNAPSHOT_PROVIDERS, snapshotName } from '../../core/addons/database.js';
 import { describeError } from '../../core/clever-client.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import { shellQuote } from '../../core/shell.js';
@@ -27,8 +27,10 @@ const RETRIEVE_HINTS: Readonly<Record<string, MessageKey>> = {
 /**
  * `clever database backups`: the backups of a database add-on, each one to
  * download, and what to do with the chosen one: the commands that load it back
- * into PostgreSQL or MySQL, how to read a Redis archive. Nothing is restored
- * from here: restoring writes into a database applications use.
+ * into PostgreSQL or MySQL, how to read a Redis archive. Elasticsearch keeps
+ * snapshots instead: each one opens in Kibana and restores with the command
+ * the API gives. Nothing is restored from here: restoring writes into a
+ * database applications use.
  */
 @customElement('cvc-addon-backups')
 export class CvcAddonBackups extends CvcElement {
@@ -74,16 +76,29 @@ export class CvcAddonBackups extends CvcElement {
     this.loading = true;
     this.error = null;
     try {
-      const backups = await fetchBackups(client, ownerId, addonId);
+      const snapshots = this.snapshots;
+      const backups = await fetchBackups(client, ownerId, addonId, snapshots);
       if (this.addonId === addonId) {
         this.backups = backups;
-        this.#reload = setTimeout(() => void this.load(), RELOAD_AFTER);
+        if (!snapshots) {
+          this.#reload = setTimeout(() => void this.load(), RELOAD_AFTER);
+        }
       }
     } catch (error) {
       this.error = describeError(error);
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Elasticsearch: snapshots, opened in Kibana rather than downloaded. */
+  private get snapshots(): boolean {
+    return SNAPSHOT_PROVIDERS.includes(this.providerId);
+  }
+
+  /** Kibana links only lead somewhere when the add-on runs Kibana. */
+  private get withKibana(): boolean {
+    return this.details?.companions.some((companion) => companion.name === 'kibana') ?? false;
   }
 
   override render() {
@@ -98,11 +113,14 @@ export class CvcAddonBackups extends CvcElement {
           ${ICON_REFRESH} ${t('common.refresh')}
         </button>
       </div>
-      ${takesNone ? nothing : html`<p class="muted small hint">${t('backups.hint')}</p>`}
+      ${takesNone ? nothing : html`<p class="muted small hint">${t(this.snapshots ? 'backups.snapshotHint' : 'backups.hint')}</p>`}
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         backups == null
-          ? html`<p class="empty">${t('common.loading')}</p>`
+          ? html`<p class="empty">
+              ${t('common.loading')}
+              ${this.snapshots ? html`<br /><span class="muted small">${t('backups.slowSnapshots')}</span>` : nothing}
+            </p>`
           : backups.length === 0
             ? html`<p class="empty">${t(takesNone ? 'backups.noneShared' : 'backups.none')}</p>`
             : html`<div class="card table">
@@ -111,7 +129,7 @@ export class CvcAddonBackups extends CvcElement {
                       <tr>
                         <th>${t('backups.taken')}</th>
                         <th>${t('backups.deleted')}</th>
-                        <th>${t('backups.file')}</th>
+                        <th>${t(this.snapshots ? 'backups.snapshot' : 'backups.file')}</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -152,12 +170,20 @@ export class CvcAddonBackups extends CvcElement {
       <td class="muted" title=${formatDateTime(backup.expiresAt)}>
         ${backup.expiresAt == null ? t('backups.never') : formatRelative(backup.expiresAt)}
       </td>
-      <td class="mono small file">${backup.filename ?? backup.backupId}</td>
+      <td class="mono small file">${this.backupName(backup)}</td>
       <td class="actions">
         <div class="buttons">
-          <a class="button" href=${backup.downloadUrl} target="_blank" rel="noopener noreferrer"
-            >${ICON_DOWNLOAD} ${t('backups.download')}</a
-          >
+          ${
+            this.snapshots
+              ? this.withKibana
+                ? html`<a class="button" href=${backup.downloadUrl} target="_blank" rel="noopener noreferrer"
+                    >${t('backups.seeInKibana')} ↗</a
+                  >`
+                : nothing
+              : html`<a class="button" href=${backup.downloadUrl} target="_blank" rel="noopener noreferrer"
+                  >${ICON_DOWNLOAD} ${t('backups.download')}</a
+                >`
+          }
           <button
             type="button"
             class="ghost small"
@@ -171,9 +197,17 @@ export class CvcAddonBackups extends CvcElement {
     </tr>`;
   }
 
+  /** The file of a database backup, the snapshot name of an Elasticsearch one. */
+  private backupName(backup: Backup): string {
+    return (this.snapshots ? snapshotName(backup.downloadUrl) : backup.filename) ?? backup.backupId;
+  }
+
   private renderRestore(backup: Backup | undefined) {
     if (backup == null) {
       return nothing;
+    }
+    if (this.snapshots) {
+      return this.renderSnapshotRestore(backup);
     }
     const file = backup.filename ?? backup.backupId;
     const use = backupUse(this.providerId, this.details, file);
@@ -205,6 +239,22 @@ export class CvcAddonBackups extends CvcElement {
               <cvc-cli block command=${use.command}></cvc-cli>
               ${use.password ? html`<p class="muted small">${t('backups.passwordHint', { name: use.password })}</p>` : nothing}`
       }
+      <p class="muted small">${t('backups.restoreWarning')}</p>
+    </section>`;
+  }
+
+  /** A snapshot restores inside the cluster: nothing to download first. */
+  private renderSnapshotRestore(backup: Backup) {
+    const use = backupUse(this.providerId, null, this.backupName(backup), backup.commands?.restoreCommand ?? null);
+    return html`<section class="card restore">
+      <h3>${t('backups.restoreTitle', { date: formatDateTime(backup.createdAt) })}</h3>
+      ${
+        use.command == null
+          ? html`<p class="muted small">${t('backups.noRestoreCommand')}</p>`
+          : html`<cvc-cli block command=${use.command}></cvc-cli>
+              ${use.password ? html`<p class="muted small">${t('backups.passwordHint', { name: use.password })}</p>` : nothing}`
+      }
+      <p class="muted small">${t('backups.snapshotWarning')}</p>
       <p class="muted small">${t('backups.restoreWarning')}</p>
     </section>`;
   }

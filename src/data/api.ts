@@ -161,8 +161,14 @@ export function fetchAddon(client: CcApiClient, ownerId: string, addonId: string
 }
 
 /** `clever database backups`: the backups of a database add-on, most recent first. */
-export function fetchBackups(client: CcApiClient, ownerId: string, addonId: string): Promise<Backup[]> {
-  return client.send(new ListBackupCommand({ ownerId, addonId }));
+export function fetchBackups(
+  client: CcApiClient,
+  ownerId: string,
+  addonId: string,
+  /** Only for the providers whose backups carry their own restore command (Elasticsearch): no other call is made. */
+  withCommands = false,
+): Promise<Backup[]> {
+  return client.send(new ListBackupCommand({ ownerId, addonId, withCommands }));
 }
 
 /** What the provider of a database add-on says about it, without its password. */

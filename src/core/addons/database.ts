@@ -1,19 +1,22 @@
 /**
  * What the database add-ons share beyond the generic add-on page: the version
  * the provider reports against the ones Clever Cloud still offers, and what
- * can be done with a backup once downloaded. PostgreSQL, MySQL, Redis,
- * MongoDB and Elasticsearch answer the same provider API.
+ * can be done with a backup. PostgreSQL, MySQL, Redis, MongoDB and
+ * Elasticsearch answer the same provider API.
  */
 import type { AddonSummary } from '../../data/api.js';
 import { shellQuote } from '../shell.js';
 
-const DATABASES = ['postgresql-addon', 'mysql-addon', 'redis-addon', 'mongodb-addon'];
+const DATABASES = ['postgresql-addon', 'mysql-addon', 'redis-addon', 'mongodb-addon', 'es-addon'];
 
 /** Providers whose details carry a version, compared with the offered ones for "To watch". */
-export const VERSIONED_PROVIDERS: readonly string[] = [...DATABASES, 'es-addon'];
+export const VERSIONED_PROVIDERS: readonly string[] = DATABASES;
 
 /** Providers with a Backups tab. */
 export const BACKUP_PROVIDERS: readonly string[] = DATABASES;
+
+/** Providers whose backups are snapshots kept by the service itself: nothing to download. */
+export const SNAPSHOT_PROVIDERS: readonly string[] = ['es-addon'];
 
 /** Providers whose shared plan takes no backup, unlike PostgreSQL's. */
 export const SHARED_WITHOUT_BACKUPS: readonly string[] = ['mysql-addon', 'mongodb-addon'];
@@ -30,6 +33,7 @@ const PRODUCTS: Readonly<Record<string, string>> = {
 const PASSWORD_VARIABLES: Readonly<Record<string, string>> = {
   'postgresql-addon': 'POSTGRESQL_ADDON_PASSWORD',
   'mysql-addon': 'MYSQL_ADDON_PASSWORD',
+  'es-addon': 'ES_ADDON_PASSWORD',
 };
 
 /** "PostgreSQL" for `postgresql-addon`: the summary of an add-on carries no provider name. */
@@ -91,11 +95,17 @@ export interface BackupUse {
 }
 
 /**
- * PostgreSQL and MySQL backups load back with their client; a Redis backup is
+ * PostgreSQL and MySQL backups load back with their client; an Elasticsearch
+ * snapshot through the command its payload gives (`given`); a Redis backup is
  * an archive of its `.rdb` and `.aof` files, read by a local `redis-server`;
  * MongoDB's restore command lives in the provider dashboard.
  */
-export function backupUse(providerId: string, target: ConnectionTarget | null, file: string): BackupUse {
+export function backupUse(
+  providerId: string,
+  target: ConnectionTarget | null,
+  file: string,
+  given: string | null = null,
+): BackupUse {
   const password = PASSWORD_VARIABLES[providerId] ?? null;
   switch (providerId) {
     case 'postgresql-addon':
@@ -127,11 +137,20 @@ export function backupUse(providerId: string, target: ConnectionTarget | null, f
               ` -u ${shellQuote(target.user)} -p -D ${shellQuote(target.database)}`,
         password,
       };
+    case 'es-addon':
+      // `curl -XPOST -u <user> https://<host>/_snapshot/<repository>/<snapshot>/_restore`: curl asks for the password.
+      return { kind: 'restore', command: given, password };
     case 'redis-addon':
       return { kind: 'retrieve', command: `tar -xzf ${shellQuote(file)}`, password: null };
     default:
       return { kind: 'retrieve', command: null, password: null };
   }
+}
+
+/** "daily-snapshot-2026.10.20-…" from the Kibana link of a snapshot, which ends with its repository and name. */
+export function snapshotName(link: string): string | null {
+  const name = link.split('/').at(-1) ?? '';
+  return name === '' ? null : decodeURIComponent(name);
 }
 
 /** A database add-on on a version Clever Cloud no longer offers. */

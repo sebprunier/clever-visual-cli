@@ -219,9 +219,17 @@ export const en = {
   'backups.hint':
     'One backup a day, kept a few days. Download links last two hours: the list reloads before they expire.',
   'backups.none': 'No backup yet.',
+  'backups.snapshotHint':
+    'One snapshot a day, kept a few days unless it has no deletion date; each one restores with the command the API gives.',
+  'backups.slowSnapshots': 'The API takes a while when an add-on keeps many snapshots.',
+  'backups.snapshot': 'Snapshot',
   'backups.never': 'never',
+  'backups.seeInKibana': 'See in Kibana',
   'backups.showAll': 'Show the {count} older ones',
   'backups.showFewer': 'Show the most recent only',
+  'backups.noRestoreCommand': 'The API gives no restore command for this snapshot.',
+  'backups.snapshotWarning':
+    'Elasticsearch does not restore over an open index that already exists: close or delete it first.',
   'backups.noneShared': 'No backup: this shared plan takes none.',
   'backups.taken': 'Taken',
   'backups.deleted': 'Deleted',

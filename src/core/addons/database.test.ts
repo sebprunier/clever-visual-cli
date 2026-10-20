@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AddonSummary } from '../../data/api.js';
-import { addonWatchList, backupUse, compareVersions, isRetiredVersion } from './database.js';
+import { addonWatchList, backupUse, compareVersions, isRetiredVersion, snapshotName } from './database.js';
 
 const OFFERED = ['13', '14', '15', '16', '17', '18'];
 
@@ -61,6 +61,15 @@ describe('backupUse', () => {
     expect(backupUse('postgresql-addon', null, 'x.dump').command).toBeNull();
   });
 
+  it('uses the restore command an Elasticsearch snapshot carries', () => {
+    const given = 'curl -XPOST -u u3 https://abc-elasticsearch.services.clever-cloud.com/_snapshot/repo/snap/_restore';
+    expect(backupUse('es-addon', null, 'snap', given)).toEqual({
+      kind: 'restore',
+      command: given,
+      password: 'ES_ADDON_PASSWORD',
+    });
+  });
+
   it('only gets the data out of Redis and MongoDB backups', () => {
     expect(backupUse('redis-addon', null, 'redis_x-20261015031542')).toEqual({
       kind: 'retrieve',
@@ -113,5 +122,16 @@ describe('addonWatchList', () => {
         () => null,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('snapshotName', () => {
+  it('reads the last segment of the Kibana link', () => {
+    expect(
+      snapshotName(
+        'https://kibana-abc-elasticsearch.services.clever-cloud.com/app/kibana#/management/elasticsearch/snapshot_restore/snapshots/cc-s3-repository-7/daily-snapshot-2026.10.20-lsl-1ppvs5sug5cbhsbwog',
+      ),
+    ).toBe('daily-snapshot-2026.10.20-lsl-1ppvs5sug5cbhsbwog');
+    expect(snapshotName('')).toBeNull();
   });
 });

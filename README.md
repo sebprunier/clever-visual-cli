@@ -57,7 +57,7 @@ Beside it, the list you came from, names only, with the same filter, grouping, o
 - **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
 - **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.
 - **Databases** (PostgreSQL, MySQL, Redis, MongoDB): the overview adds the version, flagged when Clever Cloud no longer offers it, the host, port and database to copy, and the options chosen at creation (`clever addon create --option`). A **Backups** tab lists the daily backups to download, with the `clever database backups` commands and, for the chosen one, what comes next: the `pg_restore` or `mysql` command that loads it back (the password stays in the Variables tab), the archive to extract for Redis.
-- **Elasticsearch**: the same card with the Elasticsearch host, Kibana and APM when enabled (the service to open and the application running it).
+- **Elasticsearch**: the same card with the Elasticsearch host, Kibana and APM when enabled (the service to open and the application running it). Its backups are snapshots: each one opens in Kibana and restores with the `curl` command the API gives; long lists show the 20 most recent first.
 
 The same list column as on the application page sits beside it, and goes from applications to add-ons and back.
 
@@ -78,7 +78,7 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on and the databases (PostgreSQL, MySQL, Redis, MongoDB) are there; next, the other families (Elasticsearch, buckets, operators…).
+- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, the databases (PostgreSQL, MySQL, Redis, MongoDB) and Elasticsearch are there; next, the other families (buckets, config providers, operators…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 
