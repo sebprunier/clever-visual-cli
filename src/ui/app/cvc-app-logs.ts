@@ -15,6 +15,7 @@ import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { formatTime } from '../shared/format.js';
 import { ICON_CLEAR, ICON_PAUSE, ICON_START, ICON_STOP } from '../shared/icons.js';
+import { inlineStyle } from '../shared/inline-style.js';
 import {
   logStyles,
   renderRuntimeLine,
@@ -296,10 +297,8 @@ export class CvcAppLogs extends CvcElement {
                 (log) => {
                   const kind: LogKind = isAccessLog(log) ? 'access' : 'app';
                   const lead = both ? this.renderKind(kind) : nothing;
-                  const style = both ? `background: ${hueTint(KIND_HUES.get(kind) ?? 0)}` : '';
-                  return isAccessLog(log)
-                    ? this.renderAccessLine(log, lead, style)
-                    : renderRuntimeLine(log, lead, style);
+                  const tint = both ? hueTint(KIND_HUES.get(kind) ?? 0) : null;
+                  return isAccessLog(log) ? this.renderAccessLine(log, lead, tint) : renderRuntimeLine(log, lead, tint);
                 },
               )
         }
@@ -311,10 +310,13 @@ export class CvcAppLogs extends CvcElement {
    * One request: time, status, method, path, duration, bytes sent, client address. The host the
    * API reports is the Clever Cloud load balancer, not the requested domain: it stays in the title.
    */
-  private renderAccessLine(log: ApplicationAccessLog, lead: unknown = nothing, style = '') {
+  private renderAccessLine(log: ApplicationAccessLog, lead: unknown = nothing, tint: string | null = null) {
     const { request, response } = log.detail;
     const place = [log.source.city, log.source.countryCode].filter((part) => part !== '' && part != null).join(', ');
-    return html`<div class="line access s${Math.floor(response.statusCode / 100)}xx" style=${style}>
+    return html`<div
+      class="line access s${Math.floor(response.statusCode / 100)}xx"
+      ${inlineStyle({ background: tint })}
+    >
       <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
       ${lead}
       <span class="status">${response.statusCode}</span>
@@ -328,7 +330,7 @@ export class CvcAppLogs extends CvcElement {
 
   /** Where a line comes from, in the interleaved view, in the colour of its kind. */
   private renderKind(kind: LogKind) {
-    return html`<span class="kind" style="color: ${hueColor(KIND_HUES.get(kind) ?? 0)}"
+    return html`<span class="kind" ${inlineStyle({ color: hueColor(KIND_HUES.get(kind) ?? 0) })}
       >${t(`logs.mode.${kind}`)}</span
     >`;
   }

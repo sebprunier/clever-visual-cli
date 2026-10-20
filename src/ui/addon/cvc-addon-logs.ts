@@ -166,7 +166,7 @@ export class CvcAddonLogs extends CvcElement {
                 visible,
                 (log) => log.id,
                 // The platform marks every line of an add-on "emerg": no colour from that.
-                (log) => renderRuntimeLine(log, nothing, '', false),
+                (log) => renderRuntimeLine(log, nothing, null, false),
               )
         }
       </div>

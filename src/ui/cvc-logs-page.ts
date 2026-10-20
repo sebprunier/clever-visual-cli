@@ -20,6 +20,7 @@ import './shared/cvc-cli.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { formatTime } from './shared/format.js';
 import { ICON_REFRESH } from './shared/icons.js';
+import { inlineStyle } from './shared/inline-style.js';
 import {
   logStyles,
   renderRuntimeLine,
@@ -399,7 +400,7 @@ export class CvcLogsPage extends CvcElement {
               this.hiddenApps = next;
             }}
           >
-            <span class="dot" style="background: ${color(app.id)}"></span>${app.name}
+            <span class="dot" ${inlineStyle({ background: color(app.id) })}></span>${app.name}
           </button>`;
         })}
         <span class="muted small">${t('multilogs.noCli')}</span>
@@ -412,9 +413,9 @@ export class CvcLogsPage extends CvcElement {
                 lines,
                 (entry) => `${entry.appId}/${entry.line.id}`,
                 (entry) =>
-                  html`<div class="line sev-${entry.line.severity}" style="background: ${tint(entry.appId)}">
+                  html`<div class="line sev-${entry.line.severity}" ${inlineStyle({ background: tint(entry.appId) })}>
                     <time datetime=${entry.line.date} title=${entry.line.date}>${formatTime(entry.line.date)}</time>
-                    <span class="app" style="color: ${color(entry.appId)}" title=${entry.line.service}
+                    <span class="app" ${inlineStyle({ color: color(entry.appId) })} title=${entry.line.service}
                       >${names.get(entry.appId) ?? entry.appId}</span
                     >
                     <span class="message">${entry.line.message}</span>

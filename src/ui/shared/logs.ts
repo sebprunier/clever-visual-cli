@@ -8,6 +8,7 @@ import type { StreamStatus } from '../../core/logs/stream.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import type { ApplicationRuntimeLog } from '../../data/api.js';
 import { formatTime } from './format.js';
+import { inlineStyle } from './inline-style.js';
 
 export const SINCE_OPTIONS: ReadonlyArray<{ value: string; label: MessageKey; minutes: number }> = [
   { value: 'now', label: 'logs.since.now', minutes: 0 },
@@ -63,10 +64,15 @@ export function runtimeSearchText(log: RuntimeLine): string {
 
 /**
  * Time, service and message, coloured by severity unless `severity` is false. `lead` goes after the
- * time (the source of the line in a merged view), `style` on the line (its tint).
+ * time (the source of the line in a merged view), `tint` behind the line.
  */
-export function renderRuntimeLine(log: RuntimeLine, lead: unknown = nothing, style = '', severity = true) {
-  return html`<div class="line ${severity ? `sev-${log.severity}` : ''}" style=${style}>
+export function renderRuntimeLine(
+  log: RuntimeLine,
+  lead: unknown = nothing,
+  tint: string | null = null,
+  severity = true,
+) {
+  return html`<div class="line ${severity ? `sev-${log.severity}` : ''}" ${inlineStyle({ background: tint })}>
     <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
     ${lead}
     <span class="service" title=${log.instanceId}>${log.service}</span>
