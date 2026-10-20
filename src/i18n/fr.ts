@@ -278,6 +278,8 @@ export const fr: Record<MessageKey, string> = {
   'env.show': 'Afficher les valeurs',
   'env.hide': 'Masquer les valeurs',
   'env.copyDotenv': 'Copier en .env',
+  'env.pending': 'Ces variables ont changé depuis le dernier déploiement : elles s’appliqueront au prochain.',
+  'env.restart': 'Redémarrer…',
   'env.linkedAddon': 'Add-on lié :',
   'env.linkedApp': 'Application liée :',
   'env.variables': '{count} variables',

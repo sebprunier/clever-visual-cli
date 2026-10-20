@@ -10,6 +10,7 @@ import {
   type ActionValues,
 } from '../core/actions.js';
 import { clearClientCaches } from '../core/clever-client.js';
+import { markEnvChanged } from '../core/env-pending.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
 import { AddonStore, clearAddonStorage } from '../core/home/addon-store.js';
@@ -255,6 +256,9 @@ export class CvcApp extends CvcElement {
   private onActionDone(event: CustomEvent<ActionResult>): void {
     const result = event.detail;
     this.pendingAction = null;
+    if (result.envChanged && this.route.kind === 'app') {
+      markEnvChanged(this.route.appId);
+    }
     this.toaster?.push({ kind: 'success', message: result.message });
     if (result.refresh) {
       this.revision += 1;

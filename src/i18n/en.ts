@@ -283,6 +283,8 @@ export const en = {
   'env.show': 'Show values',
   'env.hide': 'Hide values',
   'env.copyDotenv': 'Copy as .env',
+  'env.pending': 'These variables changed since the last deployment: they apply at the next one.',
+  'env.restart': 'Restart…',
   'env.linkedAddon': 'Linked add-on:',
   'env.linkedApp': 'Linked application:',
   'env.variables': '{count} variables',

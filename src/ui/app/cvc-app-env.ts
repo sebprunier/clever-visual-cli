@@ -6,6 +6,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { maskValue, toDotenv } from '../../core/env.js';
+import { awaitsDeployment, envChangedAt } from '../../core/env-pending.js';
 import { fetchEnvironment, type Environment, type EnvironmentVariable } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
 import { copyToClipboard } from '../shared/clipboard.js';
@@ -13,13 +14,19 @@ import '../shared/cvc-cli.js';
 import { ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 
-/** The environment, values hidden until asked for. Changes go through the action dialog. */
+/**
+ * The environment, values hidden until asked for. Changes go through the
+ * action dialog; they apply at the next deployment, which the tab recalls
+ * until one starts.
+ */
 @customElement('cvc-app-env')
 export class CvcAppEnv extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
   @property({ type: Number }) revision = 0;
+  /** The date of the last deployment, null without any, undefined while unknown. */
+  @property({ attribute: false }) lastDeployment: string | null | undefined = undefined;
 
   @state() private environment: Environment | null = null;
   @state() private error: string | null = null;
@@ -90,6 +97,16 @@ export class CvcAppEnv extends CvcElement {
           ${ICON_REFRESH} ${t('common.refresh')}
         </button>
       </div>
+      ${
+        awaitsDeployment(envChangedAt(this.appId), this.lastDeployment)
+          ? html`<div class="pending" role="status">
+              <span>${t('env.pending')}</span>
+              <button type="button" class="small" @click=${() => openAction(this, 'restart')}>
+                ${t('env.restart')}
+              </button>
+            </div>`
+          : nothing
+      }
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         env == null
@@ -181,6 +198,22 @@ export class CvcAppEnv extends CvcElement {
     css`
       .toolbar {
         margin-bottom: 0.75rem;
+      }
+      .pending {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 0.75rem;
+        margin-bottom: 0.75rem;
+        padding: 0.55rem 0.8rem;
+        border: 1px solid color-mix(in srgb, var(--cvc-warn) 45%, var(--cvc-border));
+        border-left: 3px solid var(--cvc-warn);
+        border-radius: var(--cvc-radius);
+        background: color-mix(in srgb, var(--cvc-warn) 8%, var(--cvc-surface));
+      }
+      .pending button.small {
+        padding: 0.2rem 0.6rem;
+        font-size: 0.85rem;
       }
       .grow {
         flex: 1;

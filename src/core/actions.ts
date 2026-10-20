@@ -52,6 +52,8 @@ export interface ActionResult {
   navigateTo?: AppTab;
   /** Reload the application data (page, tabs, summary) after the action. */
   refresh?: boolean;
+  /** The application's own variables changed: they wait for its next deployment. */
+  envChanged?: boolean;
 }
 
 export interface ActionDefinition {
@@ -413,7 +415,12 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever env set ${str(v.name)} ${shellQuote(str(v.value))} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.setEnvironmentVariable(ctx.client, ctx.ownerId, ctx.appId, str(v.name), str(v.value));
-      return { message: t('action.envSet.done', { name: str(v.name) }), navigateTo: 'env', refresh: true };
+      return {
+        message: t('action.envSet.done', { name: str(v.name) }),
+        navigateTo: 'env',
+        refresh: true,
+        envChanged: true,
+      };
     },
   },
   {
@@ -446,7 +453,12 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever env rm ${str(v.name)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.deleteEnvironmentVariable(ctx.client, ctx.ownerId, ctx.appId, str(v.name));
-      return { message: t('action.envRm.done', { name: str(v.name) }), navigateTo: 'env', refresh: true };
+      return {
+        message: t('action.envRm.done', { name: str(v.name) }),
+        navigateTo: 'env',
+        refresh: true,
+        envChanged: true,
+      };
     },
   },
   {
@@ -487,7 +499,12 @@ export const ACTIONS: ActionDefinition[] = [
         environment = [...merged.entries()].map(([name, value]) => ({ name, value }));
       }
       await api.replaceEnvironment(ctx.client, ctx.ownerId, ctx.appId, environment);
-      return { message: t('action.envImport.done', { count: variables.length }), navigateTo: 'env', refresh: true };
+      return {
+        message: t('action.envImport.done', { count: variables.length }),
+        navigateTo: 'env',
+        refresh: true,
+        envChanged: true,
+      };
     },
   },
   {

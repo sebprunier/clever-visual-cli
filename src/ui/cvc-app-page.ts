@@ -265,6 +265,7 @@ export class CvcAppPage extends CvcElement {
           ownerId=${this.ownerId}
           appId=${this.appId}
           .revision=${this.revision}
+          .lastDeployment=${this.store?.get(this.ownerId).deployments == null ? undefined : (this.lastDeployment()?.date ?? null)}
         ></cvc-app-env>`;
       case 'logs':
         return html`<cvc-app-logs .client=${this.client} ownerId=${this.ownerId} appId=${this.appId}></cvc-app-logs>`;
