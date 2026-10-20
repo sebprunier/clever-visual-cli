@@ -33,9 +33,9 @@ clever-tools and the Clever Cloud APIs are well designed and well documented. [`
 ## Principles
 
 - **Front-end only.** A static page that talks to the Clever Cloud API from the browser. Nothing in between, nothing to host, no telemetry.
-- **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com`, `console.clever-cloud.com`, and read-only calls to the public status page.
+- **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com`, `console.clever-cloud.com`, and read-only calls to the public status page and to the npm registry (the latest clever-tools release, once a day).
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
-- **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands target clever-tools 5.2 or later.
+- **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands are checked against one clever-tools release (5.2.0 today, named in the account menu); when npm has a newer one, the menu says so with its release notes.
 - **English and French**, picked from the browser, switchable from the account menu.
 - **Themes**: system (follows the computer's light or dark setting), light, dark, and a modern look after the Clever Cloud technologies page. Every palette is checked for WCAG AA contrast by the tests.
 - **Open source**, Apache-2.0, built in the open, one feature at a time.
@@ -128,7 +128,7 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 
 - **Encrypted vault**: tokens are encrypted with AES-256-GCM under a key derived from a passphrase with PBKDF2-SHA256 (600 000 iterations), and stored in `localStorage`. So that the passphrase is not asked on every reload, the raw key is kept in `sessionStorage` while the tab is open; "Lock" erases it.
 - **Session only**: plain JSON in `sessionStorage`, gone with the tab.
-- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan and the database versions, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`) and the language (`cvc.locale`) stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
+- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan and the database versions, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`), the language (`cvc.locale`) and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production.
 - The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
 
@@ -137,7 +137,7 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 The site is published on GitHub Pages on every push to `main` by the `.github/workflows/deploy.yml` workflow (typecheck, tests, build, publish): <https://sebprunier.github.io/clever-visual-cli/>.
 
 - `CVC_BASE=/clever-visual-cli/` at build time sets the base path; without it the build targets the root of any host (Clever Cloud static hosting, for instance).
-- The production build injects a Content Security Policy as a `meta` tag: scripts and styles from the site only, network limited to the Clever Cloud APIs and the status page, images from any https origin for the logos.
+- The production build injects a Content Security Policy as a `meta` tag: scripts and styles from the site only, network limited to the Clever Cloud APIs, the status page and the npm registry, images from any https origin for the logos.
 - Worth knowing: every page of a GitHub account shares the `sebprunier.github.io` origin, so the vault's `localStorage` is visible to the other projects published under that account. The vault is encrypted there, but a custom domain gives an isolated origin.
 
 ### What will not work without a backend

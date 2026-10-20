@@ -9,7 +9,9 @@ import {
   type ActionResult,
   type ActionValues,
 } from '../core/actions.js';
+import { clearCliReleaseStorage, isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
+import { CLI_VERSION } from '../core/constants.js';
 import { markEnvChanged } from '../core/env-pending.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
@@ -57,6 +59,8 @@ export class CvcApp extends CvcElement {
   @state() private currentApp: Application | null = null;
   @state() private pendingAction: PendingAction | null = null;
   @state() private revision = 0;
+  /** The latest clever-tools release on npm, null while unknown. */
+  @state() private latestCli: string | null = null;
 
   @query('cvc-command-palette') private palette?: CvcCommandPalette;
   @query('cvc-toaster') private toaster?: CvcToaster;
@@ -119,6 +123,7 @@ export class CvcApp extends CvcElement {
       }
     });
     void this.boot();
+    void latestRelease().then((version) => (this.latestCli = version));
   }
 
   override disconnectedCallback(): void {
@@ -225,6 +230,7 @@ export class CvcApp extends CvcElement {
     this.session?.vault.destroy();
     clearClientCaches();
     clearHomeStorage();
+    clearCliReleaseStorage();
     clearCostStorage();
     clearAddonStorage();
     this.costStore.forget();
@@ -467,6 +473,17 @@ export class CvcApp extends CvcElement {
               <span class="who">${profile?.name ?? profile?.email ?? t('shell.account')}</span>
               ${profile?.name != null && profile.email ? html`<span class="email">${profile.email}</span>` : nothing}
             </span>
+            ${
+              isNewerRelease(this.latestCli)
+                ? html`<span
+                    class="cli-dot"
+                    title=${t('cli.newer', { latest: this.latestCli ?? '', current: CLI_VERSION })}
+                    ><span class="sr-only"
+                      >${t('cli.newer', { latest: this.latestCli ?? '', current: CLI_VERSION })}</span
+                    ></span
+                  >`
+                : nothing
+            }
             <svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
               <path
                 d="M2.5 4.5 6 8l3.5-3.5"
@@ -522,6 +539,8 @@ export class CvcApp extends CvcElement {
             >
               ${t('shell.logout')}
             </button>
+            <hr />
+            ${this.renderCliRelease()}
           </div>
         </details>
       </header>
@@ -620,6 +639,21 @@ export class CvcApp extends CvcElement {
       default:
         return html`<p class="empty">${t('common.loading')}</p>`;
     }
+  }
+
+  /**
+   * The clever-tools release the commands are checked against, and a warning
+   * with the release notes when npm has a newer one.
+   */
+  private renderCliRelease() {
+    const latest = this.latestCli;
+    if (latest == null || !isNewerRelease(latest)) {
+      return html`<p class="cli-release muted">${t('cli.checked', { version: CLI_VERSION })}</p>`;
+    }
+    return html`<p class="cli-release warn">
+      ${t('cli.newer', { latest, current: CLI_VERSION })}
+      <a href=${releaseNotesUrl(latest)} target="_blank" rel="noopener noreferrer">${t('cli.notes')} ↗</a>
+    </p>`;
   }
 
   private renderAccount(session: Session) {
@@ -834,6 +868,32 @@ export class CvcApp extends CvcElement {
         margin: 0.2rem 0;
         border: none;
         border-top: 1px solid var(--cvc-border);
+      }
+      .menu-items .cli-release {
+        margin: 0;
+        padding: 0.3rem 0.6rem 0.35rem;
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      .menu-items .cli-release.warn {
+        border-left: 3px solid var(--cvc-warn);
+        background: color-mix(in srgb, var(--cvc-warn) 8%, transparent);
+        border-radius: 6px;
+      }
+      .cli-dot {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--cvc-warn);
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
       }
       main {
         flex: 1;

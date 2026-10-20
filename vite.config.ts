@@ -50,8 +50,9 @@ function devCliProfile(): Plugin {
  * Content Security Policy for the production build, as a meta tag because
  * static hosts such as GitHub Pages send no custom headers. Scripts and
  * styles only from the site itself (Lit uses constructable stylesheets, so no
- * inline style is needed), network only to the Clever Cloud APIs, logos from
- * any https origin. The dev server stays unrestricted because Vite's HMR
+ * inline style is needed), network only to the Clever Cloud APIs, the status
+ * page and the npm registry (the latest clever-tools release), logos from any
+ * https origin. The dev server stays unrestricted because Vite's HMR
  * injects inline styles.
  */
 const CONTENT_SECURITY_POLICY = [
@@ -60,7 +61,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self'",
   "img-src 'self' https: data:",
   "font-src 'self'",
-  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com https://www.clevercloudstatus.com",
+  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com https://www.clevercloudstatus.com https://registry.npmjs.org",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
