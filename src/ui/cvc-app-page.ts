@@ -4,7 +4,6 @@ import { t, type MessageKey } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
-import { CONSOLE_URL } from '../core/constants.js';
 import { indexActivity, type AppActivity } from '../core/home/activity.js';
 import type { CostStore } from '../core/home/cost-store.js';
 import type { HomeStore } from '../core/home/home-store.js';
@@ -33,7 +32,7 @@ import './app/cvc-app-env.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
 import { openAction } from './shared/events.js';
-import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
+import { ICON_RESTART, ICON_START, ICON_STOP } from './shared/icons.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -178,27 +177,35 @@ export class CvcAppPage extends CvcElement {
     const status = state ? appStatus(state, this.lastDeployment()) : null;
     const logo = this.app?.instance.variant.logoUrl ?? this.summaryApp?.variantLogoUrl;
     const variant = this.app?.instance.variant.name ?? this.summaryApp?.variantName;
+    const zone = this.app?.zone;
     const canStop = state != null && state !== 'SHOULD_BE_DOWN';
 
     return html`
       <header>
         <div class="row title">
-          ${logo ? html`<img src=${logo} alt="" width="36" height="36" />` : nothing}
+          ${logo ? html`<img src=${logo} alt="" width="36" height="36" title=${variant ?? nothing} />` : nothing}
           <h1>${name}</h1>
           ${
-            state != null && status != null
-              ? html`<span class="status" title=${statusMessage(status)}
-                  >${statusIcon(status, 16)} ${stateLabel(APP_STATE_LABELS, state).label}</span
+            /* The overview spells out the state, runtime and zone; the title keeps the state icon for the other tabs. */
+            status != null
+              ? html`<span
+                  class="status"
+                  title="${statusMessage(status)}${variant ? ` · ${variant}` : ''}${zone ? ` · ${zone}` : ''}"
+                  >${statusIcon(status, 16)}<span class="sr-only">${statusMessage(status)}</span></span
                 >`
               : nothing
           }
-          <span class="muted small">${variant ?? ''}${this.app ? ` · ${this.app.zone}` : ''}</span>
           <span class="grow"></span>
-          <button type="button" @click=${() => openAction(this, 'restart')}>${t('app.restart')}</button>
-          ${canStop ? html`<button type="button" class="ghost" @click=${() => openAction(this, 'stop')}>${t('app.stop')}</button>` : nothing}
-          <a class="small" href="${CONSOLE_URL}/goto/${this.appId}" target="_blank" rel="noopener"
-            >${t('common.console')}</a
-          >
+          <button type="button" class="with-icon" @click=${() => openAction(this, 'restart')}>
+            ${canStop ? ICON_RESTART : ICON_START} ${canStop ? t('app.restart') : t('app.start')}
+          </button>
+          ${
+            canStop
+              ? html`<button type="button" class="with-icon stop" @click=${() => openAction(this, 'stop')}>
+                  ${ICON_STOP} ${t('app.stop')}
+                </button>`
+              : nothing
+          }
         </div>
         <nav class="tabs" aria-label=${t('app.sectionsAria')}>
           ${(Object.keys(APP_TAB_LABELS) as AppTab[]).map(
@@ -287,6 +294,22 @@ export class CvcAppPage extends CvcElement {
       }
       .title img {
         border-radius: 8px;
+      }
+      /* Stopping is the disruptive one: outlined in the danger colour. */
+      button.stop {
+        color: var(--cvc-danger);
+        border-color: color-mix(in srgb, var(--cvc-danger) 45%, var(--cvc-border));
+      }
+      button.stop:hover {
+        background: color-mix(in srgb, var(--cvc-danger) 8%, var(--cvc-surface));
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
       }
       .title .status {
         display: inline-flex;

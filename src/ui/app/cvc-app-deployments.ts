@@ -16,6 +16,7 @@ import {
   stateLabel,
 } from '../shared/format.js';
 import '../shared/cvc-cli.js';
+import { ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-deployments')
@@ -58,8 +59,8 @@ export class CvcAppDeployments extends CvcElement {
     return html`
       <div class="row toolbar">
         <cvc-cli command=${`clever activity --app ${this.appId}`}></cvc-cli>
-        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
-          ${t('common.refresh')}
+        <button type="button" class="ghost with-icon" ?disabled=${this.loading} @click=${this.load}>
+          ${ICON_REFRESH} ${t('common.refresh')}
         </button>
       </div>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}

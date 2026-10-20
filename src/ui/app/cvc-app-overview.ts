@@ -429,7 +429,7 @@ export class CvcAppOverview extends CvcElement {
       <p class="muted small id-label">${t('overview.owner')}</p>
       <cvc-cli no-prompt command=${this.app.ownerId}></cvc-cli>
       <p class="small console">
-        <a href="${CONSOLE_URL}/goto/${this.app.id}" target="_blank" rel="noopener">${t('common.openInConsole')}</a>
+        <a href="${CONSOLE_URL}/goto/${this.app.id}" target="_blank" rel="noopener">${t('common.openInConsole')} ↗</a>
       </p>
     </section>`;
   }

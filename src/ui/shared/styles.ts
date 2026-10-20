@@ -92,6 +92,12 @@ export const sharedStyles = css`
   button.ghost {
     background: transparent;
   }
+  /* A button with a leading icon. */
+  button.with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
   button.link {
     background: none;
     border: none;

@@ -8,6 +8,8 @@ export interface MenuItem {
   label: string;
   /** Destructive: shown in the danger colour. */
   danger?: boolean;
+  /** A leading icon, drawn in the item's colour. */
+  icon?: unknown;
   disabled?: boolean;
   title?: string;
 }
@@ -160,7 +162,7 @@ export class CvcMenuButton extends CvcElement {
               ?disabled=${item.disabled === true}
               @click=${() => this.select(item)}
             >
-              ${item.label}
+              ${item.icon ?? nothing} ${item.label}
             </button>`,
         )}
       </div>`;
@@ -208,6 +210,9 @@ export class CvcMenuButton extends CvcElement {
         gap: 0.1rem;
       }
       [role='menuitem'] {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
         text-align: left;
         padding: 0.35rem 0.6rem;
         font-size: 0.88rem;

@@ -9,6 +9,7 @@ import { fetchEnvironment, type Environment, type EnvironmentVariable } from '..
 import { openAction } from '../shared/events.js';
 import { copyToClipboard } from '../shared/clipboard.js';
 import '../shared/cvc-cli.js';
+import { ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 
 /** The environment, values hidden until asked for. Changes go through the action dialog. */
@@ -85,8 +86,8 @@ export class CvcAppEnv extends CvcElement {
         <button type="button" class="ghost" ?disabled=${env == null} @click=${this.copyAll}>
           ${this.copied === '*' ? t('common.copied') : t('env.copyDotenv')}
         </button>
-        <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
-          ${t('common.refresh')}
+        <button type="button" class="ghost with-icon" ?disabled=${this.loading} @click=${this.load}>
+          ${ICON_REFRESH} ${t('common.refresh')}
         </button>
       </div>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}

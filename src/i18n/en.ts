@@ -124,6 +124,7 @@ export const en = {
   'tab.env': 'Variables',
   'tab.logs': 'Logs',
   'app.restart': 'Restart',
+  'app.start': 'Start',
   'app.stop': 'Stop',
   'app.sectionsAria': 'Application sections',
   'nav.aria': 'The list you come from',

@@ -117,6 +117,7 @@ export const fr: Record<MessageKey, string> = {
   'tab.env': 'Variables',
   'tab.logs': 'Logs',
   'app.restart': 'Redémarrer',
+  'app.start': 'Démarrer',
   'app.stop': 'Arrêter',
   'app.sectionsAria': 'Sections de l’application',
   'nav.aria': 'La liste d’où vous venez',

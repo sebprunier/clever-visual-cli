@@ -67,6 +67,7 @@ import {
   stateLabel,
 } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
+import { ICON_REFRESH, ICON_RESTART, ICON_STOP } from './shared/icons.js';
 import { sharedStyles } from './shared/styles.js';
 
 /** An application opened in this browser, with the time of the last visit. */
@@ -478,7 +479,7 @@ export class CvcOrgaPage extends CvcElement {
               }
               <button
                 type="button"
-                class="ghost"
+                class="ghost with-icon"
                 title=${t('home.refreshTitle')}
                 ?disabled=${data.deploymentsLoading || data.linksPending > 0}
                 @click=${() => {
@@ -487,7 +488,7 @@ export class CvcOrgaPage extends CvcElement {
                   void loadPlatformStatus({ force: true });
                 }}
               >
-                ${t('common.refresh')}
+                ${ICON_REFRESH} ${t('common.refresh')}
               </button>
             </div>
             <div class="row toolbar">
@@ -685,8 +686,8 @@ export class CvcOrgaPage extends CvcElement {
                 title=${apps === 0 ? t('home.menu.appsNone') : nothing}
                 ?disabled=${apps === 0}
                 .items=${[
-                  { id: 'restart', label: t('home.restart') },
-                  { id: 'stop', label: t('home.stop'), danger: true },
+                  { id: 'restart', label: t('home.restart'), icon: ICON_RESTART },
+                  { id: 'stop', label: t('home.stop'), danger: true, icon: ICON_STOP },
                 ]}
                 @cvc-menu-select=${(event: CustomEvent<MenuSelectDetail>) =>
                   (this.bulkDialog = event.detail.id as BulkKind)}
