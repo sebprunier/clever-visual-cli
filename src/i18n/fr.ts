@@ -551,7 +551,6 @@ export const fr: Record<MessageKey, string> = {
   'home.col.links': 'Liens',
   'home.col.cost': 'Coût',
   'home.sortBy': 'Trier par {column}',
-  'home.addons': 'add-ons',
   'home.filterError': 'Filtre incomplet ({error}), appliqué mot à mot.',
   'home.groupingError': 'Regroupement : {error}.',
   'home.examples': 'ex.',
@@ -576,7 +575,8 @@ export const fr: Record<MessageKey, string> = {
   'home.selected': '{count} sélectionnés sur {total}',
   'home.selectNone': 'aucun',
   'home.selectionHint': 'maj+clic pour une plage, Échap pour tout désélectionner',
-  'home.selectionIdle': 'Coche des lignes, ou un groupe entier, pour les taguer, les redémarrer ou les arrêter.',
+  'home.selectionIdle':
+    'Coche des lignes, ou un groupe entier, pour les taguer, voir leurs logs ensemble, les redémarrer ou les arrêter.',
   'home.selectGroup': 'Sélectionner le groupe {name}',
   'home.menu.tags': 'Tags',
   'home.menu.apps': 'Applications ({count})',

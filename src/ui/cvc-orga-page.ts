@@ -569,7 +569,6 @@ export class CvcOrgaPage extends CvcElement {
       activity,
       filterText: this.filterText,
       groupingText: this.groupingText,
-      showAddons: this.prefs.showAddons,
       sort: this.prefs.sort,
       costs,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
@@ -683,14 +682,6 @@ export class CvcOrgaPage extends CvcElement {
                 }
                 ${this.renderGroupingExamples()}
               </div>
-              <label class="small check">
-                <input
-                  type="checkbox"
-                  .checked=${this.prefs.showAddons}
-                  @change=${(event: Event) => this.setPrefs({ showAddons: (event.currentTarget as HTMLInputElement).checked })}
-                />
-                ${t('home.addons')}
-              </label>
             </div>
             ${
               data.deploymentsError || data.linksError
@@ -1679,9 +1670,6 @@ export class CvcOrgaPage extends CvcElement {
       .toolbar {
         align-items: flex-start;
       }
-      .toolbar .check {
-        margin-top: 1.55rem;
-      }
       .field .note {
         margin: 0.25rem 0 0;
       }
@@ -1753,18 +1741,6 @@ export class CvcOrgaPage extends CvcElement {
         background: var(--cvc-text);
         color: var(--cvc-bg);
         border-color: transparent;
-      }
-      label.check {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        cursor: pointer;
-      }
-      .toolbar .check {
-        padding-bottom: 0.5rem;
-      }
-      label.check input {
-        margin: 0;
       }
       .hint code {
         margin-right: 0.5rem;

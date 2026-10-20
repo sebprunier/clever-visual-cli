@@ -11,7 +11,6 @@ export interface HomePrefs {
   /** The last grouping expression, used when the URL carries none. */
   grouping: string | null;
   sort: SortSpec;
-  showAddons: boolean;
   /** Paths of the collapsed groups. */
   collapsed: string[];
   costs: boolean;
@@ -23,7 +22,6 @@ export interface HomePrefs {
 export const DEFAULT_PREFS: HomePrefs = {
   grouping: null,
   sort: { column: 'name', direction: 'asc' },
-  showAddons: true,
   collapsed: [],
   costs: false,
   costSource: 'days30',
@@ -52,7 +50,6 @@ export function parsePrefs(value: unknown): HomePrefs {
   return {
     grouping: typeof parsed.grouping === 'string' ? parsed.grouping : null,
     sort: readSort(parsed.sort),
-    showAddons: parsed.showAddons !== false,
     collapsed: Array.isArray(parsed.collapsed) ? parsed.collapsed.filter((id) => typeof id === 'string') : [],
     costs: parsed.costs === true,
     costSource: COST_SOURCES.includes(parsed.costSource as CostSource) ? (parsed.costSource as CostSource) : 'days30',

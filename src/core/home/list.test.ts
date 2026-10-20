@@ -29,7 +29,6 @@ function input(partial: Partial<HomeListInput>): HomeListInput {
     activity: new Map(),
     filterText: '',
     groupingText: '',
-    showAddons: true,
     sort: DEFAULT_PREFS.sort,
     costs: null,
     stateLabel: (state) => (state === 'SHOULD_BE_UP' ? 'up' : 'stopped'),
@@ -42,7 +41,8 @@ describe('buildHomeList', () => {
     const list = buildHomeList(input({ filterText: 'project:shop' }));
     expect(list.visibleApps.map((item) => item.id)).toEqual(['shop-prod', 'shop-dev']);
     expect(list.visibleAddons.map((item) => item.id)).toEqual(['shop-db']);
-    expect(buildHomeList(input({ filterText: 'project:shop', showAddons: false })).visibleAddons).toEqual([]);
+    // Without the add-ons: a filter term, which a favourite view or a link keeps.
+    expect(buildHomeList(input({ filterText: 'project:shop -is:addon' })).visibleAddons).toEqual([]);
   });
 
   it('groups and sorts the way the home page does', () => {

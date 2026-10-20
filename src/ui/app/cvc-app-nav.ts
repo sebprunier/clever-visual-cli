@@ -210,7 +210,6 @@ export class CvcAppNav extends CvcElement {
       activity: this.activity(data.deployments),
       filterText: this.filterText,
       groupingText: this.groupingText,
-      showAddons: this.prefs.showAddons,
       sort: this.prefs.sort,
       costs: this.prefs.costs ? (this.costStore?.table(this.orga.id, this.prefs.costSource) ?? null) : null,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,

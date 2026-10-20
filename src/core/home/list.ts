@@ -29,7 +29,6 @@ export interface HomeListInput {
   activity: ReadonlyMap<string, AppActivity>;
   filterText: string;
   groupingText: string;
-  showAddons: boolean;
   sort: SortSpec;
   /** The cost table of the selected source, for a sort by cost. */
   costs: CostTable | null;
@@ -90,23 +89,21 @@ export function buildHomeList(input: HomeListInput): HomeList {
       flags: watchIds.has(app.id) ? ['watch'] : [],
     }),
   );
-  const visibleAddons = input.showAddons
-    ? addons.filter((addon) =>
-        matchesFilter(filter, {
-          kind: 'addon',
-          name: addon.name,
-          slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
-          runtime: addon.providerId,
-          state: addonLabel(addon) ?? undefined,
-          tags: addon.customerTags,
-          extra: [addon.id, addon.realId],
-          flags: [
-            ...(input.addonState?.(addon) === 'shared' ? ['shared'] : []),
-            ...(watchIds.has(addon.id) ? ['watch'] : []),
-          ],
-        }),
-      )
-    : [];
+  const visibleAddons = addons.filter((addon) =>
+    matchesFilter(filter, {
+      kind: 'addon',
+      name: addon.name,
+      slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
+      runtime: addon.providerId,
+      state: addonLabel(addon) ?? undefined,
+      tags: addon.customerTags,
+      extra: [addon.id, addon.realId],
+      flags: [
+        ...(input.addonState?.(addon) === 'shared' ? ['shared'] : []),
+        ...(watchIds.has(addon.id) ? ['watch'] : []),
+      ],
+    }),
+  );
   const grouping = parseGrouping(input.groupingText);
   const tree = sortNodes(buildTree(grouping, visibleApps, visibleAddons, context), input.sort, {
     activity,
