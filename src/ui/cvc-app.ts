@@ -495,6 +495,9 @@ export class CvcApp extends CvcElement {
           tab=${this.route.tab}
           .summaryApp=${found?.app ?? null}
           .revision=${this.revision}
+          .orga=${session.findOrganisation(this.route.ownerId)}
+          .store=${this.homeStore}
+          .costStore=${this.costStore}
           @cvc-app-loaded=${(event: CustomEvent<Application>) => (this.currentApp = event.detail)}
         ></cvc-app-page>`;
       }

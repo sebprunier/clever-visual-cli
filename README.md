@@ -40,6 +40,8 @@ A dense list of every application and add-on, with the last deployment of each a
 
 Overview, instances, deployments, environment variables (hidden values, copy, `.env` export), live logs with filter, pause and a replay window.
 
+Beside it, the list you came from, names only, with the same filter, grouping, order and collapsed groups as the home page, both editable in place. Another application opens on the same tab (from the logs of one to the logs of the next), and `Alt+↑` / `Alt+↓` move through the list. The column folds to a thin strip.
+
 ### Actions
 
 From the palette or the page: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live, ready to copy.

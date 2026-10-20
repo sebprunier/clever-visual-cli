@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, routeToHash, type Route } from './router.js';
+import { keepListView, parseRoute, readListView, routeToHash, withListView, type Route } from './router.js';
 
 describe('router', () => {
   it('parses the home route from empty or root hashes', () => {
@@ -55,5 +55,26 @@ describe('router hash params', () => {
     );
     expect(withHashParams('#/orga/orga_1?q=x&g=project', { q: '' })).toBe('#/orga/orga_1?g=project');
     expect(withHashParams('#/orga/orga_1?q=x', { q: null })).toBe('#/orga/orga_1');
+  });
+});
+
+describe('list view', () => {
+  it('carries the filter and grouping, dropping empty ones', () => {
+    expect(withListView('#/orga/o1/app/a1', { filter: ' env:prod ', grouping: 'project' })).toBe(
+      '#/orga/o1/app/a1?q=env%3Aprod&g=project',
+    );
+    expect(withListView('#/orga/o1?q=old', { filter: '', grouping: '' })).toBe('#/orga/o1');
+    expect(readListView('#/orga/o1/app/a1?g=project')).toEqual({ filter: null, grouping: 'project' });
+  });
+
+  it('follows a navigation inside the same organisation only', () => {
+    const route: Route = { kind: 'app', ownerId: 'o1', appId: 'a2', tab: 'logs' };
+    expect(keepListView('#/orga/o1/app/a2/logs', route, '#/orga/o1/app/a1?q=env%3Aprod&g=project')).toBe(
+      '#/orga/o1/app/a2/logs?q=env%3Aprod&g=project',
+    );
+    expect(keepListView('#/orga/o2/app/a2/logs', { ...route, ownerId: 'o2' }, '#/orga/o1?q=x')).toBe(
+      '#/orga/o2/app/a2/logs',
+    );
+    expect(keepListView('#/account', { kind: 'account' }, '#/orga/o1?q=x')).toBe('#/account');
   });
 });

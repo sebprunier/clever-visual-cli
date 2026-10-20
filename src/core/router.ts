@@ -53,8 +53,9 @@ export function routeToHash(route: Route): string {
   }
 }
 
+/** Navigates; within one organisation, the list the user comes from (`?q=&g=`) follows along. */
 export function navigate(route: Route): void {
-  const hash = routeToHash(route);
+  const hash = keepListView(routeToHash(route), route, window.location.hash);
   if (window.location.hash === hash) {
     return;
   }
@@ -105,4 +106,38 @@ export function withHashParams(hash: string, params: Record<string, string | nul
   }
   const query = search.toString();
   return query === '' ? base : `${base}?${query}`;
+}
+
+/**
+ * The home list a page shows or comes from: the filter and grouping
+ * expressions, carried as `?q=&g=` by the home page and by application pages,
+ * whose column shows the same list.
+ */
+export interface ListView {
+  filter: string;
+  grouping: string;
+}
+
+/** `null` for a parameter the hash does not carry, so a default can apply. */
+export function readListView(hash = window.location.hash): { filter: string | null; grouping: string | null } {
+  const params = readHashParams(hash);
+  return { filter: params.get('q'), grouping: params.get('g') };
+}
+
+export function withListView(hash: string, view: ListView): string {
+  return withHashParams(hash, { q: view.filter.trim(), g: view.grouping.trim() });
+}
+
+/** The target hash with the list of the current one when both are pages of the same organisation. */
+export function keepListView(target: string, route: Route, currentHash: string): string {
+  const current = parseRoute(currentHash);
+  if (
+    (route.kind !== 'orga' && route.kind !== 'app') ||
+    (current.kind !== 'orga' && current.kind !== 'app') ||
+    current.ownerId !== route.ownerId
+  ) {
+    return target;
+  }
+  const { filter, grouping } = readListView(currentHash);
+  return withHashParams(target, { q: filter, g: grouping });
 }

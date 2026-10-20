@@ -11,18 +11,15 @@ import {
   indexActivity,
   isHumanDeployment,
   isInProgress,
-  watchList,
   type AppActivity,
   type WatchItem,
 } from '../core/home/activity.js';
-import { matchesFilter, parseFilter, toggleToken } from '../core/home/filter.js';
+import { toggleToken } from '../core/home/filter.js';
 import {
-  buildTree,
   groupingSuggestions,
   isWeak,
   linkedAddons,
   linkedApps,
-  parseGrouping,
   type GroupNode,
   type GroupingContext,
 } from '../core/home/grouping.js';
@@ -40,11 +37,13 @@ import {
 } from '../core/home/costs.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { loadPlatformStatus } from '../core/home/platform-status.js';
+import { buildHomeList, displayOrder } from '../core/home/list.js';
+import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
 import { listRecents } from '../core/home/recents.js';
-import { SORT_COLUMNS, sortNodes, toggleSort, type SortColumn, type SortSpec } from '../core/home/sorting.js';
+import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
-import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
+import { readHashParams, routeToHash, withListView, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
@@ -68,29 +67,11 @@ import {
 } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
-interface HomePrefs {
-  grouping: string | null;
-  sort: SortSpec;
-  showAddons: boolean;
-  collapsed: string[];
-  costs: boolean;
-  costSource: CostSource;
-}
-
 /** An application opened in this browser, with the time of the last visit. */
 interface RecentApp {
   app: ApplicationSummary;
   at: number;
 }
-
-const DEFAULT_PREFS: HomePrefs = {
-  grouping: null,
-  sort: { column: 'name', direction: 'asc' },
-  showAddons: true,
-  collapsed: [],
-  costs: false,
-  costSource: 'days30',
-};
 
 /** Per source: its line in the costs card and the title of the column cells. */
 const COST_SOURCE_SPECS: Record<CostSource, { label: MessageKey; hint: MessageKey; title: MessageKey }> = {
@@ -294,10 +275,8 @@ export class CvcOrgaPage extends CvcElement {
   }
 
   private toggleGroup(path: string): void {
-    const collapsed = this.prefs.collapsed.includes(path)
-      ? this.prefs.collapsed.filter((candidate) => candidate !== path)
-      : [...this.prefs.collapsed, path];
-    this.setPrefs({ collapsed });
+    this.prefs = toggleCollapsed(this.prefs, path);
+    writePrefs(this.orga.id, this.prefs);
   }
 
   private toggleTag(tag: string): void {
@@ -446,49 +425,24 @@ export class CvcOrgaPage extends CvcElement {
     const apps = this.orga.applications.filter((app) => !app.isArchived);
     const addons = this.orga.addons;
     const activity = this.activity(data.deployments);
-    const context: GroupingContext = {
-      apps,
-      addons,
-      links: data.links,
-      stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
-    };
-    const filter = parseFilter(this.filterText);
-    const watch = watchList(apps, activity);
-    const watchIds = new Set(watch.map((item) => item.app.id));
-    const matchApp = (app: ApplicationSummary) =>
-      matchesFilter(filter, {
-        kind: 'app',
-        name: app.name,
-        slugs: [app.variantSlug, app.instanceType],
-        runtime: app.variantName,
-        state: stateLabel(APP_STATE_LABELS, app.state).label,
-        tags: app.customerTags,
-        extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
-        flags: watchIds.has(app.id) ? ['watch'] : [],
-      });
-    const matchAddon = (addon: AddonSummary) =>
-      matchesFilter(filter, {
-        kind: 'addon',
-        name: addon.name,
-        slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
-        runtime: addon.providerId,
-        tags: addon.customerTags,
-        extra: [addon.id, addon.realId],
-      });
-    const grouping = parseGrouping(this.groupingText);
-    const visibleApps = apps.filter(matchApp);
-    const visibleAddons = this.prefs.showAddons ? addons.filter(matchAddon) : [];
     const costs =
       this.prefs.costs && this.costStore != null ? this.costStore.table(this.orga.id, this.prefs.costSource) : null;
     this.#costsPending =
       costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
-    const tree = sortNodes(buildTree(grouping, visibleApps, visibleAddons, context), this.prefs.sort, {
+    const { context, filter, grouping, watch, visibleApps, visibleAddons, tree } = buildHomeList({
+      apps,
+      addons,
+      links: data.links,
       activity,
-      grouping: context,
+      filterText: this.filterText,
+      groupingText: this.groupingText,
+      showAddons: this.prefs.showAddons,
+      sort: this.prefs.sort,
       costs,
+      stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
     });
-    this.#order = this.displayOrder(tree);
+    this.#order = displayOrder(tree, this.prefs.collapsed);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
       .map((visit) => ({ app: appById.get(visit.appId), at: visit.at }))
@@ -827,23 +781,6 @@ export class CvcOrgaPage extends CvcElement {
     ]
       .filter((part) => part !== '')
       .join(' · ');
-  }
-
-  /** Ids of the visible rows, in display order, from an already sorted tree. */
-  private displayOrder(nodes: GroupNode[]): string[] {
-    const order: string[] = [];
-    const walk = (node: GroupNode) => {
-      if (node.level > 0 && this.prefs.collapsed.includes(node.path)) {
-        return;
-      }
-      if (node.children.length > 0) {
-        node.children.forEach(walk);
-        return;
-      }
-      order.push(...node.apps.map((app) => app.id), ...node.addons.map((addon) => addon.id));
-    };
-    nodes.forEach(walk);
-    return order;
   }
 
   private renderColgroup() {
@@ -1327,8 +1264,12 @@ export class CvcOrgaPage extends CvcElement {
     );
   }
 
+  /** The page of an application, carrying the list so the column of that page shows the same one. */
   private appHash(appId: string, tab: 'overview' | 'deployments' = 'overview'): string {
-    return routeToHash({ kind: 'app', ownerId: this.orga.id, appId, tab });
+    return withListView(routeToHash({ kind: 'app', ownerId: this.orga.id, appId, tab }), {
+      filter: this.filterText,
+      grouping: this.groupingText,
+    });
   }
 
   static override styles = [
@@ -1966,52 +1907,6 @@ export class CvcOrgaPage extends CvcElement {
       }
     `,
   ];
-}
-
-function prefsKey(ownerId: string): string {
-  return `cvc.home.${ownerId}`;
-}
-
-function readPrefs(ownerId: string): HomePrefs {
-  try {
-    const raw = localStorage.getItem(prefsKey(ownerId));
-    if (raw == null) {
-      return DEFAULT_PREFS;
-    }
-    const parsed = JSON.parse(raw) as Partial<HomePrefs>;
-    return {
-      grouping: typeof parsed.grouping === 'string' ? parsed.grouping : null,
-      sort: readSort(parsed.sort),
-      showAddons: parsed.showAddons !== false,
-      collapsed: Array.isArray(parsed.collapsed) ? parsed.collapsed.filter((id) => typeof id === 'string') : [],
-      costs: parsed.costs === true,
-      costSource: COST_SOURCES.includes(parsed.costSource as CostSource) ? (parsed.costSource as CostSource) : 'days30',
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-/** Accepts a stored spec, and the `name` / `activity` words of the toggle that came before the column headers. */
-function readSort(value: unknown): SortSpec {
-  if (value === 'activity') {
-    return { column: 'activity', direction: 'desc' };
-  }
-  if (typeof value === 'object' && value != null) {
-    const { column, direction } = value as Partial<SortSpec>;
-    if (SORT_COLUMNS.includes(column as SortColumn)) {
-      return { column: column as SortColumn, direction: direction === 'desc' ? 'desc' : 'asc' };
-    }
-  }
-  return DEFAULT_PREFS.sort;
-}
-
-function writePrefs(ownerId: string, prefs: HomePrefs): void {
-  try {
-    localStorage.setItem(prefsKey(ownerId), JSON.stringify(prefs));
-  } catch {
-    // Not essential.
-  }
 }
 
 declare global {

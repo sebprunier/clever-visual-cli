@@ -5,8 +5,19 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
-import { routeToHash, type AppTab } from '../core/router.js';
-import { fetchApplication, type Application, type ApplicationSummary } from '../data/api.js';
+import type { CostStore } from '../core/home/cost-store.js';
+import type { HomeStore } from '../core/home/home-store.js';
+import { readPrefs } from '../core/home/prefs.js';
+import {
+  readListView,
+  routeToHash,
+  withListView,
+  writeHashParams,
+  type AppTab,
+  type ListView,
+} from '../core/router.js';
+import { fetchApplication, type Application, type ApplicationSummary, type OrganisationSummary } from '../data/api.js';
+import './app/cvc-app-nav.js';
 import './app/cvc-app-deployments.js';
 import './app/cvc-app-env.js';
 import './app/cvc-app-instances.js';
@@ -24,7 +35,10 @@ export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> 
   logs: { label: 'tab.logs', cli: 'clever logs' },
 };
 
-/** One application: header with the main actions, tabs, and the active tab's view. */
+/**
+ * One application: header with the main actions, tabs, and the active tab's
+ * view, beside the home list the user comes from (`?q=&g=` in the URL).
+ */
 @customElement('cvc-app-page')
 export class CvcAppPage extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
@@ -35,16 +49,37 @@ export class CvcAppPage extends CvcElement {
   @property({ attribute: false }) summaryApp: ApplicationSummary | null = null;
   /** Bumped by the shell after an action so every view reloads. */
   @property({ type: Number }) revision = 0;
+  /** For the list column; without them the page shows alone. */
+  @property({ attribute: false }) orga: OrganisationSummary | null = null;
+  @property({ attribute: false }) store: HomeStore | null = null;
+  @property({ attribute: false }) costStore: CostStore | null = null;
 
   @state() private app: Application | null = null;
   @state() private error: string | null = null;
+  @state() private filterText = '';
+  @state() private groupingText = '';
 
   override willUpdate(changed: PropertyValues<this>): void {
+    if (changed.has('ownerId') || changed.has('appId')) {
+      const view = readListView();
+      this.filterText = view.filter ?? '';
+      this.groupingText = view.grouping ?? readPrefs(this.ownerId).grouping ?? '';
+    }
     if (changed.has('client') || changed.has('ownerId') || changed.has('appId')) {
       this.app = null;
       void this.load();
     } else if (changed.has('revision')) {
       void this.load();
+    }
+  }
+
+  override updated(changed: PropertyValues<this>): void {
+    // Another application or tab starts at the top, as a new page would.
+    if (changed.has('appId') || changed.has('tab')) {
+      const page = this.renderRoot.querySelector<HTMLElement>('.page');
+      if (page != null) {
+        page.scrollTop = 0;
+      }
     }
   }
 
@@ -67,7 +102,36 @@ export class CvcAppPage extends CvcElement {
     }
   }
 
+  private get view(): ListView {
+    return { filter: this.filterText, grouping: this.groupingText };
+  }
+
+  private onListView(event: CustomEvent<ListView>): void {
+    this.filterText = event.detail.filter;
+    this.groupingText = event.detail.grouping;
+    writeHashParams({ q: this.filterText.trim(), g: this.groupingText.trim() });
+  }
+
   override render() {
+    return html`${
+        this.orga != null && this.store != null
+          ? html`<cvc-app-nav
+              .orga=${this.orga}
+              .client=${this.client}
+              .store=${this.store}
+              .costStore=${this.costStore}
+              appId=${this.appId}
+              tab=${this.tab}
+              .filterText=${this.filterText}
+              .groupingText=${this.groupingText}
+              @cvc-list-view=${this.onListView}
+            ></cvc-app-nav>`
+          : nothing
+      }
+      <div class="page">${this.renderPage()}</div>`;
+  }
+
+  private renderPage() {
     const name = this.app?.name ?? this.summaryApp?.name ?? this.appId;
     const state = this.app?.state ?? this.summaryApp?.state;
     const status = state ? stateLabel(APP_STATE_LABELS, state) : null;
@@ -95,7 +159,7 @@ export class CvcAppPage extends CvcElement {
               html`<a
                 class=${tab === this.tab ? 'active' : ''}
                 aria-current=${tab === this.tab ? 'page' : 'false'}
-                href=${routeToHash({ kind: 'app', ownerId: this.ownerId, appId: this.appId, tab })}
+                href=${withListView(routeToHash({ kind: 'app', ownerId: this.ownerId, appId: this.appId, tab }), this.view)}
                 >${t(APP_TAB_LABELS[tab].label)}</a
               >`,
           )}
@@ -141,11 +205,23 @@ export class CvcAppPage extends CvcElement {
   static override styles = [
     sharedStyles,
     css`
+      /* The page fills the scroll area of the shell and scrolls on its own, beside the list column;
+         the negative margin takes back the bottom padding of that area so both run to the bottom. */
       :host {
         display: flex;
-        flex-direction: column;
+        gap: 1.25rem;
         min-height: 0;
         height: 100%;
+        margin-bottom: -1.25rem;
+      }
+      .page {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+        padding-bottom: 1.25rem;
       }
       header {
         margin-bottom: 1rem;
