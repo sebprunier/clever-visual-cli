@@ -228,7 +228,8 @@ export function clearHomeStorage(): void {
         key.startsWith('cvc.links.') ||
         key.startsWith('cvc.home.') ||
         key.startsWith('cvc.favorites.') ||
-        key === 'cvc.recents',
+        key === 'cvc.recents' ||
+        key === 'cvc.side.folded',
     );
     for (const key of keys) {
       localStorage.removeItem(key);

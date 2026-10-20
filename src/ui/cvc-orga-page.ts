@@ -53,6 +53,7 @@ import {
   type ViewSpec,
 } from '../core/home/favorites.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
+import { readFolded, toggleFolded, writeFolded, type SideCard } from '../core/home/side-cards.js';
 import { listRecents } from '../core/home/recents.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
@@ -172,6 +173,8 @@ export class CvcOrgaPage extends CvcElement {
   @state() private bulkDialog: BulkKind | null = null;
   /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
   @state() private sideTall = false;
+  /** The side cards folded to their title. */
+  @state() private folded: readonly SideCard[] = readFolded();
   /** The named views of this organisation. */
   @state() private favorites: Favorites = NO_FAVORITES;
   /** The "To watch" card shows all its entries, not only the first ones. */
@@ -362,6 +365,21 @@ export class CvcOrgaPage extends CvcElement {
         },
       },
     });
+  }
+
+  private toggleCard(card: SideCard): void {
+    this.folded = toggleFolded(this.folded, card);
+    writeFolded(this.folded);
+  }
+
+  /** The title of a side card, which folds the card to it. */
+  private renderCardTitle(card: SideCard, title: unknown) {
+    const folded = this.folded.includes(card);
+    return html`<h2>
+      <button type="button" class="fold" aria-expanded=${!folded} @click=${() => this.toggleCard(card)}>
+        <span class="chevron">${folded ? '▸' : '▾'}</span>${title}
+      </button>
+    </h2>`;
   }
 
   private toggleGroup(path: string): void {
@@ -798,9 +816,10 @@ export class CvcOrgaPage extends CvcElement {
     const shown = folds && !this.watchUnfolded ? WATCH_FOLDED : total;
     const appItems = items.slice(0, shown);
     const databaseItems = addonItems.slice(0, shown - appItems.length);
-    return html`<section class="watch card">
+    const folded = this.folded.includes('watch');
+    return html`<section class="watch card ${folded ? 'folded' : ''}">
       <div class="row card-head">
-        <h2>${t('home.watch')} <span class="count">${total}</span></h2>
+        ${this.renderCardTitle('watch', html`${t('home.watch')} <span class="count">${total}</span>`)}
         <span class="grow"></span>
         <button
           type="button"
@@ -812,6 +831,17 @@ export class CvcOrgaPage extends CvcElement {
           is:watch
         </button>
       </div>
+      ${folded ? nothing : this.renderWatchList(appItems, databaseItems, folds, total)}
+    </section>`;
+  }
+
+  private renderWatchList(
+    appItems: WatchItem[],
+    databaseItems: Array<AddonWatchItem | OperatorWatchItem>,
+    folds: boolean,
+    total: number,
+  ) {
+    return html`
       <ul id="watch-list">
         ${appItems.map((item) => {
           const { label, tone } = WATCH_LABELS[item.kind];
@@ -868,7 +898,7 @@ export class CvcOrgaPage extends CvcElement {
             </button>`
           : nothing
       }
-    </section>`;
+    `;
   }
 
   private describeWatch(item: WatchItem): string {
@@ -900,21 +930,26 @@ export class CvcOrgaPage extends CvcElement {
     if (visits.length === 0) {
       return nothing;
     }
-    return html`<section class="recents card">
-      <h2>${t('home.recents')}</h2>
-      <p class="muted small">${t('home.recentsHint')}</p>
+    const folded = this.folded.includes('recents');
+    return html`<section class="recents card ${folded ? 'folded' : ''}">
+      ${this.renderCardTitle('recents', html`${t('home.recents')} <span class="count neutral">${visits.length}</span>`)}
+      ${folded ? nothing : this.renderRecentChips(visits)}
+    </section>`;
+  }
+
+  private renderRecentChips(visits: RecentApp[]) {
+    return html`<p class="muted small">${t('home.recentsHint')}</p>
       <div class="row chips">
         ${visits.map(
           ({ app, at }) =>
             html`<a
               class="chip"
               href=${this.appHash(app.id)}
-              title=${t('home.recentVisit', { when: formatRelative(at) })}
+              title=${`${app.name} · ${t('home.recentVisit', { when: formatRelative(at) })}`}
               >${app.name}</a
             >`,
         )}
-      </div>
-    </section>`;
+      </div>`;
   }
 
   private counts(node: GroupNode): string {
@@ -1232,27 +1267,51 @@ export class CvcOrgaPage extends CvcElement {
    * resources are the visible ones, so the card can say what the list leaves out.
    */
   private renderCostCard(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+    const folded = this.folded.includes('costs');
+    const title = html`${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span>`;
     if (!this.prefs.costs) {
-      return html`<section class="costs card">
-        <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
-        <p class="muted small">${t('costs.intro')}</p>
-        <button type="button" class="primary show" @click=${() => this.toggleCosts(true)}>${t('costs.show')}</button>
+      return html`<section class="costs card ${folded ? 'folded' : ''}">
+        ${this.renderCardTitle('costs', title)}
+        ${
+          folded
+            ? nothing
+            : html`<p class="muted small">${t('costs.intro')}</p>
+                <button type="button" class="primary show" @click=${() => this.toggleCosts(true)}>
+                  ${t('costs.show')}
+                </button>`
+        }
       </section>`;
     }
     const data = this.costStore.get(this.orga.id);
     const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
     const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
     const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
+    if (folded) {
+      // Folded, the card still says what the selected source amounts to.
+      const value = this.sourceState(this.prefs.costSource, data).value;
+      return html`<section class="costs card folded">
+        <div class="row card-head">
+          ${this.renderCardTitle('costs', title)}
+          <span class="grow"></span>
+          ${
+            value == null
+              ? nothing
+              : html`<span class="folded-value" title=${this.describeSource(this.prefs.costSource).label}
+                  >${formatMoney(value, currency)}</span
+                >`
+          }
+        </div>
+      </section>`;
+    }
     return html`<section class="costs card">
       <div class="row card-head">
-        <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
+        ${this.renderCardTitle('costs', title)}
         <span class="grow"></span>
         <button type="button" class="link text" @click=${() => this.toggleCosts(false)}>${t('costs.hide')}</button>
       </div>
       <div class="sources" role="radiogroup" aria-label=${t('costs.sourceAria')}>
         ${COST_SOURCES.map((source) => this.renderSource(source, data, currency))}
       </div>
-      <p class="muted small">${t('costs.columnHint')}</p>
       ${errors.map((error) => html`<p class="danger small">${t('costs.unavailable', { error })}</p>`)}
       ${
         unlisted != null && unlisted.count > 0 && costs != null
@@ -1263,6 +1322,15 @@ export class CvcOrgaPage extends CvcElement {
       }
       <details>
         <summary>${t('costs.about')}</summary>
+        <p>${t('costs.columnHint')}</p>
+        <ul class="source-hints">
+          ${COST_SOURCES.map(
+            (source) =>
+              html`<li>
+                <strong>${this.describeSource(source).label}</strong> — ${t(COST_SOURCE_SPECS[source].hint)}
+              </li>`,
+          )}
+        </ul>
         <p>${t('costs.about1')}</p>
         <p>${t('costs.about2')}</p>
         <p>${t('costs.about3')}</p>
@@ -1285,7 +1353,7 @@ export class CvcOrgaPage extends CvcElement {
           : state.value == null
             ? html`<span class="muted">—</span>`
             : formatMoney(state.value, currency);
-    return html`<label class="source ${selected ? 'on' : ''}">
+    return html`<label class="source ${selected ? 'on' : ''}" title=${t(COST_SOURCE_SPECS[source].hint)}>
       <input
         type="radio"
         name="cost-source"
@@ -1294,7 +1362,6 @@ export class CvcOrgaPage extends CvcElement {
       />
       <span class="label">${label} ${detail === '' ? nothing : html`<span class="muted">${detail}</span>`}</span>
       <span class="amount">${amount}</span>
-      <span class="hint muted">${t(COST_SOURCE_SPECS[source].hint)}</span>
     </label>`;
   }
 
@@ -1689,6 +1756,37 @@ export class CvcOrgaPage extends CvcElement {
       .watch {
         border-color: color-mix(in srgb, var(--cvc-warn) 45%, var(--cvc-border));
       }
+      /* A side card folds to its title, which is the button that folds it. */
+      .side h2 .fold {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+      }
+      .side h2 .fold .chevron {
+        width: 0.8em;
+      }
+      .side .card.folded {
+        padding-top: 0.55rem;
+        padding-bottom: 0.55rem;
+      }
+      .side .card.folded h2,
+      .side .card.folded .card-head {
+        margin-bottom: 0;
+      }
+      .folded-value {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .count.neutral {
+        color: var(--cvc-muted);
+        background: color-mix(in srgb, var(--cvc-muted) 14%, transparent);
+      }
       .head-button {
         padding: 0.3rem 0.65rem;
         font-size: 0.85rem;
@@ -1740,6 +1838,12 @@ export class CvcOrgaPage extends CvcElement {
         border: 1px solid var(--cvc-border);
         border-radius: 999px;
         background: var(--cvc-surface);
+        /* One line each: a long name ends with an ellipsis, the tooltip gives it whole. */
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .chip:hover {
         border-color: var(--cvc-accent);
@@ -1907,9 +2011,7 @@ export class CvcOrgaPage extends CvcElement {
       .source {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        grid-template-areas:
-          'radio label amount'
-          'radio hint hint';
+        grid-template-areas: 'radio label amount';
         column-gap: 0.5rem;
         row-gap: 0.1rem;
         align-items: baseline;
@@ -1948,11 +2050,6 @@ export class CvcOrgaPage extends CvcElement {
         font-weight: 500;
         white-space: nowrap;
       }
-      .source .hint {
-        grid-area: hint;
-        font-size: 0.78rem;
-        line-height: 1.3;
-      }
       .loading {
         font-size: 0.82rem;
         font-weight: 400;
@@ -1985,6 +2082,11 @@ export class CvcOrgaPage extends CvcElement {
       }
       .costs details p {
         margin: 0.4rem 0 0;
+        line-height: 1.35;
+      }
+      .source-hints {
+        margin: 0.4rem 0 0;
+        padding-left: 1rem;
         line-height: 1.35;
       }
       .costs .danger {

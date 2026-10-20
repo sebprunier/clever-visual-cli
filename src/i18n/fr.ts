@@ -667,6 +667,7 @@ export const fr: Record<MessageKey, string> = {
   'status.incidents': '{count} incidents en cours',
   'status.incidents_one': '{count} incident en cours',
   'status.unknown': 'Statut indisponible',
+  'status.compact': 'Clever Cloud opérationnel',
   'status.lastResolved': 'Dernier incident résolu {when}',
   'status.noIncident': 'Aucun incident récent',
   'status.since': 'commencé {when}',

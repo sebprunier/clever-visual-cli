@@ -671,6 +671,7 @@ export const en = {
   'status.incidents': '{count} incidents in progress',
   'status.incidents_one': '{count} incident in progress',
   'status.unknown': 'Status unavailable',
+  'status.compact': 'Clever Cloud operational',
   'status.lastResolved': 'Last incident resolved {when}',
   'status.noIncident': 'No recent incident',
   'status.since': 'started {when}',

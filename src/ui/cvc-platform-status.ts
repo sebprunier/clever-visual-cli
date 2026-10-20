@@ -93,6 +93,20 @@ export class CvcPlatformStatus extends CvcElement {
       .foot a.quiet {
         color: inherit;
       }
+      .card.compact {
+        padding: 0.5rem 1rem;
+      }
+      .compact .headline {
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+      }
+      .compact .grow {
+        flex: 1;
+      }
+      .compact a.quiet {
+        font-weight: 400;
+        color: var(--cvc-muted);
+      }
     `,
   ];
 
@@ -119,6 +133,29 @@ export class CvcPlatformStatus extends CvcElement {
   override render() {
     const status = this.status;
     const state = status?.state ?? 'unknown';
+    // All is well: one line, the last incident in the link's tooltip. The full card is for incidents.
+    if (status != null && status.state === 'operational' && status.active.length === 0) {
+      const resolved = status.lastResolved;
+      return html`<section class="card operational compact" aria-live="polite">
+        <p class="headline">
+          <span class="dot"></span>
+          <span class="grow">${t('status.compact')}</span>
+          <a
+            class="quiet small"
+            href=${STATUS_PAGE_URL}
+            target="_blank"
+            rel="noopener"
+            aria-label="clevercloudstatus.com"
+            title=${`clevercloudstatus.com · ${
+              resolved == null
+                ? t('status.noIncident')
+                : t('status.lastResolved', { when: formatRelative(resolved.resolvedAt) })
+            }`}
+            >↗</a
+          >
+        </p>
+      </section>`;
+    }
     return html`<section class="card ${state}" aria-live="polite">
       <h2>${t('status.title')}</h2>
       <p class="headline"><span class="dot"></span>${this.headline(status)}</p>
