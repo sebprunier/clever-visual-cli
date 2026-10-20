@@ -2,7 +2,7 @@
 
 A Clever Cloud console for daily use, as a single static page: no backend, your own API token, the same client library as the official CLI.
 
-> Community project, not affiliated with Clever Cloud. Status: usable every day on the organisation home and the application page; see [what comes next](#what-comes-next).
+> Community project, not affiliated with Clever Cloud. Status: usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
 
 ## The idea
 
@@ -28,9 +28,9 @@ With an API token, through the Console (the `clever login` flow in a popup), or 
 
 ### Organisation home
 
-A dense list of every application and add-on, with the last deployment of each application and human activity told apart from platform maintenance.
+A dense list of every application and add-on, with the last deployment of each application and human activity told apart from platform maintenance, and the state of each add-on, read from its instances (a shared plan has none: it shows as "shared").
 
-- **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (the applications of the "To watch" card), `has:project`, any `key:value` tag (`project:shop`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes. Clickable examples under the field say what each token does.
+- **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (the applications of the "To watch" card), `is:shared` (add-ons on a shared plan), `has:project`, any `key:value` tag (`project:shop`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes. Clickable examples under the field say what each token does.
 - **Group** by expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels, with an optional order of values (`project > env(prod,dev)`). An add-on without a tag inherits those of its linked applications. Filter and grouping live in the URL, so a view can be bookmarked and shared.
 - **Sort** by any column from the header row: name, type, state, activity, links, cost. The order applies inside each group; sorting by cost also orders the groups by their total.
 - **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection, actions grouped in menus: "Tags" to add, remove or rename a tag, "Applications" to view their logs together, restart or stop them. Each action shows the exact list and the `clever` commands before confirming, ready to copy as a script (tags go through `clever curl`, clever-tools having no tag command), then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
@@ -46,6 +46,14 @@ A dense list of every application and add-on, with the last deployment of each a
 - Exposed configuration, TCP redirections, metrics and network groups stay with the Console.
 
 Beside it, the list you came from, names only, with the same filter, grouping, order and collapsed groups as the home page, both editable in place. Another application opens on the same tab (from the logs of one to the logs of the next), and `Alt+↑` / `Alt+↓` move through the list. The column folds to a thin strip.
+
+### Add-on page
+
+- **Overview**: a band with the state, the plan, the instances, the cost of yesterday and of the last 30 days and the number of linked applications; the instances with their size and state, the linked applications, and aside the provider, plan, zone and identifiers.
+- **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
+- **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.
+
+The same list column as on the application page sits beside it, and goes from applications to add-ons and back.
 
 ### Logs of several applications
 
@@ -64,7 +72,7 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, then what each family offers (backups, buckets, operator versions…).
+- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list and a page per add-on are there; next, what each family offers (backups, buckets, operator versions…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 
@@ -94,7 +102,7 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 
 - **Encrypted vault**: tokens are encrypted with AES-256-GCM under a key derived from a passphrase with PBKDF2-SHA256 (600 000 iterations), and stored in `localStorage`. So that the passphrase is not asked on every reload, the raw key is kept in `sessionStorage` while the tab is open; "Lock" erases it.
 - **Session only**: plain JSON in `sessionStorage`, gone with the tab.
-- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`) and the language (`cvc.locale`) stay in `localStorage`; "Erase everything from this browser" removes them too.
+- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences per organisation (`cvc.home.*`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan, kept a day (`cvc.addon-instances.*`) and the language (`cvc.locale`) stay in `localStorage`; "Erase everything from this browser" removes them too.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production.
 - The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
 

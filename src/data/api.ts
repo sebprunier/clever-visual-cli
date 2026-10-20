@@ -6,6 +6,7 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
+import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
 import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
@@ -36,7 +37,12 @@ import { GetInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/g
 import { ListInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/list-invoice-command.js';
 import { ListApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/list-application-instance-command.js';
 import type { LogsStream } from '@clevercloud/client/cc-api-commands/log/abstract-logs-stream-command.js';
-import type { ApplicationAccessLog, ApplicationRuntimeLog } from '@clevercloud/client/cc-api-commands/log/log.types.js';
+import type {
+  AddonRuntimeLog,
+  ApplicationAccessLog,
+  ApplicationRuntimeLog,
+} from '@clevercloud/client/cc-api-commands/log/log.types.js';
+import { StreamAddonRuntimeLogCommand } from '@clevercloud/client/cc-api-commands/log/stream-addon-runtime-log-command.js';
 import { StreamApplicationAccessLogCommand } from '@clevercloud/client/cc-api-commands/log/stream-application-access-log-command.js';
 import { StreamApplicationRuntimeLogCommand } from '@clevercloud/client/cc-api-commands/log/stream-application-runtime-log-command.js';
 import { GetOrganisationSummaryCommand } from '@clevercloud/client/cc-api-commands/organisation/get-organisation-summary-command.js';
@@ -67,6 +73,7 @@ import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/clien
 export type {
   Addon,
   AddonInstance,
+  AddonRuntimeLog,
   AddonSummary,
   Application,
   ApplicationAccessLog,
@@ -145,9 +152,34 @@ export function openRuntimeLogs(
   );
 }
 
+/** An add-on in full: provider, plan, zone, creation date. */
+export function fetchAddon(client: CcApiClient, ownerId: string, addonId: string): Promise<Addon> {
+  return client.send(new GetAddonCommand({ ownerId, addonId }));
+}
+
 /** The instances of an add-on: only dedicated plans have some; a shared plan answers an empty list. */
 export function fetchAddonInstances(client: CcApiClient, ownerId: string, addonId: string): Promise<AddonInstance[]> {
   return client.send(new ListAddonInstanceCommand({ ownerId, addonId }));
+}
+
+/** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */
+export async function fetchAddonEnvironment(
+  client: CcApiClient,
+  ownerId: string,
+  addonId: string,
+): Promise<EnvironmentVariable[]> {
+  const output = await client.send(new GetEnvironmentCommand({ ownerId, addonId }));
+  return output.environment;
+}
+
+/** `clever logs --addon`: what a dedicated add-on writes. */
+export function openAddonLogs(
+  client: CcApiClient,
+  ownerId: string,
+  addonId: string,
+  options: { since?: Date } = {},
+): Promise<LogsStream<AddonRuntimeLog>> {
+  return client.stream(new StreamAddonRuntimeLogCommand({ ownerId, addonId, since: options.since }));
 }
 
 /** `clever accesslogs`: one entry per HTTP request the application answered. */

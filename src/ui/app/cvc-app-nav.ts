@@ -1,8 +1,9 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { CONSOLE_URL } from '../../core/constants.js';
 import { indexActivity, type AppActivity } from '../../core/home/activity.js';
+import { ADDON_STATE_STATUS } from '../../core/home/addon-state.js';
+import type { AddonStore } from '../../core/home/addon-store.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import type { GroupNode } from '../../core/home/grouping.js';
 import type { HomeStore } from '../../core/home/home-store.js';
@@ -10,10 +11,10 @@ import { buildHomeList, displayOrder } from '../../core/home/list.js';
 import { appStatus } from '../../core/home/status.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../../core/home/prefs.js';
 import { t } from '../../core/i18n.js';
-import { routeToHash, withListView, type AppTab, type ListView } from '../../core/router.js';
+import { routeToHash, withListView, type AddonTab, type AppTab, type ListView } from '../../core/router.js';
 import type { Deployment, OrganisationSummary } from '../../data/api.js';
 import { CvcElement } from '../shared/cvc-element.js';
-import { APP_STATE_LABELS, stateLabel } from '../shared/format.js';
+import { addonStateLabel, APP_STATE_LABELS, stateLabel } from '../shared/format.js';
 import { statusIcon, statusMessage } from '../shared/status.js';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -31,8 +32,13 @@ export class CvcAppNav extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property({ attribute: false }) store!: HomeStore;
   @property({ attribute: false }) costStore: CostStore | null = null;
+  /** The application shown beside the list, if any, and its tab. */
   @property() appId = '';
   @property() tab: AppTab = 'overview';
+  /** The add-on shown beside the list, if any, and its tab. */
+  @property() addonId = '';
+  @property() addonTab: AddonTab = 'overview';
+  @property({ attribute: false }) addonStore: AddonStore | null = null;
   @property() filterText = '';
   @property() groupingText = '';
   /** Reduced to a thin strip; remembered in this browser. */
@@ -89,6 +95,7 @@ export class CvcAppNav extends CvcElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.store?.removeEventListener('change', this.onStoreChange);
     this.costStore?.removeEventListener('change', this.onStoreChange);
+    this.addonStore?.removeEventListener('change', this.onStoreChange);
     super.disconnectedCallback();
   }
 
@@ -101,6 +108,10 @@ export class CvcAppNav extends CvcElement {
       (changed.get('costStore') as CostStore | null | undefined)?.removeEventListener('change', this.onStoreChange);
       this.costStore?.addEventListener('change', this.onStoreChange);
     }
+    if (changed.has('addonStore')) {
+      (changed.get('addonStore') as AddonStore | null | undefined)?.removeEventListener('change', this.onStoreChange);
+      this.addonStore?.addEventListener('change', this.onStoreChange);
+    }
     if (changed.has('orga') && this.orga != null) {
       const previous = changed.get('orga') as OrganisationSummary | undefined;
       if (previous?.id !== this.orga.id) {
@@ -112,7 +123,7 @@ export class CvcAppNav extends CvcElement {
         void this.store.refresh(this.client, this.orga.id, appIds, {});
       }
     }
-    if (changed.has('appId') || changed.has('folded')) {
+    if (changed.has('appId') || changed.has('addonId') || changed.has('folded')) {
       this.#reveal = true;
     }
   }
@@ -149,8 +160,16 @@ export class CvcAppNav extends CvcElement {
     return { filter: this.filterText, grouping: this.groupingText };
   }
 
+  /** Another application on the same tab, when an application is shown. */
   private appHref(appId: string): string {
-    return withListView(routeToHash({ kind: 'app', ownerId: this.orga.id, appId, tab: this.tab }), this.view);
+    const tab = this.appId !== '' ? this.tab : 'overview';
+    return withListView(routeToHash({ kind: 'app', ownerId: this.orga.id, appId, tab }), this.view);
+  }
+
+  /** Another add-on on the same tab, when an add-on is shown. */
+  private addonHref(addonId: string): string {
+    const tab = this.addonId !== '' ? this.addonTab : 'overview';
+    return withListView(routeToHash({ kind: 'addon', ownerId: this.orga.id, addonId, tab }), this.view);
   }
 
   private emitView(view: ListView): void {
@@ -194,6 +213,8 @@ export class CvcAppNav extends CvcElement {
       sort: this.prefs.sort,
       costs: this.prefs.costs ? (this.costStore?.table(this.orga.id, this.prefs.costSource) ?? null) : null,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
+      addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
+      addonStateLabel,
     });
     const appIds = new Set(apps.map((app) => app.id));
     this.#appOrder = displayOrder(list.tree, this.prefs.collapsed).filter((id) => appIds.has(id));
@@ -214,7 +235,10 @@ export class CvcAppNav extends CvcElement {
     }
 
     const count = list.visibleApps.length + list.visibleAddons.length;
-    const listed = list.visibleApps.some((app) => app.id === this.appId);
+    const listed =
+      this.addonId !== ''
+        ? list.visibleAddons.some((addon) => addon.id === this.addonId)
+        : list.visibleApps.some((app) => app.id === this.appId);
     const error = list.filter.error ?? list.grouping.error;
     return html`<nav aria-label=${t('nav.aria')}>
       <div class="head">
@@ -292,7 +316,7 @@ export class CvcAppNav extends CvcElement {
 
   private renderGroup(node: GroupNode) {
     const collapsed = this.prefs.collapsed.includes(node.path);
-    const holdsCurrent = collapsed && holds(node, this.appId);
+    const holdsCurrent = collapsed && holds(node, this.addonId !== '' ? this.addonId : this.appId);
     return html`<div class="group">
       <button
         type="button"
@@ -328,22 +352,23 @@ export class CvcAppNav extends CvcElement {
           </a>
         </li>`;
       })}
-      ${node.addons.map(
-        (addon) =>
-          html`<li>
-            <a
-              class="item addon"
-              href="${CONSOLE_URL}/goto/${addon.id}"
-              target="_blank"
-              rel="noopener"
-              title=${t('nav.addonTitle', { name: addon.name, provider: addon.providerId })}
-            >
-              <img src=${addon.logoUrl} alt="" width="16" height="16" loading="lazy" />
-              <span class="name">${addon.name}</span>
-              <span class="external" aria-hidden="true">↗</span>
-            </a>
-          </li>`,
-      )}
+      ${node.addons.map((addon) => {
+        const current = addon.id === this.addonId;
+        const state = this.addonStore?.state(this.orga.id, addon.id) ?? null;
+        const status = state == null ? null : ADDON_STATE_STATUS[state];
+        return html`<li>
+          <a
+            class="item addon ${current ? 'current' : ''}"
+            href=${this.addonHref(addon.id)}
+            aria-current=${current ? 'page' : nothing}
+            title="${addon.name} · ${addon.providerId}${state != null ? ` · ${addonStateLabel(state)}` : ''}"
+          >
+            <img src=${addon.logoUrl} alt="" width="16" height="16" loading="lazy" />
+            <span class="name">${addon.name}</span>
+            ${status != null ? statusIcon(status) : nothing}
+          </a>
+        </li>`;
+      })}
     </ul>`;
   }
 
@@ -527,10 +552,6 @@ export class CvcAppNav extends CvcElement {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .external {
-      flex: none;
-      font-size: 0.75em;
-    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -548,7 +569,7 @@ export class CvcAppNav extends CvcElement {
       background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
       box-shadow: var(--cvc-glow);
     }
-    .item.addon {
+    .item.addon:not(.current) {
       color: var(--cvc-muted);
     }
     .hint {
@@ -568,8 +589,13 @@ export class CvcAppNav extends CvcElement {
 }
 
 /** True when the application sits somewhere under the node. */
-function holds(node: GroupNode, appId: string): boolean {
-  return node.apps.some((app) => app.id === appId) || node.children.some((child) => holds(child, appId));
+/** True when the application or add-on sits somewhere under the node. */
+function holds(node: GroupNode, id: string): boolean {
+  return (
+    node.apps.some((app) => app.id === id) ||
+    node.addons.some((addon) => addon.id === id) ||
+    node.children.some((child) => holds(child, id))
+  );
 }
 
 /** Folded when the reader said so, or by default on a narrow window. */

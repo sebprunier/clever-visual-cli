@@ -27,6 +27,7 @@ import { APP_TAB_LABELS } from './cvc-app-page.js';
 import './cvc-command-palette.js';
 import type { CvcCommandPalette } from './cvc-command-palette.js';
 import './cvc-login.js';
+import './cvc-addon-page.js';
 import './cvc-logs-page.js';
 import './cvc-orga-page.js';
 import './cvc-toaster.js';
@@ -566,6 +567,23 @@ export class CvcApp extends CvcElement {
           .revision=${this.revision}
         ></cvc-orga-page>`;
       }
+      case 'addon': {
+        const orga = session.findOrganisation(this.route.ownerId);
+        const client = session.client;
+        if (orga == null || client == null) {
+          return html`<p class="empty">${t('shell.unknownOrga')}</p>`;
+        }
+        return html`<cvc-addon-page
+          .client=${client}
+          .orga=${orga}
+          addonId=${this.route.addonId}
+          tab=${this.route.tab}
+          .store=${this.homeStore}
+          .costStore=${this.costStore}
+          .addonStore=${this.addonStore}
+          .revision=${this.revision}
+        ></cvc-addon-page>`;
+      }
       case 'logs': {
         const orga = session.findOrganisation(this.route.ownerId);
         const client = session.client;
@@ -590,6 +608,7 @@ export class CvcApp extends CvcElement {
           .orga=${session.findOrganisation(this.route.ownerId)}
           .store=${this.homeStore}
           .costStore=${this.costStore}
+          .addonStore=${this.addonStore}
           @cvc-app-loaded=${(event: CustomEvent<Application>) => (this.currentApp = event.detail)}
         ></cvc-app-page>`;
       }

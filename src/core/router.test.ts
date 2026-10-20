@@ -79,6 +79,27 @@ describe('list view', () => {
   });
 });
 
+describe('add-on pages', () => {
+  it('have a route with their tabs', () => {
+    expect(parseRoute('#/orga/o1/addon/addon_1')).toEqual({
+      kind: 'addon',
+      ownerId: 'o1',
+      addonId: 'addon_1',
+      tab: 'overview',
+    });
+    expect(parseRoute('#/orga/o1/addon/addon_1/logs?q=x')).toEqual({
+      kind: 'addon',
+      ownerId: 'o1',
+      addonId: 'addon_1',
+      tab: 'logs',
+    });
+    expect(routeToHash({ kind: 'addon', ownerId: 'o1', addonId: 'addon_1', tab: 'env' })).toBe(
+      '#/orga/o1/addon/addon_1/env',
+    );
+    expect(routeOwner({ kind: 'addon', ownerId: 'o1', addonId: 'addon_1', tab: 'overview' })).toBe('o1');
+  });
+});
+
 describe('logs of several applications', () => {
   it('has a route of its own, the applications in the query', () => {
     expect(parseRoute('#/orga/o1/logs?apps=a1,a2')).toEqual({ kind: 'logs', ownerId: 'o1' });

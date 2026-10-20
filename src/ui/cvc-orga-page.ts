@@ -1280,7 +1280,7 @@ export class CvcOrgaPage extends CvcElement {
       ${this.renderCheck(addon.id, addon.name)}
       <td class="logo"><img src=${addon.logoUrl} alt="" width="20" height="20" loading="lazy" /></td>
       <td class="name">
-        <span>${addon.name}</span>
+        <a href=${this.addonHash(addon.id)}>${addon.name}</a>
         ${this.renderTags(addon.customerTags)}
         ${inferred ? html`<span class="tag inferred" title=${t('home.inferredTitle')}>${t('home.inferred')}</span>` : nothing}
       </td>
@@ -1323,6 +1323,14 @@ export class CvcOrgaPage extends CvcElement {
           ${tag}
         </button>`,
     );
+  }
+
+  /** The page of an add-on, carrying the list as for an application. */
+  private addonHash(addonId: string): string {
+    return withListView(routeToHash({ kind: 'addon', ownerId: this.orga.id, addonId, tab: 'overview' }), {
+      filter: this.filterText,
+      grouping: this.groupingText,
+    });
   }
 
   /** The page of an application, carrying the list so the column of that page shows the same one. */

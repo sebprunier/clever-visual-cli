@@ -51,16 +51,22 @@ export function streamError(error: string | null, retries: number): string | nul
   return retries > 0 ? `${error} (${t('logs.retry', { count: retries })})` : error;
 }
 
-export function runtimeSearchText(log: ApplicationRuntimeLog): string {
+/** What a runtime line needs, from an application or from an add-on. */
+export type RuntimeLine = Pick<
+  ApplicationRuntimeLog,
+  'id' | 'date' | 'severity' | 'service' | 'message' | 'instanceId'
+>;
+
+export function runtimeSearchText(log: RuntimeLine): string {
   return `${log.service} ${log.message}`.toLowerCase();
 }
 
 /**
- * Time, service and message, coloured by severity. `lead` goes after the time (the source of the
- * line in a merged view), `style` on the line (its tint).
+ * Time, service and message, coloured by severity unless `severity` is false. `lead` goes after the
+ * time (the source of the line in a merged view), `style` on the line (its tint).
  */
-export function renderRuntimeLine(log: ApplicationRuntimeLog, lead: unknown = nothing, style = '') {
-  return html`<div class="line sev-${log.severity}" style=${style}>
+export function renderRuntimeLine(log: RuntimeLine, lead: unknown = nothing, style = '', severity = true) {
+  return html`<div class="line ${severity ? `sev-${log.severity}` : ''}" style=${style}>
     <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
     ${lead}
     <span class="service" title=${log.instanceId}>${log.service}</span>

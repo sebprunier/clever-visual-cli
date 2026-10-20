@@ -5,6 +5,7 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { indexActivity, type AppActivity } from '../core/home/activity.js';
+import type { AddonStore } from '../core/home/addon-store.js';
 import type { CostStore } from '../core/home/cost-store.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { readPrefs } from '../core/home/prefs.js';
@@ -64,6 +65,7 @@ export class CvcAppPage extends CvcElement {
   @property({ attribute: false }) orga: OrganisationSummary | null = null;
   @property({ attribute: false }) store: HomeStore | null = null;
   @property({ attribute: false }) costStore: CostStore | null = null;
+  @property({ attribute: false }) addonStore: AddonStore | null = null;
 
   @state() private app: Application | null = null;
   @state() private error: string | null = null;
@@ -160,6 +162,7 @@ export class CvcAppPage extends CvcElement {
               .client=${this.client}
               .store=${this.store}
               .costStore=${this.costStore}
+              .addonStore=${this.addonStore}
               appId=${this.appId}
               tab=${this.tab}
               .filterText=${this.filterText}
