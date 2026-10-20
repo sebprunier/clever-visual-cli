@@ -249,7 +249,14 @@ export class CvcAddonPage extends CvcElement {
                 ?shared=${state === 'shared'}
               ></cvc-addon-backups>`
             : tab === 'env'
-              ? html`<cvc-addon-env .client=${this.client} ownerId=${ownerId} addonId=${summary.id}></cvc-addon-env>`
+              ? html`<cvc-addon-env
+                  .client=${this.client}
+                  ownerId=${ownerId}
+                  addonId=${summary.id}
+                  providerId=${summary.providerId}
+                  realId=${summary.realId}
+                  .linkedApps=${linkedApps(summary.id, context)}
+                ></cvc-addon-env>`
               : tab === 'logs'
                 ? state === 'shared'
                   ? html`<p class="empty">${t('addon.logsShared')}</p>`

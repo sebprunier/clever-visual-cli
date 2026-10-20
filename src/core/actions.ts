@@ -6,6 +6,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
 import type { Application, OrganisationSummary } from '../data/api.js';
+import { ENV_NAME_PATTERN } from './env.js';
 import { t, type MessageKey } from './i18n.js';
 import type { AppTab } from './router.js';
 import { shellQuote } from './shell.js';
@@ -73,8 +74,6 @@ export interface ActionDefinition {
   cli: (ctx: ActionContext, values: ActionValues) => string;
   run: (ctx: ActionContext, values: ActionValues) => Promise<ActionResult>;
 }
-
-const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const ACTIONS: ActionDefinition[] = [
   {

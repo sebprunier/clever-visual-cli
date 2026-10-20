@@ -8,6 +8,8 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
+import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
+import { UpdateConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/update-config-provider-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
 import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
 import type { Backup } from '@clevercloud/client/cc-api-commands/backup/backup.types.js';
@@ -250,6 +252,26 @@ export async function fetchOfferedVersions(client: CcApiClient, providerId: stri
 /** The instances of an add-on: only dedicated plans have some; a shared plan answers an empty list. */
 export function fetchAddonInstances(client: CcApiClient, ownerId: string, addonId: string): Promise<AddonInstance[]> {
   return client.send(new ListAddonInstanceCommand({ ownerId, addonId }));
+}
+
+/**
+ * `clever config-provider get`: the variables a configuration provider hands to the applications linked
+ * to it. Its real id (`config_…`) spares the client a lookup.
+ */
+export function fetchConfigProviderEnvironment(client: CcApiClient, realId: string): Promise<EnvironmentVariable[]> {
+  return client.send(new GetConfigProviderCommand({ addonId: realId }));
+}
+
+/**
+ * Replaces the whole list: a variable left out is removed. Clever Cloud then redeploys the linked
+ * applications by itself (deployments caused by `Environment/<addon id>`).
+ */
+export function replaceConfigProviderEnvironment(
+  client: CcApiClient,
+  realId: string,
+  environment: EnvironmentVariable[],
+): Promise<EnvironmentVariable[]> {
+  return client.send(new UpdateConfigProviderCommand({ addonId: realId, environment }));
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */

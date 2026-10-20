@@ -1,3 +1,6 @@
+/** A variable name the platform accepts. */
+export const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /** A `NAME=value` line per variable, values quoted only when a `.env` reader needs it. */
 export function toDotenv(variables: readonly { name: string; value: string }[]): string {
   return variables.map((variable) => `${variable.name}=${dotenvValue(variable.value)}`).join('\n');
