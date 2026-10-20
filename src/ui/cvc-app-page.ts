@@ -26,6 +26,7 @@ import {
   type OrganisationSummary,
 } from '../data/api.js';
 import './app/cvc-app-nav.js';
+import './app/cvc-app-dependencies.js';
 import './app/cvc-app-deployments.js';
 import './app/cvc-app-domains.js';
 import './app/cvc-app-env.js';
@@ -43,6 +44,7 @@ export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> 
   deployments: { label: 'tab.activity', cli: 'clever activity' },
   domains: { label: 'tab.domains', cli: 'clever domain' },
   env: { label: 'tab.env', cli: 'clever env' },
+  dependencies: { label: 'tab.dependencies', cli: 'clever service' },
 };
 
 /**
@@ -247,6 +249,15 @@ export class CvcAppPage extends CvcElement {
         return this.app == null
           ? html`<p class="empty">${t('common.loading')}</p>`
           : html`<cvc-app-domains .app=${this.app}></cvc-app-domains>`;
+      case 'dependencies':
+        return html`<cvc-app-dependencies
+          .client=${this.client}
+          ownerId=${this.ownerId}
+          appId=${this.appId}
+          .revision=${this.revision}
+          .orga=${this.orga}
+          .store=${this.store}
+        ></cvc-app-dependencies>`;
     }
   }
 

@@ -95,6 +95,24 @@ export class HomeStore extends EventTarget {
     this.#emit();
   }
 
+  /** The links of one application as just read or changed, without waiting for the next refresh. */
+  setLinks(ownerId: string, appId: string, links: AppLinks): void {
+    const data = this.get(ownerId);
+    const known = data.links[appId];
+    if (
+      known != null &&
+      sameIds(known.addonIds, links.addonIds) &&
+      sameIds(known.applicationIds, links.applicationIds)
+    ) {
+      return;
+    }
+    data.links[appId] = links;
+    if (data.linksAt > 0) {
+      writeLinks(ownerId, { at: data.linksAt, links: data.links });
+    }
+    this.#emit();
+  }
+
   async #refreshDeployments(client: CcApiClient, ownerId: string, options: RefreshOptions): Promise<void> {
     const data = this.get(ownerId);
     const fresh = Date.now() - data.deploymentsAt < DEPLOYMENTS_TTL;
@@ -168,6 +186,10 @@ export class HomeStore extends EventTarget {
   #emit(): void {
     this.dispatchEvent(new Event('change'));
   }
+}
+
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && [...a].sort().join() === [...b].sort().join();
 }
 
 function linksKey(ownerId: string): string {

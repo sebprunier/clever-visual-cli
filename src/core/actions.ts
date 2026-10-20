@@ -5,7 +5,7 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
-import type { Application } from '../data/api.js';
+import type { Application, OrganisationSummary } from '../data/api.js';
 import { t, type MessageKey } from './i18n.js';
 import type { AppTab } from './router.js';
 import { shellQuote } from './shell.js';
@@ -43,6 +43,8 @@ export interface ActionContext {
   appId: string;
   /** The full application when the page has loaded it; prefills and option lists come from it. */
   app: Application | null;
+  /** Its organisation, for the add-ons and applications one can link it to. */
+  orga?: OrganisationSummary | null;
 }
 
 export interface ActionResult {
@@ -281,6 +283,112 @@ export const ACTIONS: ActionDefinition[] = [
         Object.fromEntries(changes.map(({ option, enabled }) => [option.field, enabled])),
       );
       return { message: t('action.config.done', { count: changes.length }), refresh: true };
+    },
+  },
+  {
+    id: 'link-addon',
+    cliHint: 'clever service link-addon',
+    title: 'action.linkAddon.title',
+    description: 'action.link.description',
+    submitLabel: 'action.link.submit',
+    keywords: ['link', 'lier', 'addon', 'add-on', 'service', 'dependency', 'dépendance'],
+    fields: (ctx, prefill) => {
+      const linked = new Set(str(prefill.exclude).split(',').filter(Boolean));
+      const addons = (ctx.orga?.addons ?? [])
+        .filter((addon) => !linked.has(addon.id))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      return [
+        {
+          name: 'addonId',
+          label: t('action.linkAddon.addon'),
+          type: 'select',
+          required: true,
+          options: addons.map((addon) => ({ value: addon.id, label: `${addon.name} · ${addon.providerId}` })),
+        },
+      ];
+    },
+    cli: (ctx, v) => `clever service link-addon ${str(v.addonId)} ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      await api.linkAddon(ctx.client, ctx.ownerId, ctx.appId, str(v.addonId));
+      return { message: t('action.link.done'), navigateTo: 'dependencies', refresh: true };
+    },
+  },
+  {
+    id: 'unlink-addon',
+    cliHint: 'clever service unlink-addon',
+    title: 'action.unlinkAddon.title',
+    description: 'action.unlink.description',
+    submitLabel: 'action.unlink.submit',
+    danger: true,
+    keywords: ['unlink', 'délier', 'addon', 'add-on', 'service'],
+    fields: (ctx, prefill) => [
+      {
+        name: 'addonId',
+        label: t('action.linkAddon.addon'),
+        type: 'select',
+        required: true,
+        options: (ctx.orga?.addons ?? [])
+          .filter((addon) => addon.id === str(prefill.addonId))
+          .map((addon) => ({ value: addon.id, label: `${addon.name} · ${addon.providerId}` })),
+      },
+    ],
+    cli: (ctx, v) => `clever service unlink-addon ${str(v.addonId)} ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      await api.unlinkAddon(ctx.client, ctx.ownerId, ctx.appId, str(v.addonId));
+      return { message: t('action.unlink.done'), navigateTo: 'dependencies', refresh: true };
+    },
+  },
+  {
+    id: 'link-app',
+    cliHint: 'clever service link-app',
+    title: 'action.linkApp.title',
+    description: 'action.link.description',
+    submitLabel: 'action.link.submit',
+    keywords: ['link', 'lier', 'application', 'service', 'dependency', 'dépendance'],
+    fields: (ctx, prefill) => {
+      const linked = new Set(str(prefill.exclude).split(',').filter(Boolean));
+      const apps = (ctx.orga?.applications ?? [])
+        .filter((app) => !app.isArchived && app.id !== ctx.appId && !linked.has(app.id))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      return [
+        {
+          name: 'targetAppId',
+          label: t('action.linkApp.app'),
+          type: 'select',
+          required: true,
+          options: apps.map((app) => ({ value: app.id, label: app.name })),
+        },
+      ];
+    },
+    cli: (ctx, v) => `clever service link-app ${str(v.targetAppId)} ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      await api.linkApplication(ctx.client, ctx.ownerId, ctx.appId, str(v.targetAppId));
+      return { message: t('action.link.done'), navigateTo: 'dependencies', refresh: true };
+    },
+  },
+  {
+    id: 'unlink-app',
+    cliHint: 'clever service unlink-app',
+    title: 'action.unlinkApp.title',
+    description: 'action.unlink.description',
+    submitLabel: 'action.unlink.submit',
+    danger: true,
+    keywords: ['unlink', 'délier', 'application', 'service'],
+    fields: (ctx, prefill) => [
+      {
+        name: 'targetAppId',
+        label: t('action.linkApp.app'),
+        type: 'select',
+        required: true,
+        options: (ctx.orga?.applications ?? [])
+          .filter((app) => app.id === str(prefill.targetAppId))
+          .map((app) => ({ value: app.id, label: app.name })),
+      },
+    ],
+    cli: (ctx, v) => `clever service unlink-app ${str(v.targetAppId)} ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      await api.unlinkApplication(ctx.client, ctx.ownerId, ctx.appId, str(v.targetAppId));
+      return { message: t('action.unlink.done'), navigateTo: 'dependencies', refresh: true };
     },
   },
   {

@@ -72,6 +72,24 @@ describe('actions', () => {
     );
   });
 
+  it('link and unlink services with the clever service commands', () => {
+    expect(findAction('link-addon')!.cli(ctx, { addonId: 'addon_9' })).toBe(
+      'clever service link-addon addon_9 --app app_1',
+    );
+    expect(findAction('unlink-app')!.cli(ctx, { targetAppId: 'app_2' })).toBe(
+      'clever service unlink-app app_2 --app app_1',
+    );
+    const orga = {
+      addons: [
+        { id: 'addon_1', name: 'db', providerId: 'postgresql-addon' },
+        { id: 'addon_2', name: 'cache', providerId: 'redis-addon' },
+      ],
+      applications: [],
+    } as unknown as NonNullable<ActionContext['orga']>;
+    const [field] = findAction('link-addon')!.fields({ ...ctx, orga }, { exclude: 'addon_1' });
+    expect(field.options?.map((option) => option.value)).toEqual(['addon_2']);
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");

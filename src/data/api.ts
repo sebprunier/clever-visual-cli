@@ -5,6 +5,7 @@
  * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
+import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
 import type { Application } from '@clevercloud/client/cc-api-commands/application/application.types.js';
 import { ListApplicationCommand } from '@clevercloud/client/cc-api-commands/application/list-application-command.js';
@@ -17,7 +18,9 @@ import { CancelDeploymentCommand } from '@clevercloud/client/cc-api-commands/dep
 import type { DeploymentLegacy } from '@clevercloud/client/cc-api-commands/deployment/deployment.types.js';
 import { ListDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/list-deployment-command.js';
 import type { Link } from '@clevercloud/client/cc-api-commands/link/link.types.js';
+import { AddLinkCommand } from '@clevercloud/client/cc-api-commands/link/add-link-command.js';
 import { ListLinkCommand } from '@clevercloud/client/cc-api-commands/link/list-link-command.js';
+import { RemoveLinkCommand } from '@clevercloud/client/cc-api-commands/link/remove-link-command.js';
 import { CreateDomainCommand } from '@clevercloud/client/cc-api-commands/domain/create-domain-command.js';
 import { DeleteDomainCommand } from '@clevercloud/client/cc-api-commands/domain/delete-domain-command.js';
 import { SetPrimaryDomainCommand } from '@clevercloud/client/cc-api-commands/domain/set-primary-domain-command.js';
@@ -60,6 +63,7 @@ import { t } from '../core/i18n.js';
 import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
 
 export type {
+  Addon,
   AddonSummary,
   Application,
   ApplicationAccessLog,
@@ -158,6 +162,29 @@ export interface ApplicationLinks {
   applicationIds: string[];
 }
 
+export interface Dependencies {
+  addons: Addon[];
+  applications: Application[];
+}
+
+/** `clever service`: the add-ons and applications an application is linked to, in full. Two requests. */
+export async function fetchDependencies(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+): Promise<Dependencies> {
+  const links: Link[] = await client.send(new ListLinkCommand({ ownerId, applicationId }));
+  const result: Dependencies = { addons: [], applications: [] };
+  for (const link of links) {
+    if (link.type === 'link-to-addon') {
+      result.addons.push(link.addon);
+    } else {
+      result.applications.push(link.application);
+    }
+  }
+  return result;
+}
+
 /** What an application is linked to: add-ons, and applications it depends on. Two requests. */
 export async function fetchApplicationLinks(
   client: CcApiClient,
@@ -177,6 +204,46 @@ export async function fetchApplicationLinks(
 }
 
 // --- writes ----------------------------------------------------------------
+
+/** `clever service link-addon` */
+export async function linkAddon(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  addonId: string,
+): Promise<void> {
+  await client.send(new AddLinkCommand({ ownerId, applicationId, targetAddonId: addonId }));
+}
+
+/** `clever service unlink-addon` */
+export async function unlinkAddon(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  addonId: string,
+): Promise<void> {
+  await client.send(new RemoveLinkCommand({ ownerId, applicationId, targetAddonId: addonId }));
+}
+
+/** `clever service link-app`: the application gets the exposed configuration of the target. */
+export async function linkApplication(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  targetApplicationId: string,
+): Promise<void> {
+  await client.send(new AddLinkCommand({ ownerId, applicationId, targetApplicationId }));
+}
+
+/** `clever service unlink-app` */
+export async function unlinkApplication(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  targetApplicationId: string,
+): Promise<void> {
+  await client.send(new RemoveLinkCommand({ ownerId, applicationId, targetApplicationId }));
+}
 
 export interface RedeployOptions {
   commit?: string;

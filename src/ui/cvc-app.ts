@@ -236,7 +236,8 @@ export class CvcApp extends CvcElement {
       return null;
     }
     const app = this.currentApp?.id === this.route.appId ? this.currentApp : null;
-    return { client, ownerId: this.route.ownerId, appId: this.route.appId, app };
+    const orga = this.session?.findOrganisation(this.route.ownerId) ?? null;
+    return { client, ownerId: this.route.ownerId, appId: this.route.appId, app, orga };
   }
 
   private onActionDone(event: CustomEvent<ActionResult>): void {
