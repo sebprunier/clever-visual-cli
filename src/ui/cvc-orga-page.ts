@@ -48,6 +48,8 @@ import { readHashParams, routeToHash, writeHashParams } from '../core/router.js'
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
+import './shared/cvc-menu-button.js';
+import type { MenuSelectDetail } from './shared/cvc-menu-button.js';
 import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './cvc-bulk-dialog.js';
@@ -695,11 +697,14 @@ export class CvcOrgaPage extends CvcElement {
     </div>`;
   }
 
-  /** What the selection allows; the "select all" box itself sits in the column headers. */
+  /**
+   * What the selection allows, grouped by kind in menus so the bar keeps its
+   * size as actions arrive; the "select all" box sits in the column headers.
+   */
   private renderSelectionBar() {
     const total = this.#order.length;
     const count = this.selected.size;
-    const hasApps = this.orga.applications.some((app) => this.selected.has(app.id));
+    const apps = this.orga.applications.filter((app) => this.selected.has(app.id)).length;
     return html`<div class="selection row ${count > 0 ? 'active' : ''}">
       ${
         count === 0
@@ -708,16 +713,27 @@ export class CvcOrgaPage extends CvcElement {
               <button type="button" class="link small" @click=${this.clearSelection}>${t('home.selectNone')}</button>
               <span class="muted small">${t('home.selectionHint')}</span>
               <span class="grow"></span>
-              <button type="button" @click=${() => (this.tagDialog = 'add')}>${t('home.addTag')}</button>
-              <button type="button" @click=${() => (this.tagDialog = 'remove')}>${t('home.removeTag')}</button>
-              <button type="button" @click=${() => (this.tagDialog = 'rename')}>${t('home.renameTag')}</button>
-              <span class="sep"></span>
-              <button type="button" ?disabled=${!hasApps} @click=${() => (this.bulkDialog = 'restart')}>
-                ${t('home.restart')}
-              </button>
-              <button type="button" ?disabled=${!hasApps} @click=${() => (this.bulkDialog = 'stop')}>
-                ${t('home.stop')}
-              </button>`
+              <cvc-menu-button
+                label=${t('home.menu.tags')}
+                .items=${[
+                  { id: 'add', label: t('home.addTag') },
+                  { id: 'remove', label: t('home.removeTag') },
+                  { id: 'rename', label: t('home.renameTag') },
+                ]}
+                @cvc-menu-select=${(event: CustomEvent<MenuSelectDetail>) =>
+                  (this.tagDialog = event.detail.id as TagOperationKind)}
+              ></cvc-menu-button>
+              <cvc-menu-button
+                label=${t('home.menu.apps', { count: apps })}
+                title=${apps === 0 ? t('home.menu.appsNone') : nothing}
+                ?disabled=${apps === 0}
+                .items=${[
+                  { id: 'restart', label: t('home.restart') },
+                  { id: 'stop', label: t('home.stop'), danger: true },
+                ]}
+                @cvc-menu-select=${(event: CustomEvent<MenuSelectDetail>) =>
+                  (this.bulkDialog = event.detail.id as BulkKind)}
+              ></cvc-menu-button>`
       }
     </div>`;
   }
@@ -1479,12 +1495,7 @@ export class CvcOrgaPage extends CvcElement {
         background: color-mix(in srgb, var(--cvc-accent) 7%, var(--cvc-surface));
         border-color: color-mix(in srgb, var(--cvc-accent) 35%, var(--cvc-border));
       }
-      .selection .sep {
-        width: 1px;
-        height: 1.2rem;
-        margin: 0 0.2rem;
-        background: var(--cvc-border);
-      }
+
       .selection button:not(.link) {
         padding: 0.25rem 0.7rem;
         font-size: 0.85rem;
