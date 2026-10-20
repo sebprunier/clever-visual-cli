@@ -387,6 +387,13 @@ export class CvcOrgaPage extends CvcElement {
     this.setPrefs({ sort: view.sort });
   }
 
+  /** Back to the whole list: no filter, no grouping, the default sort; the favourite stays. */
+  private leaveFavorite(): void {
+    this.filterText = '';
+    this.setGrouping('');
+    this.setPrefs({ sort: DEFAULT_PREFS.sort });
+  }
+
   private deleteFavorite(view: FavoriteView): void {
     const index = this.favorites.views.findIndex((candidate) => candidate.id === view.id);
     this.setFavorites(removeFavorite(this.favorites, view.id));
@@ -605,6 +612,7 @@ export class CvcOrgaPage extends CvcElement {
                 @cvc-favorite-save=${(event: CustomEvent<FavoriteNameDetail>) =>
                   this.setFavorites(addFavorite(this.favorites, event.detail.name, this.currentView))}
                 @cvc-favorite-apply=${(event: CustomEvent<FavoriteViewDetail>) => this.applyFavorite(event.detail.view)}
+                @cvc-favorite-leave=${() => this.leaveFavorite()}
                 @cvc-favorite-rename=${(event: CustomEvent<FavoriteRenameDetail>) =>
                   this.setFavorites(renameFavorite(this.favorites, event.detail.id, event.detail.name))}
                 @cvc-favorite-remove=${(event: CustomEvent<FavoriteViewDetail>) => this.deleteFavorite(event.detail.view)}

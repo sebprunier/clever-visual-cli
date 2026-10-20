@@ -40,7 +40,7 @@ export interface FavoriteViewDetail {
  * button names the current view when it is one; the panel saves the current
  * view under a name and lists the others, each applied in a click, its link
  * copied, renamed in place or removed. The page keeps the favourites and
- * hears `cvc-favorite-save`, `-apply`, `-rename` and `-remove`.
+ * hears `cvc-favorite-save`, `-apply`, `-leave`, `-rename` and `-remove`.
  */
 @customElement('cvc-favorites-menu')
 export class CvcFavoritesMenu extends CvcElement {
@@ -145,6 +145,12 @@ export class CvcFavoritesMenu extends CvcElement {
     this.close();
   }
 
+  /** Back to the whole list, the favourite untouched. */
+  private leave(): void {
+    this.emit<undefined>('cvc-favorite-leave', undefined);
+    this.close();
+  }
+
   private commitRename(event: Event): void {
     event.preventDefault();
     const renaming = this.renaming;
@@ -206,7 +212,12 @@ export class CvcFavoritesMenu extends CvcElement {
       >
         ${
           active != null
-            ? html`<p class="muted small current">${t('fav.current', { name: active.name })}</p>`
+            ? html`<div class="current">
+                <p class="muted small">${t('fav.current', { name: active.name })}</p>
+                <button type="button" class="link small" title=${t('fav.leaveTitle')} @click=${this.leave}>
+                  ${t('fav.leave')}
+                </button>
+              </div>`
             : html`<form class="save" @submit=${this.save}>
                 <label class="small" for="view-name">${t('fav.saveCurrent')}</label>
                 <div class="row">
@@ -398,6 +409,22 @@ export class CvcFavoritesMenu extends CvcElement {
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
+      }
+      .current {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .current p {
+        margin: 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .current button.link {
+        flex: none;
       }
       hr {
         width: 100%;

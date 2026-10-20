@@ -618,6 +618,8 @@ export const fr: Record<MessageKey, string> = {
   'fav.menu': 'Vues',
   'fav.menuTitle': 'Vues favorites : enregistrer la vue actuelle, en appliquer une autre',
   'fav.currentTitle': 'La vue actuelle est ce favori',
+  'fav.leave': 'Quitter la vue',
+  'fav.leaveTitle': 'Revenir à la liste complète : sans filtre, sans regroupement, triée par nom',
   'fav.saveCurrent': 'Enregistrer la vue actuelle (filtre, regroupement, tri) sous le nom',
   'fav.current': 'Vue actuelle : {name}',
   'fav.none': 'Aucune vue enregistrée pour l’instant.',

@@ -620,6 +620,8 @@ export const en = {
   'fav.menu': 'Views',
   'fav.menuTitle': 'Favourite views: save the current one, apply another',
   'fav.currentTitle': 'The current view is this favourite',
+  'fav.leave': 'Leave this view',
+  'fav.leaveTitle': 'Back to the whole list: no filter, no grouping, sorted by name',
   'fav.saveCurrent': 'Save the current view (filter, grouping, sort) as',
   'fav.current': 'Current view: {name}',
   'fav.none': 'No saved view yet.',
