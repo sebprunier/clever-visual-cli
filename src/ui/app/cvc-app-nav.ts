@@ -213,7 +213,7 @@ export class CvcAppNav extends CvcElement {
       sort: this.prefs.sort,
       costs: this.prefs.costs ? (this.costStore?.table(this.orga.id, this.prefs.costSource) ?? null) : null,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
-      addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
+      addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
       addonStateLabel,
       dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
       offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
@@ -357,7 +357,7 @@ export class CvcAppNav extends CvcElement {
       })}
       ${node.addons.map((addon) => {
         const current = addon.id === this.addonId;
-        const state = this.addonStore?.state(this.orga.id, addon.id) ?? null;
+        const state = this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null;
         const status = state == null ? null : ADDON_STATE_STATUS[state];
         return html`<li>
           <a

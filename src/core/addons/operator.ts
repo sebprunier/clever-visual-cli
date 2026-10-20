@@ -4,7 +4,8 @@
  * and join when they can be checked). Their `clever` commands, and the ones
  * with an update out, for "To watch".
  */
-import type { AddonSummary, OperatorKind, OperatorVersions } from '../../data/api.js';
+import type { AddonSummary, ApplicationSummary, OperatorKind, OperatorVersions } from '../../data/api.js';
+import type { AddonState } from '../home/addon-state.js';
 
 const KINDS: Readonly<Record<string, OperatorKind>> = { keycloak: 'keycloak', otoroshi: 'otoroshi' };
 const PRODUCTS: Readonly<Record<OperatorKind, string>> = { keycloak: 'Keycloak', otoroshi: 'Otoroshi' };
@@ -16,6 +17,21 @@ export function operatorKind(providerId: string): OperatorKind | null {
 
 export function operatorProduct(kind: OperatorKind): string {
   return PRODUCTS[kind];
+}
+
+/**
+ * An operator has no add-on instance of its own: it runs as its entrypoint
+ * application, dedicated, so its state is that application's.
+ */
+export function operatorState(appState: ApplicationSummary['state']): AddonState {
+  switch (appState) {
+    case 'SHOULD_BE_UP':
+      return 'up';
+    case 'WANTS_TO_BE_UP':
+      return 'starting';
+    default:
+      return 'down';
+  }
 }
 
 export type OperatorAction = 'restart' | 'rebuild' | 'update';

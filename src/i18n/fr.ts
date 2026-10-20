@@ -613,6 +613,7 @@ export const fr: Record<MessageKey, string> = {
   'operator.open': 'Ouvrir',
   'operator.api': 'API d’administration',
   'operator.builtOn': 'Construit sur',
+  'operator.instancesTitle': 'Un opérateur tourne comme cette application : ses instances et ses logs sont là',
   'operator.networkGroup': 'Network group',
   'operator.none': 'aucun',
   'operator.credentials': 'Les identifiants initiaux sont dans la Console, ou dans {command}.',

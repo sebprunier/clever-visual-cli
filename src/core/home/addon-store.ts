@@ -6,7 +6,8 @@
  * not asked again meanwhile. Emits `change`.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { fetchAddonInstances, type AddonInstance } from '../../data/api.js';
+import { fetchAddonInstances, type AddonInstance, type AddonSummary, type ApplicationSummary } from '../../data/api.js';
+import { operatorKind, operatorState } from '../addons/operator.js';
 import { addonState, type AddonState } from './addon-state.js';
 import { clearDbVersionStorage, DbVersionStore } from './db-version-store.js';
 import { clearOperatorVersionStorage, OperatorVersionStore } from './operator-version-store.js';
@@ -44,6 +45,20 @@ export class AddonStore extends EventTarget {
     }
     const instances = this.#owner(ownerId).get(addonId)?.instances;
     return instances == null ? null : addonState(instances);
+  }
+
+  /**
+   * The state to show for an add-on: an operator's is its entrypoint
+   * application's (it has no add-on instance, yet nothing is shared), the
+   * others' come from their instances.
+   */
+  stateOf(ownerId: string, addon: AddonSummary, apps: readonly ApplicationSummary[]): AddonState | null {
+    if (operatorKind(addon.providerId) != null) {
+      const entrypoint = this.operators.entrypoint(ownerId, addon.id);
+      const app = apps.find((candidate) => candidate.id === entrypoint);
+      return app == null ? null : operatorState(app.state);
+    }
+    return this.state(ownerId, addon.id);
   }
 
   instances(ownerId: string, addonId: string): AddonInstance[] | null {

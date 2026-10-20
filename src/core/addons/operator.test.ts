@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { AddonSummary } from '../../data/api.js';
-import { operatorCommand, operatorKind, operatorWatchList } from './operator.js';
+import { operatorCommand, operatorKind, operatorState, operatorWatchList } from './operator.js';
 
 describe('operators', () => {
   it('knows Keycloak and Otoroshi only', () => {
     expect(operatorKind('keycloak')).toBe('keycloak');
     expect(operatorKind('otoroshi')).toBe('otoroshi');
     expect(operatorKind('postgresql-addon')).toBeNull();
+  });
+
+  it('takes the state of the entrypoint application, never "shared"', () => {
+    expect(operatorState('SHOULD_BE_UP')).toBe('up');
+    expect(operatorState('WANTS_TO_BE_UP')).toBe('starting');
+    expect(operatorState('SHOULD_BE_DOWN')).toBe('down');
+    expect(operatorState('MODERATED')).toBe('down');
   });
 
   it('gives the clever-tools commands', () => {

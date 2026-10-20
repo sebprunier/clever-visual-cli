@@ -451,7 +451,7 @@ export class CvcOrgaPage extends CvcElement {
       sort: this.prefs.sort,
       costs,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
-      addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
+      addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
       addonStateLabel,
       dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
       offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
@@ -1334,7 +1334,7 @@ export class CvcOrgaPage extends CvcElement {
 
   /** The state of an add-on from its instances, "shared" without any, a spinner while unknown. */
   private renderAddonState(addon: AddonSummary) {
-    const state = this.addonStore?.state(this.orga.id, addon.id) ?? null;
+    const state = this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null;
     if (state == null) {
       return html`<td class="state muted small">
         ${this.addonStore?.loading(this.orga.id) ? html`<span class="spinner"></span>` : '—'}

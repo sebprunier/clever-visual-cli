@@ -1,11 +1,12 @@
 /**
- * The version check of each operator of an organisation (installed, latest,
- * whether an update is out), read after the home list for the "To watch"
- * card. One call per operator, kept a day in localStorage
- * (`cvc.operator-versions.<ownerId>`), so a reload asks nothing. Emits `change`.
+ * What the home list needs of each operator of an organisation: its version
+ * check (installed, latest, whether an update is out) for "To watch", and
+ * its entrypoint application, whose state is the operator's. Two calls per
+ * operator, kept a day in localStorage (`cvc.operator-versions.<ownerId>`),
+ * so a reload asks nothing. Emits `change`.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { fetchOperatorVersions, type OperatorVersions } from '../../data/api.js';
+import { fetchOperatorDetails, fetchOperatorVersions, type OperatorVersions } from '../../data/api.js';
 import { operatorKind } from '../addons/operator.js';
 
 const KEEP_FOR = 24 * 60 * 60_000;
@@ -13,6 +14,8 @@ const PREFIX = 'cvc.operator-versions.';
 
 interface Dated {
   value: OperatorVersions;
+  /** The application the operator runs on. */
+  entrypoint?: string | null;
   at: number;
 }
 
@@ -25,9 +28,14 @@ export class OperatorVersionStore extends EventTarget {
     return this.#owner(ownerId)[addonId]?.value ?? null;
   }
 
-  /** A check made elsewhere (the add-on page), kept as a fresh one. */
-  remember(ownerId: string, addonId: string, versions: OperatorVersions): void {
-    this.#owner(ownerId)[addonId] = { value: versions, at: Date.now() };
+  /** The application an operator runs on, null while unknown. */
+  entrypoint(ownerId: string, addonId: string): string | null {
+    return this.#owner(ownerId)[addonId]?.entrypoint ?? null;
+  }
+
+  /** What the add-on page read, kept as fresh. */
+  remember(ownerId: string, addonId: string, versions: OperatorVersions, entrypoint: string | null): void {
+    this.#owner(ownerId)[addonId] = { value: versions, entrypoint, at: Date.now() };
     this.#save(ownerId);
     this.#emit();
   }
@@ -57,7 +65,11 @@ export class OperatorVersionStore extends EventTarget {
           try {
             const kind = operatorKind(addon.providerId);
             if (kind != null) {
-              known[addon.id] = { value: await fetchOperatorVersions(client, kind, addon.realId), at: Date.now() };
+              const [versions, details] = await Promise.all([
+                fetchOperatorVersions(client, kind, addon.realId),
+                fetchOperatorDetails(client, kind, addon.realId),
+              ]);
+              known[addon.id] = { value: versions, entrypoint: details.entrypoint, at: Date.now() };
             }
           } catch {
             // Not essential: the operator just stays out of "To watch" until next time.
@@ -109,7 +121,9 @@ function readFresh(key: string): Record<string, Dated> {
           typeof entry[1]?.at === 'number' &&
           now - entry[1].at < KEEP_FOR &&
           typeof entry[1].value?.installed === 'string' &&
-          typeof entry[1].value?.needUpdate === 'boolean',
+          typeof entry[1].value?.needUpdate === 'boolean' &&
+          // Kept before the entrypoint was: read again.
+          entry[1].entrypoint !== undefined,
       ),
     );
   } catch {

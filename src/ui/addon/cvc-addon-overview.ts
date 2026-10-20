@@ -97,8 +97,8 @@ export class CvcAddonOverview extends CvcElement {
       ${this.renderBand()}
       <div class="columns">
         <div class="main">
-          ${this.renderDatabase()} ${this.renderCellar()} ${this.renderOperator()} ${this.renderInstances()}
-          ${this.renderLinkedApps()}
+          ${this.renderDatabase()} ${this.renderCellar()} ${this.renderOperator()}
+          ${operatorKind(this.summary.providerId) == null ? this.renderInstances() : nothing} ${this.renderLinkedApps()}
         </div>
         <aside class="side">${this.renderFacts()} ${this.renderIdentifiers()}</aside>
       </div>
@@ -134,11 +134,13 @@ export class CvcAddonOverview extends CvcElement {
         <span class="label">${t('overview.instances')}</span>
         <span class="value">
           ${
-            this.instances == null
-              ? html`<span class="muted">…</span>`
-              : live.length === 0
-                ? html`<span class="muted">—</span>`
-                : [...flavors].map(([flavor, count]) => `${count} × ${flavor}`).join(' · ')
+            operatorKind(this.summary.providerId) != null
+              ? this.renderEntrypoint()
+              : this.instances == null
+                ? html`<span class="muted">…</span>`
+                : live.length === 0
+                  ? html`<span class="muted">—</span>`
+                  : [...flavors].map(([flavor, count]) => `${count} × ${flavor}`).join(' · ')
           }
         </span>
       </div>
@@ -270,6 +272,14 @@ export class CvcAddonOverview extends CvcElement {
     return html`<a href=${/^https?:\/\//.test(url) ? url : `https://${url}`} target="_blank" rel="noopener noreferrer"
       >${label} ↗</a
     >`;
+  }
+
+  /** An operator's instances are its entrypoint application's: the band links to it. */
+  private renderEntrypoint() {
+    const app = this.applications.find((candidate) => candidate.id === this.operator?.entrypoint);
+    return app == null
+      ? html`<span class="muted">…</span>`
+      : html`<a href=${this.appHref(app.id)} title=${t('operator.instancesTitle')}>${app.name}</a>`;
   }
 
   /** The entrypoint application and the add-ons underneath, each opening its page. */

@@ -209,7 +209,7 @@ export class CvcAddonPage extends CvcElement {
         this.operator = details;
         this.operatorVersions = versions;
         // The home page's "To watch" follows what this page just read.
-        this.addonStore?.operators.remember(ownerId, addonId, versions);
+        this.addonStore?.operators.remember(ownerId, addonId, versions, details.entrypoint);
       }
     } catch (error) {
       this.operatorError = describeError(error);
@@ -264,20 +264,26 @@ export class CvcAddonPage extends CvcElement {
       return html`<p class="empty">${t('addon.unknown')}</p>`;
     }
     const ownerId = this.orga.id;
-    const state = this.addonStore?.state(ownerId, summary.id) ?? null;
+    const state = this.addonStore?.stateOf(ownerId, summary, this.orga.applications) ?? null;
     const status = state == null ? null : ADDON_STATE_STATUS[state];
     // Logs come from instances: a shared add-on has none to stream. Backups are the databases', buckets Cellar's.
     const withBackups = BACKUP_PROVIDERS.includes(summary.providerId);
     const withBuckets = summary.providerId === CELLAR_PROVIDER;
+    // An operator runs as its entrypoint application: its logs are on that application's page.
+    const operator = operatorKind(summary.providerId) != null;
     const tabs = TABS.filter(
       (entry) =>
-        (entry.tab !== 'logs' || state !== 'shared') &&
+        (entry.tab !== 'logs' || (state !== 'shared' && !operator)) &&
         (entry.tab !== 'backups' || withBackups) &&
         (entry.tab !== 'buckets' || withBuckets),
     );
     // Coming from a tab this add-on does not have (another add-on picked in the list column).
     const tab =
-      (this.tab === 'backups' && !withBackups) || (this.tab === 'buckets' && !withBuckets) ? 'overview' : this.tab;
+      (this.tab === 'backups' && !withBackups) ||
+      (this.tab === 'buckets' && !withBuckets) ||
+      (this.tab === 'logs' && operator)
+        ? 'overview'
+        : this.tab;
     const context = {
       apps: this.orga.applications.filter((app) => !app.isArchived),
       links: this.store?.get(ownerId).links ?? {},

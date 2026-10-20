@@ -618,6 +618,7 @@ export const en = {
   'operator.open': 'Open',
   'operator.api': 'Admin API',
   'operator.builtOn': 'Built on',
+  'operator.instancesTitle': 'An operator runs as this application: its instances and logs are there',
   'operator.networkGroup': 'Network group',
   'operator.none': 'none',
   'operator.credentials': 'The initial credentials are in the Console, or in {command}.',
