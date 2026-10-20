@@ -7,7 +7,9 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { addTag, removeTag, type TagTarget } from '../../data/api.js';
+import { API_HOST } from '../constants.js';
 import { t } from '../i18n.js';
+import { shellQuote } from '../shell.js';
 
 export type TagOperation =
   { kind: 'add'; tag: string } | { kind: 'remove'; tag: string } | { kind: 'rename'; from: string; to: string };
@@ -95,10 +97,16 @@ export function invertSteps(steps: readonly TagStep[]): TagStep[] {
 }
 
 /** The HTTP call a step makes, since clever-tools has no command for tags. */
+/**
+ * One step as a command to run: clever-tools has no tag command, so the
+ * step goes through `clever curl`, which signs the same API call the app
+ * sends, the tag encoded the same way.
+ */
 export function describeStep(step: TagStep, ownerId: string): string {
   const method = step.action === 'add' ? 'PUT' : 'DELETE';
   const resource = step.resource.kind === 'app' ? `applications/${step.resource.id}` : `addons/${step.resource.id}`;
-  return `${method} /v2/organisations/${ownerId}/${resource}/tags/${encodeURIComponent(step.tag)}`;
+  const url = `${API_HOST}/v2/organisations/${ownerId}/${resource}/tags/${encodeURIComponent(step.tag)}`;
+  return `clever curl -X ${method} ${shellQuote(url)}`;
 }
 
 /** The tags present on at least one of the resources, sorted. */

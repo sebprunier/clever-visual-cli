@@ -14,6 +14,7 @@ import { runSteps, type RunResult } from '../core/home/tagging.js';
 import { t } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
+import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
 export interface BulkDoneDetail {
@@ -127,7 +128,12 @@ export class CvcBulkDialog extends CvcElement {
       </ul>
       <div class="cli-block">
         <span class="muted small">${t('bulk.cliEquivalent')}</span>
-        <code class="cli">${describeBulkStep(steps[0])}${steps.length > 1 ? `\n… × ${steps.length}` : ''}</code>
+        <cvc-cli
+          block
+          .command=${`${describeBulkStep(steps[0])}${steps.length > 1 ? `\n… × ${steps.length}` : ''}`}
+          .script=${steps.map((step) => describeBulkStep(step)).join('\n')}
+          .count=${steps.length}
+        ></cvc-cli>
       </div>
     </div>`;
   }
@@ -182,16 +188,7 @@ export class CvcBulkDialog extends CvcElement {
         flex-direction: column;
         gap: 0.3rem;
       }
-      .cli-block .cli {
-        display: block;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.85rem;
-      }
-      .cli-block .cli::before {
-        content: '';
-      }
+
       button.primary.danger {
         background: var(--cvc-danger);
       }

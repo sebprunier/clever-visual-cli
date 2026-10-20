@@ -6,6 +6,7 @@ import { CONSOLE_URL } from '../../core/constants.js';
 import type { Application } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
 import { formatDateTime, formatRelative, shortCommit } from '../shared/format.js';
+import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 /** Static facts about an application, the `clever status` and `clever config` view in one screen. */
@@ -44,13 +45,11 @@ export class CvcAppOverview extends CvcElement {
         <section class="card">
           <h3>
             ${t('overview.scaling')}
-            <span class="row">
-              <span class="cli">clever scale</span>
-              <button type="button" class="ghost small" @click=${() => openAction(this, 'scale')}>
-                ${t('common.edit')}
-              </button>
-            </span>
+            <button type="button" class="ghost small" @click=${() => openAction(this, 'scale')}>
+              ${t('common.edit')}
+            </button>
           </h3>
+          <cvc-cli class="card-cli" command=${`clever status --app ${app.id}`}></cvc-cli>
           <dl>
             <dt>${t('overview.instances')}</dt>
             <dd>
@@ -72,7 +71,8 @@ export class CvcAppOverview extends CvcElement {
         </section>
 
         <section class="card">
-          <h3>${t('overview.deployment')} <span class="cli">clever status</span></h3>
+          <h3>${t('overview.deployment')}</h3>
+          <cvc-cli class="card-cli" command=${`clever status --app ${app.id}`}></cvc-cli>
           <dl>
             <dt>${t('overview.method')}</dt>
             <dd>${app.deployment.type.toLowerCase()}</dd>
@@ -92,13 +92,11 @@ export class CvcAppOverview extends CvcElement {
         <section class="card">
           <h3>
             ${t('overview.domains')}
-            <span class="row">
-              <span class="cli">clever domain</span>
-              <button type="button" class="ghost small" @click=${() => openAction(this, 'domain-add')}>
-                ${t('common.add')}
-              </button>
-            </span>
+            <button type="button" class="ghost small" @click=${() => openAction(this, 'domain-add')}>
+              ${t('common.add')}
+            </button>
           </h3>
+          <cvc-cli class="card-cli" command=${`clever domain --app ${app.id}`}></cvc-cli>
           ${
             app.domains.length === 0
               ? html`<p class="muted">${t('overview.noDomain')}</p>`
@@ -132,7 +130,8 @@ export class CvcAppOverview extends CvcElement {
         </section>
 
         <section class="card">
-          <h3>${t('overview.options')} <span class="cli">clever config</span></h3>
+          <h3>${t('overview.options')}</h3>
+          <cvc-cli class="card-cli" command=${`clever config --app ${app.id}`}></cvc-cli>
           <ul class="plain">
             ${option(t('overview.stickySessions'), app.hasStickySessions)}
             ${option(t('overview.zeroDowntime'), app.isZeroDowntimeDeploymentEnabled)}
@@ -172,6 +171,11 @@ export class CvcAppOverview extends CvcElement {
         justify-content: space-between;
         gap: 0.5rem;
         margin-bottom: 0.6rem;
+      }
+      /* The command sits under the card title, as wide as the card, cut with an ellipsis if longer. */
+      .card-cli {
+        display: flex;
+        margin: -0.3rem 0 0.7rem;
       }
       button.small {
         padding: 0.15rem 0.5rem;

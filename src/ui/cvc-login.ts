@@ -7,6 +7,7 @@ import { loginViaConsole } from '../core/console-login.js';
 import type { Credentials } from '../core/credentials.js';
 import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
+import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
 interface DevProfile {
@@ -215,7 +216,9 @@ export class CvcLogin extends CvcElement {
 
       <section class="card">
         <h2>${t('login.apiToken.title')}</h2>
-        <p class="muted small">${t('login.apiToken.before')} <code>clever tokens create</code>.</p>
+        <p class="muted small">
+          ${t('login.apiToken.before')} <cvc-cli command="clever tokens create clever-visual-cli"></cvc-cli>
+        </p>
         <form class="row" @submit=${this.onApiTokenSubmit}>
           <input
             name="apiToken"

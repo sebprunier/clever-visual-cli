@@ -15,7 +15,7 @@ It is a visual CLI first. Every screen shows the `clever` command it stands for,
 - **Front-end only.** A static page that talks to the Clever Cloud API from the browser. Nothing in between, nothing to host, no telemetry.
 - **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com`, `console.clever-cloud.com`, and read-only calls to the public status page.
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
-- **Every screen names its command.** What the page does, clever-tools can do; the command is on screen, with the real identifiers.
+- **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands target clever-tools 5.2 or later.
 - **English and French**, picked from the browser, switchable from the menu.
 - **Open source**, Apache-2.0, built in the open, one feature at a time.
 
@@ -32,7 +32,7 @@ A dense list of every application and add-on, with the last deployment of each a
 - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (the applications of the "To watch" card), `has:project`, any `key:value` tag (`project:shop`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes. Clickable examples under the field say what each token does.
 - **Group** by expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels, with an optional order of values (`project > env(prod,dev)`). An add-on without a tag inherits those of its linked applications. Filter and grouping live in the URL, so a view can be bookmarked and shared.
 - **Sort** by any column from the header row: name, type, state, activity, links, cost. The order applies inside each group; sorting by cost also orders the groups by their total.
-- **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection: restart or stop the applications, or add, remove or rename a tag. Each action shows the exact list and the `clever` commands or API calls before confirming, then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
+- **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection: restart or stop the applications, or add, remove or rename a tag. Each action shows the exact list and the `clever` commands before confirming, ready to copy as a script (tags go through `clever curl`, clever-tools having no tag command), then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
 - **Costs**, on demand: yesterday, the last 30 days, the latest invoice, and what the current configuration costs for a month where nothing changes. The selected source feeds a cost column, a total per group and sub-group (so `project > env` answers "what does the production of this project cost") and the total of the filtered list. Daily figures are the consumptions the billing system computes, the ones behind the Console's consumption page; the estimate prices started applications at their minimum instances for 720 hours, stopped ones at zero, plus add-on plans. Tax excluded, billing rights required.
 - **Side column**: the Clever Cloud platform status from the public status page, the applications to watch (failed deployment, stuck start, moderation, payment), the ones opened recently.
 
@@ -42,7 +42,7 @@ Overview, instances, deployments, environment variables (hidden values, copy, `.
 
 ### Actions
 
-From the palette or the page: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live.
+From the palette or the page: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live, ready to copy.
 
 ### Command palette
 
@@ -53,7 +53,7 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set, de
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#2](https://github.com/sebprunier/clever-visual-cli/issues/2) Copy any `clever` command to the clipboard, complete and runnable as shown.
+
 - [#3](https://github.com/sebprunier/clever-visual-cli/issues/3) Logs of a set of applications: a grid, or one merged feed.
 - [#4](https://github.com/sebprunier/clever-visual-cli/issues/4) Themes: light, dark and a modern look, chosen in the app.
 

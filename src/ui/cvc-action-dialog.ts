@@ -11,6 +11,7 @@ import type {
   ActionValues,
 } from '../core/actions.js';
 import { describeError } from '../core/clever-client.js';
+import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
 /**
@@ -131,7 +132,7 @@ export class CvcActionDialog extends CvcElement {
 
         <div class="cli-block">
           <span class="muted small">${t('common.cliEquivalent')}</span>
-          <code class="cli">${action.cli(this.context, this.values)}</code>
+          <cvc-cli block .command=${action.cli(this.context, this.values)}></cvc-cli>
         </div>
 
         ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
@@ -264,13 +265,7 @@ export class CvcActionDialog extends CvcElement {
         flex-direction: column;
         gap: 0.3rem;
       }
-      .cli-block .cli {
-        display: block;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.85rem;
-      }
+
       footer {
         justify-content: flex-end;
       }

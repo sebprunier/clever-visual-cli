@@ -44,6 +44,7 @@ describe('actions', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");
     expect(shellQuote('has space')).toBe("'has space'");
+    expect(shellQuote('tags/env%3Aprod')).toBe('tags/env%3Aprod');
     expect(shellQuote("it's")).toBe(`'it'\\''s'`);
   });
 

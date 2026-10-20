@@ -7,6 +7,8 @@ import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { fetchEnvironment, type Environment, type EnvironmentVariable } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
+import { copyToClipboard } from '../shared/clipboard.js';
+import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 /** The environment, values hidden until asked for. Changes go through the action dialog. */
@@ -52,17 +54,16 @@ export class CvcAppEnv extends CvcElement {
   }
 
   private async copy(text: string, key: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      this.copied = key;
-      setTimeout(() => {
-        if (this.copied === key) {
-          this.copied = null;
-        }
-      }, 1500);
-    } catch {
+    if (!(await copyToClipboard(text))) {
       this.error = t('env.clipboardError');
+      return;
     }
+    this.copied = key;
+    setTimeout(() => {
+      if (this.copied === key) {
+        this.copied = null;
+      }
+    }, 1500);
   }
 
   private copyAll(): void {
@@ -74,7 +75,7 @@ export class CvcAppEnv extends CvcElement {
     const env = this.environment;
     return html`
       <div class="row toolbar">
-        <span class="cli">clever env --app ${this.appId}</span>
+        <cvc-cli command=${`clever env --app ${this.appId}`}></cvc-cli>
         <span class="grow"></span>
         <button type="button" class="primary" @click=${() => openAction(this, 'env-set')}>${t('env.add')}</button>
         <button type="button" @click=${() => openAction(this, 'env-import')}>${t('env.import')}</button>

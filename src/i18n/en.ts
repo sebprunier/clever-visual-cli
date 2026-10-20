@@ -24,6 +24,11 @@ export const en = {
   'common.date': 'Date',
   'common.state': 'State',
   'common.cliEquivalent': 'clever-tools equivalent',
+  'cli.copy': 'Copy',
+  'cli.copied': 'Copied ✓',
+  'cli.copyAll': 'Copy the {count} commands',
+  'cli.copyFailed': 'Could not copy to the clipboard.',
+  'cli.clickToCopy': 'Click to copy',
   'common.language': 'Language',
 
   // --- shell, account, palette
@@ -473,7 +478,7 @@ export const en = {
   'tagDialog.alreadyUpToDate': '· {count} resources already up to date',
   'tagDialog.alreadyUpToDate_one': '· {count} resource already up to date',
   'tagDialog.more': '… and {count} more',
-  'tagDialog.apiEquivalent': 'API equivalent (clever-tools has no command for tags)',
+  'tagDialog.apiEquivalent': 'clever-tools equivalent, through clever curl since there is no tag command',
   'tagDialog.app': 'app',
   'tagDialog.addon': 'add-on',
   'tags.applied': '{count} tag changes applied.',

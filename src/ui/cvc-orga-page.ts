@@ -47,6 +47,7 @@ import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } fr
 import { readHashParams, routeToHash, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
+import './shared/cvc-cli.js';
 import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './cvc-bulk-dialog.js';
@@ -505,7 +506,7 @@ export class CvcOrgaPage extends CvcElement {
               <div class="title">
                 <h1>${this.orga.name}</h1>
                 <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
-                <span class="cli">clever applications list</span>
+                <cvc-cli command=${`clever applications list --org ${this.orga.id}`}></cvc-cli>
               </div>
               <span class="grow"></span>
               ${

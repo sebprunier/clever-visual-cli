@@ -16,6 +16,7 @@ import {
   type TagRunResult,
   type TagStep,
 } from '../core/home/tagging.js';
+import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
 export type TagOperationKind = TagOperation['kind'];
@@ -266,7 +267,12 @@ export class CvcTagDialog extends CvcElement {
       </ul>
       <div class="cli-block">
         <span class="muted small">${t('tagDialog.apiEquivalent')}</span>
-        <code class="cli">${describeStep(plan[0], this.ownerId)}${plan.length > 1 ? `\n… × ${plan.length}` : ''}</code>
+        <cvc-cli
+          block
+          .command=${`${describeStep(plan[0], this.ownerId)}${plan.length > 1 ? `\n… × ${plan.length}` : ''}`}
+          .script=${plan.map((step) => describeStep(step, this.ownerId)).join('\n')}
+          .count=${plan.length}
+        ></cvc-cli>
       </div>
     </div>`;
   }
@@ -359,16 +365,7 @@ export class CvcTagDialog extends CvcElement {
         flex-direction: column;
         gap: 0.3rem;
       }
-      .cli-block .cli {
-        display: block;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.85rem;
-      }
-      .cli-block .cli::before {
-        content: '';
-      }
+
       footer {
         justify-content: flex-end;
       }

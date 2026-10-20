@@ -7,6 +7,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { fetchInstances, type Instance } from '../../data/api.js';
 import { formatDateTime, formatRelative, INSTANCE_STATE_LABELS, shortId, stateLabel } from '../shared/format.js';
+import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-instances')
@@ -50,7 +51,7 @@ export class CvcAppInstances extends CvcElement {
   override render() {
     return html`
       <div class="row toolbar">
-        <span class="cli">clever instances --app ${this.appId}</span>
+        <cvc-cli command=${`clever instances --app ${this.appId}`}></cvc-cli>
         <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
           ${t('common.refresh')}
         </button>

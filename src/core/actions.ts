@@ -8,6 +8,7 @@ import * as api from '../data/api.js';
 import type { Application } from '../data/api.js';
 import { t, type MessageKey } from './i18n.js';
 import type { AppTab } from './router.js';
+import { shellQuote } from './shell.js';
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox';
 
@@ -418,12 +419,4 @@ function num(value: ActionValue | undefined): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-export function shellQuote(value: string): string {
-  if (value === '') {
-    return "''";
-  }
-  if (/^[A-Za-z0-9_./:@=+,-]+$/.test(value)) {
-    return value;
-  }
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
+export { shellQuote };

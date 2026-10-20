@@ -15,6 +15,7 @@ import {
   shortCommit,
   stateLabel,
 } from '../shared/format.js';
+import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-deployments')
@@ -56,7 +57,7 @@ export class CvcAppDeployments extends CvcElement {
   override render() {
     return html`
       <div class="row toolbar">
-        <span class="cli">clever activity --app ${this.appId}</span>
+        <cvc-cli command=${`clever activity --app ${this.appId}`}></cvc-cli>
         <button type="button" class="ghost" ?disabled=${this.loading} @click=${this.load}>
           ${t('common.refresh')}
         </button>

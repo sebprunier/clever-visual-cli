@@ -7,6 +7,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
 import { openRuntimeLogs, type ApplicationRuntimeLog, type LogsStream } from '../../data/api.js';
 import { formatTime } from '../shared/format.js';
+import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 type StreamStatus = 'idle' | 'connecting' | 'open' | 'paused' | 'closed' | 'error';
@@ -162,7 +163,7 @@ export class CvcAppLogs extends CvcElement {
     const sinceFlag = this.since === 'now' ? '' : ` --since ${this.since}`;
     return html`
       <div class="row toolbar">
-        <span class="cli">clever logs --app ${this.appId}${sinceFlag}</span>
+        <cvc-cli command=${`clever logs --app ${this.appId}${sinceFlag}`}></cvc-cli>
         <span class="badge ${status.tone}">${status.label}</span>
         <span class="muted small"
           >${visible.length}${visible.length !== this.lines.length ? ` / ${this.lines.length}` : ''}

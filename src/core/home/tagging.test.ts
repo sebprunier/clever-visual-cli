@@ -47,9 +47,15 @@ describe('bulk tagging', () => {
   it('inverts a plan most recent first, and describes the HTTP calls', () => {
     const steps = planTagOperation({ kind: 'rename', from: 'env:qa', to: 'env:qua' }, [db]);
     expect(outline(invertSteps(steps))).toEqual(['-env:qua@db', '+env:qa@db']);
-    expect(describeStep(steps[0], 'orga_1')).toBe('DELETE /v2/organisations/orga_1/addons/addon_1/tags/env%3Aqa');
+    expect(describeStep(steps[0], 'orga_1')).toBe(
+      'clever curl -X DELETE https://api.clever-cloud.com/v2/organisations/orga_1/addons/addon_1/tags/env%3Aqa',
+    );
     expect(describeStep(planTagOperation({ kind: 'add', tag: 'a' }, [bare])[0], 'orga_1')).toBe(
-      'PUT /v2/organisations/orga_1/applications/app_2/tags/a',
+      'clever curl -X PUT https://api.clever-cloud.com/v2/organisations/orga_1/applications/app_2/tags/a',
+    );
+    // encodeURIComponent leaves ' ( ) alone: the URL is quoted for the shell.
+    expect(describeStep(planTagOperation({ kind: 'add', tag: "it's(x)" }, [bare])[0], 'user_1')).toBe(
+      `clever curl -X PUT 'https://api.clever-cloud.com/v2/organisations/user_1/applications/app_2/tags/it'\\''s(x)'`,
     );
     expect(tagsOf([web, db, bare])).toEqual(['env:prod', 'env:qa', 'project:shop:prod']);
   });
