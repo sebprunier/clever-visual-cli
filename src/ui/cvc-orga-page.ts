@@ -96,6 +96,26 @@ const COST_SOURCE_SPECS: Record<CostSource, { label: MessageKey; hint: MessageKe
   invoice: { label: 'costs.invoice', hint: 'costs.hint.invoice', title: 'costs.columnTitle.invoice' },
   estimate: { label: 'costs.estimate', hint: 'costs.hint.estimate', title: 'costs.columnTitle.estimate' },
 };
+/** Clickable examples under the filter: a term toggles in the expression, an operator is appended. */
+const FILTER_EXAMPLES: Array<{ token: string; title: MessageKey; append?: boolean }> = [
+  { token: 'is:app', title: 'home.ex.isApp' },
+  { token: 'is:addon', title: 'home.ex.isAddon' },
+  { token: 'is:watch', title: 'home.ex.isWatch' },
+  { token: 'env:prod', title: 'home.ex.tag' },
+  { token: '-env:prod', title: 'home.ex.not' },
+  { token: 'has:project', title: 'home.ex.has' },
+  { token: 'AND', title: 'home.ex.and', append: true },
+  { token: 'OR', title: 'home.ex.or', append: true },
+  { token: '( )', title: 'home.ex.parens', append: true },
+];
+/** Clickable examples under the grouping: each one replaces the expression. */
+const GROUPING_EXAMPLES: Array<{ expression: string; title: MessageKey }> = [
+  { expression: 'project > env', title: 'home.ex.groupProjectEnv' },
+  { expression: 'project > env(prod,dev)', title: 'home.ex.groupOrder' },
+  { expression: 'type', title: 'home.ex.groupType' },
+  { expression: 'runtime', title: 'home.ex.groupRuntime' },
+  { expression: 'state', title: 'home.ex.groupState' },
+];
 const COLUMN_LABELS: Record<SortColumn, MessageKey> = {
   name: 'home.col.name',
   type: 'home.col.type',
@@ -482,10 +502,12 @@ export class CvcOrgaPage extends CvcElement {
         <div class="main">
           <header class="head">
             <div class="row">
-              <h1>${this.orga.name}</h1>
-              <span class="muted small">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
-              <span class="cli">clever applications list</span>
+              <div class="title">
+                <h1>${this.orga.name}</h1>
+                <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
+              </div>
               <span class="grow"></span>
+              <span class="cli">clever applications list</span>
               ${
                 data.linksPending > 0
                   ? html`<span class="muted small" title=${t('home.linksTitle')}
@@ -509,9 +531,10 @@ export class CvcOrgaPage extends CvcElement {
               </button>
             </div>
             <div class="row toolbar">
-              <label class="field filter">
-                <span class="muted small">${t('home.filter')}</span>
+              <div class="field filter">
+                <label class="muted small" for="filter">${t('home.filter')}</label>
                 <input
+                  id="filter"
                   type="search"
                   name="filter"
                   placeholder=${t('home.filterPlaceholder')}
@@ -521,15 +544,21 @@ export class CvcOrgaPage extends CvcElement {
                   .value=${this.filterText}
                   @input=${(event: Event) => (this.filterText = (event.currentTarget as HTMLInputElement).value)}
                 />
-              </label>
-              <label class="field grouping">
-                <span class="muted small">${t('home.groupBy')}</span>
+                ${
+                  filter.error != null
+                    ? html`<p class="danger small note">${t('home.filterError', { error: filter.error })}</p>`
+                    : nothing
+                }
+                ${this.renderFilterExamples()}
+              </div>
+              <div class="field grouping">
+                <label class="muted small" for="grouping">${t('home.groupBy')}</label>
                 <input
+                  id="grouping"
                   type="text"
                   name="grouping"
                   list="grouping-suggestions"
                   placeholder=${t('home.groupByPlaceholder')}
-                  aria-label=${t('home.groupBy')}
                   autocomplete="off"
                   spellcheck="false"
                   .value=${this.groupingText}
@@ -538,7 +567,13 @@ export class CvcOrgaPage extends CvcElement {
                 <datalist id="grouping-suggestions">
                   ${suggestions.map((suggestion) => html`<option value=${suggestion}></option>`)}
                 </datalist>
-              </label>
+                ${
+                  grouping.error != null
+                    ? html`<p class="danger small note">${t('home.groupingError', { error: grouping.error })}</p>`
+                    : nothing
+                }
+                ${this.renderGroupingExamples()}
+              </div>
               <label class="small check">
                 <input
                   type="checkbox"
@@ -548,20 +583,14 @@ export class CvcOrgaPage extends CvcElement {
                 ${t('home.addons')}
               </label>
             </div>
-            <p class="muted small hint">
-              ${
-                filter.error != null
-                  ? html`<span class="danger">${t('home.filterError', { error: filter.error })}</span>`
-                  : grouping.error != null
-                    ? html`<span class="danger">${t('home.groupingError', { error: grouping.error })}</span>`
-                    : html`<code>is:app</code> <code>is:node</code> <code>is:watch</code> <code>project:shop</code>
-                        <code>env:prod</code> <code>has:project</code> <code>-env:prod</code> <code>AND</code>
-                        <code>OR</code> <code>( )</code> <span class="sep">·</span> <code>project > env(prod,dev)</code>
-                        <code>type</code> <code>runtime</code> <code>state</code>`
-              }
-              ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
-              ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
-            </p>
+            ${
+              data.deploymentsError || data.linksError
+                ? html`<p class="muted small hint">
+                    ${data.deploymentsError ? html`<span class="danger">${t('home.activityUnavailable', { error: data.deploymentsError })}</span>` : nothing}
+                    ${data.linksError ? html`<span class="danger">${t('home.linksIncomplete', { error: data.linksError })}</span>` : nothing}
+                  </p>`
+                : nothing
+            }
           </header>
           <div class="sticky-top">
             ${this.renderSelectionBar()}
@@ -617,6 +646,52 @@ export class CvcOrgaPage extends CvcElement {
           : nothing
       }
     `;
+  }
+
+  private renderFilterExamples() {
+    const present = new Set(
+      this.filterText
+        .split(/\s+/)
+        .filter((word) => word !== '')
+        .map((word) => word.toLowerCase()),
+    );
+    return html`<div class="examples">
+      <span class="muted">${t('home.examples')}</span>
+      ${FILTER_EXAMPLES.map(
+        ({ token, title, append }) =>
+          html`<button
+            type="button"
+            class=${!append && present.has(token.toLowerCase()) ? 'on' : ''}
+            title=${t(title)}
+            @click=${() => this.useFilterExample(token, append === true)}
+          >
+            ${token}
+          </button>`,
+      )}
+    </div>`;
+  }
+
+  private useFilterExample(token: string, append: boolean): void {
+    this.filterText = append ? `${this.filterText.trim()} ${token}`.trim() : toggleToken(this.filterText, token);
+    this.filterInput?.focus();
+  }
+
+  private renderGroupingExamples() {
+    const current = this.groupingText.trim();
+    return html`<div class="examples">
+      <span class="muted">${t('home.examples')}</span>
+      ${GROUPING_EXAMPLES.map(
+        ({ expression, title }) =>
+          html`<button
+            type="button"
+            class=${current === expression ? 'on' : ''}
+            title=${t(title)}
+            @click=${() => this.setGrouping(current === expression ? '' : expression)}
+          >
+            ${expression}
+          </button>`,
+      )}
+    </div>`;
   }
 
   /** What the selection allows; the "select all" box itself sits in the column headers. */
@@ -1213,7 +1288,7 @@ export class CvcOrgaPage extends CvcElement {
         ${inferred ? html`<span class="tag inferred" title=${t('home.inferredTitle')}>${t('home.inferred')}</span>` : nothing}
       </td>
       <td class="type muted small">${addon.providerId}</td>
-      <td class="state"><span class="badge neutral">add-on</span></td>
+      <td class="state"><span class="badge plain">add-on</span></td>
       <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
         ${apps.length === 0 ? t('home.notLinked') : apps.length === 1 ? apps[0].name : t('home.linkedApps', { count: apps.length })}
       </td>
@@ -1285,8 +1360,54 @@ export class CvcOrgaPage extends CvcElement {
         padding: 0.4rem 0 0.3rem;
         background: var(--cvc-bg);
       }
+      .title {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .title .muted {
+        font-size: 0.9rem;
+      }
       .toolbar {
-        align-items: flex-end;
+        align-items: flex-start;
+      }
+      .toolbar .check {
+        margin-top: 1.55rem;
+      }
+      .field .note {
+        margin: 0.25rem 0 0;
+      }
+      .examples {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem 0.3rem;
+        margin-top: 0.3rem;
+        font-size: 0.75rem;
+      }
+      .examples > .muted {
+        margin-right: 0.15rem;
+      }
+      .examples button {
+        font-family: var(--cvc-mono);
+        font-size: 0.75rem;
+        line-height: 1.4;
+        padding: 0.05rem 0.4rem;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        color: var(--cvc-muted);
+        background: color-mix(in srgb, var(--cvc-muted) 9%, transparent);
+        cursor: pointer;
+      }
+      .examples button:hover {
+        color: var(--cvc-text);
+        border-color: var(--cvc-accent);
+      }
+      .examples button.on {
+        color: var(--cvc-accent);
+        background: color-mix(in srgb, var(--cvc-accent) 10%, transparent);
+        border-color: color-mix(in srgb, var(--cvc-accent) 40%, transparent);
       }
       .field {
         display: flex;
@@ -1298,7 +1419,7 @@ export class CvcOrgaPage extends CvcElement {
         min-width: 220px;
       }
       .field.grouping {
-        flex: 0 1 260px;
+        flex: 0 1 360px;
         min-width: 180px;
       }
       .field input {
