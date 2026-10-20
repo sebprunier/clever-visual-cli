@@ -4,10 +4,10 @@
  * its title and what it counts; the platform status folds by itself when all
  * is well.
  */
-export type SideCard = 'costs' | 'watch' | 'recents';
+export type SideCard = 'watch' | 'recents';
 
 const KEY = 'cvc.side.folded';
-const CARDS: readonly SideCard[] = ['costs', 'watch', 'recents'];
+const CARDS: readonly SideCard[] = ['watch', 'recents'];
 
 export function readFolded(): SideCard[] {
   try {

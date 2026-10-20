@@ -67,6 +67,7 @@ import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
 import './cvc-favorites-menu.js';
 import type { FavoriteNameDetail, FavoriteRenameDetail, FavoriteViewDetail } from './cvc-favorites-menu.js';
+import './shared/cvc-dropdown.js';
 import './shared/cvc-menu-button.js';
 import type { MenuSelectDetail } from './shared/cvc-menu-button.js';
 import './cvc-tag-dialog.js';
@@ -98,12 +99,35 @@ interface RecentApp {
   at: number;
 }
 
-/** Per source: its line in the costs card and the title of the column cells. */
-const COST_SOURCE_SPECS: Record<CostSource, { label: MessageKey; hint: MessageKey; title: MessageKey }> = {
-  yesterday: { label: 'costs.yesterday', hint: 'costs.hint.yesterday', title: 'costs.columnTitle.yesterday' },
-  days30: { label: 'costs.days30', hint: 'costs.hint.days30', title: 'costs.columnTitle.days30' },
-  invoice: { label: 'costs.invoice', hint: 'costs.hint.invoice', title: 'costs.columnTitle.invoice' },
-  estimate: { label: 'costs.estimate', hint: 'costs.hint.estimate', title: 'costs.columnTitle.estimate' },
+/** Per source: its line in the costs menu, its word on the menu button and the title of the column cells. */
+const COST_SOURCE_SPECS: Record<
+  CostSource,
+  { label: MessageKey; short: MessageKey; hint: MessageKey; title: MessageKey }
+> = {
+  yesterday: {
+    label: 'costs.yesterday',
+    short: 'costs.short.yesterday',
+    hint: 'costs.hint.yesterday',
+    title: 'costs.columnTitle.yesterday',
+  },
+  days30: {
+    label: 'costs.days30',
+    short: 'costs.short.days30',
+    hint: 'costs.hint.days30',
+    title: 'costs.columnTitle.days30',
+  },
+  invoice: {
+    label: 'costs.invoice',
+    short: 'costs.short.invoice',
+    hint: 'costs.hint.invoice',
+    title: 'costs.columnTitle.invoice',
+  },
+  estimate: {
+    label: 'costs.estimate',
+    short: 'costs.short.estimate',
+    hint: 'costs.hint.estimate',
+    title: 'costs.columnTitle.estimate',
+  },
 };
 /** Clickable examples under the filter: a term toggles in the expression, an operator is appended. */
 const FILTER_EXAMPLES: Array<{ token: string; title: MessageKey; append?: boolean }> = [
@@ -572,21 +596,8 @@ export class CvcOrgaPage extends CvcElement {
         <div class="main">
           <header class="head">
             <div class="row head-row">
-              <div class="title">
-                <h1>${this.orga.name}</h1>
-                <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
-                <cvc-cli command=${`clever applications list --org ${this.orga.id}`}></cvc-cli>
-              </div>
+              <h1>${this.orga.name}</h1>
               <span class="grow"></span>
-              ${
-                data.linksPending > 0
-                  ? html`<span class="muted small" title=${t('home.linksTitle')}
-                      >${t('home.linksProgress', { done: linksDone, total: apps.length })}</span
-                    >`
-                  : data.deploymentsLoading
-                    ? html`<span class="muted small">${t('home.activityLoading')}</span>`
-                    : nothing
-              }
               <cvc-favorites-menu
                 ownerId=${this.orga.id}
                 .favorites=${this.favorites}
@@ -599,6 +610,7 @@ export class CvcOrgaPage extends CvcElement {
                   this.setFavorites(renameFavorite(this.favorites, event.detail.id, event.detail.name))}
                 @cvc-favorite-remove=${(event: CustomEvent<FavoriteViewDetail>) => this.deleteFavorite(event.detail.view)}
               ></cvc-favorites-menu>
+              ${this.renderCostMenu(visibleApps, visibleAddons, costs)}
               <button
                 type="button"
                 class="ghost small with-icon head-button"
@@ -612,6 +624,20 @@ export class CvcOrgaPage extends CvcElement {
               >
                 ${ICON_REFRESH} ${t('common.refresh')}
               </button>
+            </div>
+            <div class="row head-meta">
+              <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
+              <cvc-cli command=${`clever applications list --org ${this.orga.id}`}></cvc-cli>
+              <span class="grow"></span>
+              ${
+                data.linksPending > 0
+                  ? html`<span class="muted small" title=${t('home.linksTitle')}
+                      >${t('home.linksProgress', { done: linksDone, total: apps.length })}</span
+                    >`
+                  : data.deploymentsLoading
+                    ? html`<span class="muted small">${t('home.activityLoading')}</span>`
+                    : nothing
+              }
             </div>
             <div class="row toolbar">
               <div class="field filter">
@@ -698,8 +724,7 @@ export class CvcOrgaPage extends CvcElement {
         </div>
         <aside class="side ${this.sideTall ? 'tall' : ''}">
           <cvc-platform-status></cvc-platform-status>
-          ${this.renderCostCard(visibleApps, visibleAddons, costs)} ${this.renderWatch(watch, addonWatch)}
-          ${this.renderRecents(recents)}
+          ${this.renderWatch(watch, addonWatch)} ${this.renderRecents(recents)}
         </aside>
       </div>
       ${
@@ -1281,50 +1306,56 @@ export class CvcOrgaPage extends CvcElement {
   }
 
   /**
-   * The costs card: an invitation while the costs are off, then one line per
-   * source, each a radio button that picks what the cost column shows. The
-   * resources are the visible ones, so the card can say what the list leaves out.
+   * The costs menu, beside "Views": an invitation while the costs are off,
+   * then one line per source, each a radio button that picks what the cost
+   * column shows. The button names the amount of that source once known. The
+   * resources are the visible ones, so the menu can say what the list leaves
+   * out.
    */
-  private renderCostCard(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
-    const folded = this.folded.includes('costs');
-    const title = html`${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span>`;
-    if (!this.prefs.costs) {
-      return html`<section class="costs card ${folded ? 'folded' : ''}">
-        ${this.renderCardTitle('costs', title)}
-        ${
-          folded
-            ? nothing
-            : html`<p class="muted small">${t('costs.intro')}</p>
-                <button type="button" class="primary show" @click=${() => this.toggleCosts(true)}>
-                  ${t('costs.show')}
-                </button>`
-        }
-      </section>`;
-    }
-    const data = this.costStore.get(this.orga.id);
-    const currency = data.currency ?? data.invoice?.currency ?? 'EUR';
+  private renderCostMenu(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+    const on = this.prefs.costs && this.costStore != null;
+    const data = on ? this.costStore.get(this.orga.id) : null;
+    const currency = data?.currency ?? data?.invoice?.currency ?? 'EUR';
+    const value = data == null ? null : this.sourceState(this.prefs.costSource, data).value;
+    const source = this.describeSource(this.prefs.costSource).label;
+    return html`<cvc-dropdown
+      class="costs-menu"
+      label=${t('costs.title')}
+      button-title=${on ? t('costs.buttonTitle', { source }) : t('costs.intro')}
+      ?active=${on}
+    >
+      <span slot="label"
+        >${
+          value == null
+            ? t('costs.title')
+            : t('costs.button', {
+                amount: formatMoney(value, currency),
+                source: t(COST_SOURCE_SPECS[this.prefs.costSource].short),
+              })
+        }</span
+      >
+      <div class="costs">
+        ${data == null ? this.renderCostsOff() : this.renderCostsOn(data, currency, apps, addons, costs)}
+      </div>
+    </cvc-dropdown>`;
+  }
+
+  private renderCostsOff() {
+    return html`<p class="muted small">${t('costs.intro')}</p>
+      <button type="button" class="primary show" @click=${() => this.toggleCosts(true)}>${t('costs.show')}</button>`;
+  }
+
+  private renderCostsOn(
+    data: OwnerCosts,
+    currency: string,
+    apps: ApplicationSummary[],
+    addons: AddonSummary[],
+    costs: CostTable | null,
+  ) {
     const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
     const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
-    if (folded) {
-      // Folded, the card still says what the selected source amounts to.
-      const value = this.sourceState(this.prefs.costSource, data).value;
-      return html`<section class="costs card folded">
-        <div class="row card-head">
-          ${this.renderCardTitle('costs', title)}
-          <span class="grow"></span>
-          ${
-            value == null
-              ? nothing
-              : html`<span class="folded-value" title=${this.describeSource(this.prefs.costSource).label}
-                  >${formatMoney(value, currency)}</span
-                >`
-          }
-        </div>
-      </section>`;
-    }
-    return html`<section class="costs card">
-      <div class="row card-head">
-        ${this.renderCardTitle('costs', title)}
+    return html`<div class="row card-head">
+        <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
         <span class="grow"></span>
         <button type="button" class="link text" @click=${() => this.toggleCosts(false)}>${t('costs.hide')}</button>
       </div>
@@ -1353,8 +1384,7 @@ export class CvcOrgaPage extends CvcElement {
         <p>${t('costs.about1')}</p>
         <p>${t('costs.about2')}</p>
         <p>${t('costs.about3')}</p>
-      </details>
-    </section>`;
+      </details>`;
   }
 
   private renderSource(source: CostSource, data: OwnerCosts, currency: string) {
@@ -1611,37 +1641,40 @@ export class CvcOrgaPage extends CvcElement {
         gap: 0.6rem;
         flex-wrap: wrap;
       }
-      /* One line: the long command shrinks (and ends with an ellipsis) rather than pushing the
-         buttons onto a line of their own. */
+      /* Two lines: the name and the menus, then the counts and the command on the whole width. A
+         long name ends with an ellipsis rather than pushing the buttons onto a line of their own. */
+      .head {
+        gap: 0.35rem;
+      }
       .head-row {
         flex-wrap: nowrap;
         gap: 0.5rem;
       }
-      .head-row .title {
-        flex: 1 1 auto;
+      .head-row h1 {
         min-width: 0;
-        flex-wrap: nowrap;
-      }
-      .head-row h1,
-      .head-row .title > .muted {
-        flex: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .head-row .title cvc-cli {
+      .head-row > :not(h1, .grow) {
+        flex: none;
+      }
+      .head-meta {
+        gap: 0.6rem;
+        margin-bottom: 0.25rem;
+      }
+      .head-meta > .muted:first-child {
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+      .head-meta cvc-cli {
         min-width: 0;
         flex: 0 1 auto;
       }
-      .head-row > :not(.title) {
-        flex: none;
-      }
       @media (max-width: 720px) {
-        .head-row,
-        .head-row .title {
+        .head-row {
           flex-wrap: wrap;
         }
-      }
-      .title .muted {
-        font-size: 0.9rem;
       }
       .toolbar {
         align-items: flex-start;
@@ -1823,10 +1856,6 @@ export class CvcOrgaPage extends CvcElement {
       .side .card.folded h2,
       .side .card.folded .card-head {
         margin-bottom: 0;
-      }
-      .folded-value {
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
       }
       .count.neutral {
         color: var(--cvc-muted);
@@ -2036,11 +2065,20 @@ export class CvcOrgaPage extends CvcElement {
         font-weight: 600;
         padding-right: 0.55rem;
       }
+      .costs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
       .costs p {
-        margin: 0.5rem 0 0;
+        margin: 0;
+      }
+      .costs .card-head h2 {
+        margin: 0;
+        font-size: 0.95rem;
       }
       .costs .show {
-        margin-top: 0.6rem;
+        align-self: flex-start;
         padding: 0.3rem 0.8rem;
         font-size: 0.85rem;
       }
@@ -2118,7 +2156,7 @@ export class CvcOrgaPage extends CvcElement {
         }
       }
       .costs details {
-        margin-top: 0.6rem;
+        margin-top: 0.2rem;
         font-size: 0.8rem;
         color: var(--cvc-muted);
       }

@@ -697,6 +697,12 @@ export const en = {
   'status.noIncident': 'No recent incident',
   'status.since': 'started {when}',
   'costs.title': 'Costs',
+  'costs.button': '{amount} · {source}',
+  'costs.buttonTitle': 'Costs, tax excluded: {source}',
+  'costs.short.yesterday': 'yesterday',
+  'costs.short.days30': '30 days',
+  'costs.short.invoice': 'invoice',
+  'costs.short.estimate': 'config.',
   'costs.taxExcluded': 'tax excluded',
   'costs.intro':
     'What the applications and add-ons of this organisation cost, as the Clever Cloud billing computes it.',

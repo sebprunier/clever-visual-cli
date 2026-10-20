@@ -695,6 +695,12 @@ export const fr: Record<MessageKey, string> = {
   'status.noIncident': 'Aucun incident récent',
   'status.since': 'commencé {when}',
   'costs.title': 'Coûts',
+  'costs.button': '{amount} · {source}',
+  'costs.buttonTitle': 'Coûts HT : {source}',
+  'costs.short.yesterday': 'hier',
+  'costs.short.days30': '30 jours',
+  'costs.short.invoice': 'facture',
+  'costs.short.estimate': 'config.',
   'costs.taxExcluded': 'HT',
   'costs.intro':
     'Ce que coûtent les applications et add-ons de cette organisation, d’après la facturation Clever Cloud.',
