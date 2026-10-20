@@ -31,7 +31,8 @@ import { GetInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/g
 import { ListInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/list-invoice-command.js';
 import { ListApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/list-application-instance-command.js';
 import type { LogsStream } from '@clevercloud/client/cc-api-commands/log/abstract-logs-stream-command.js';
-import type { ApplicationRuntimeLog } from '@clevercloud/client/cc-api-commands/log/log.types.js';
+import type { ApplicationAccessLog, ApplicationRuntimeLog } from '@clevercloud/client/cc-api-commands/log/log.types.js';
+import { StreamApplicationAccessLogCommand } from '@clevercloud/client/cc-api-commands/log/stream-application-access-log-command.js';
 import { StreamApplicationRuntimeLogCommand } from '@clevercloud/client/cc-api-commands/log/stream-application-runtime-log-command.js';
 import { GetOrganisationSummaryCommand } from '@clevercloud/client/cc-api-commands/organisation/get-organisation-summary-command.js';
 import type { GetOrganisationSummaryCommandOutput } from '@clevercloud/client/cc-api-commands/organisation/get-organisation-summary-command.types.js';
@@ -61,6 +62,7 @@ import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/clien
 export type {
   AddonSummary,
   Application,
+  ApplicationAccessLog,
   ApplicationRuntimeLog,
   ApplicationSummary,
   DeploymentLegacy as Deployment,
@@ -134,6 +136,16 @@ export function openRuntimeLogs(
       instanceId: options.instanceId,
     }),
   );
+}
+
+/** `clever accesslogs`: one entry per HTTP request the application answered. */
+export function openAccessLogs(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  options: { since?: Date } = {},
+): Promise<LogsStream<ApplicationAccessLog>> {
+  return client.stream(new StreamApplicationAccessLogCommand({ ownerId, applicationId, since: options.since }));
 }
 
 /** Every deployment of every application of the organisation. The backend ignores `limit` here. */

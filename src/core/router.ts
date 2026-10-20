@@ -5,7 +5,7 @@
  * any static host (Clever Cloud static, GitHub Pages, a local `file://`).
  */
 
-export const APP_TABS = ['overview', 'instances', 'deployments', 'env', 'logs'] as const;
+export const APP_TABS = ['overview', 'logs', 'deployments', 'env'] as const;
 export type AppTab = (typeof APP_TABS)[number];
 
 export type Route =

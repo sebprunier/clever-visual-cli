@@ -28,7 +28,6 @@ import {
 import './app/cvc-app-nav.js';
 import './app/cvc-app-deployments.js';
 import './app/cvc-app-env.js';
-import './app/cvc-app-instances.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
 import { openAction } from './shared/events.js';
@@ -36,12 +35,12 @@ import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
+/** The tabs, in display order; the Console keeps the rest. */
 export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> = {
   overview: { label: 'tab.overview', cli: 'clever status' },
-  instances: { label: 'tab.instances', cli: 'clever instances' },
-  deployments: { label: 'tab.deployments', cli: 'clever activity' },
-  env: { label: 'tab.env', cli: 'clever env' },
   logs: { label: 'tab.logs', cli: 'clever logs' },
+  deployments: { label: 'tab.activity', cli: 'clever activity' },
+  env: { label: 'tab.env', cli: 'clever env' },
 };
 
 /**
@@ -220,13 +219,6 @@ export class CvcAppPage extends CvcElement {
         return this.app == null
           ? html`<p class="empty">${t('common.loading')}</p>`
           : html`<cvc-app-overview .app=${this.app}></cvc-app-overview>`;
-      case 'instances':
-        return html`<cvc-app-instances
-          .client=${this.client}
-          ownerId=${this.ownerId}
-          appId=${this.appId}
-          .revision=${this.revision}
-        ></cvc-app-instances>`;
       case 'deployments':
         return html`<cvc-app-deployments
           .client=${this.client}

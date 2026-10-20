@@ -5,12 +5,27 @@ import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
-import { openRuntimeLogs, type ApplicationRuntimeLog, type LogsStream } from '../../data/api.js';
+import {
+  openAccessLogs,
+  openRuntimeLogs,
+  type ApplicationAccessLog,
+  type ApplicationRuntimeLog,
+  type LogsStream,
+} from '../../data/api.js';
 import { formatTime } from '../shared/format.js';
 import '../shared/cvc-cli.js';
 import { sharedStyles } from '../shared/styles.js';
 
 type StreamStatus = 'idle' | 'connecting' | 'open' | 'paused' | 'closed' | 'error';
+/** What the application writes, or the HTTP requests it answered. */
+type LogMode = 'app' | 'access';
+type LogLine = ApplicationRuntimeLog | ApplicationAccessLog;
+
+const MODE_KEY = 'cvc.logs.mode';
+const MODES: Array<{ value: LogMode; label: MessageKey; command: string }> = [
+  { value: 'app', label: 'logs.mode.app', command: 'clever logs' },
+  { value: 'access', label: 'logs.mode.access', command: 'clever accesslogs' },
+];
 
 const MAX_LINES = 2000;
 const SINCE_OPTIONS: Array<{ value: string; label: MessageKey; minutes: number }> = [
@@ -21,24 +36,29 @@ const SINCE_OPTIONS: Array<{ value: string; label: MessageKey; minutes: number }
   { value: '24h', label: 'logs.since.24h', minutes: 1440 },
 ];
 
-/** Live runtime logs: the `clever logs` stream with pause, filter and replay window. */
+/**
+ * Live logs with pause, filter and replay window: what the application writes
+ * (`clever logs`) or, one switch away, the HTTP requests it answered
+ * (`clever accesslogs`). The chosen kind is remembered in this browser.
+ */
 @customElement('cvc-app-logs')
 export class CvcAppLogs extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property() appId = '';
 
+  @state() private mode: LogMode = readMode();
   @state() private status: StreamStatus = 'idle';
   @state() private error: string | null = null;
   @state() private since = '15m';
   @state() private filter = '';
   @state() private autoscroll = true;
-  @state() private lines: ApplicationRuntimeLog[] = [];
+  @state() private lines: LogLine[] = [];
 
   @query('.lines') private container?: HTMLElement;
 
-  private stream: LogsStream<ApplicationRuntimeLog> | null = null;
-  private pending: ApplicationRuntimeLog[] = [];
+  private stream: LogsStream<LogLine> | null = null;
+  private pending: LogLine[] = [];
   private flushScheduled = false;
 
   override willUpdate(changed: PropertyValues<this>): void {
@@ -64,15 +84,18 @@ export class CvcAppLogs extends CvcElement {
       return;
     }
     this.stop();
-    const { client, ownerId, appId } = this;
+    const { client, ownerId, appId, mode } = this;
     const minutes = SINCE_OPTIONS.find((option) => option.value === this.since)?.minutes ?? 0;
+    const since = minutes > 0 ? new Date(Date.now() - minutes * 60_000) : new Date();
     this.status = 'connecting';
     this.error = null;
     try {
-      const stream = await openRuntimeLogs(client, ownerId, appId, {
-        since: minutes > 0 ? new Date(Date.now() - minutes * 60_000) : new Date(),
-      });
-      if (this.appId !== appId) {
+      const stream: LogsStream<LogLine> =
+        mode === 'app'
+          ? await openRuntimeLogs(client, ownerId, appId, { since })
+          : await openAccessLogs(client, ownerId, appId, { since });
+      if (this.appId !== appId || this.mode !== mode) {
+        stream.close();
         return;
       }
       stream
@@ -117,7 +140,22 @@ export class CvcAppLogs extends CvcElement {
     }
   }
 
-  private enqueue(log: ApplicationRuntimeLog): void {
+  private setMode(mode: LogMode): void {
+    if (mode === this.mode) {
+      return;
+    }
+    this.mode = mode;
+    try {
+      localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      // Not essential.
+    }
+    this.lines = [];
+    this.pending = [];
+    void this.start();
+  }
+
+  private enqueue(log: LogLine): void {
     this.pending.push(log);
     if (!this.flushScheduled) {
       this.flushScheduled = true;
@@ -135,9 +173,9 @@ export class CvcAppLogs extends CvcElement {
     this.lines = merged.length > MAX_LINES ? merged.slice(merged.length - MAX_LINES) : merged;
   }
 
-  private get visibleLines(): ApplicationRuntimeLog[] {
+  private get visibleLines(): LogLine[] {
     const needle = this.filter.trim().toLowerCase();
-    return needle === '' ? this.lines : this.lines.filter((log) => log.message.toLowerCase().includes(needle));
+    return needle === '' ? this.lines : this.lines.filter((log) => searchText(log).includes(needle));
   }
 
   private describeStatus(): { label: string; tone: string } {
@@ -161,9 +199,23 @@ export class CvcAppLogs extends CvcElement {
     const status = this.describeStatus();
     const visible = this.visibleLines;
     const sinceFlag = this.since === 'now' ? '' : ` --since ${this.since}`;
+    const command = MODES.find((mode) => mode.value === this.mode)?.command ?? 'clever logs';
     return html`
       <div class="row toolbar">
-        <cvc-cli command=${`clever logs --app ${this.appId}${sinceFlag}`}></cvc-cli>
+        <div class="seg" role="group" aria-label=${t('logs.modeAria')}>
+          ${MODES.map(
+            (mode) =>
+              html`<button
+                type="button"
+                class=${mode.value === this.mode ? 'on' : ''}
+                aria-pressed=${mode.value === this.mode}
+                @click=${() => this.setMode(mode.value)}
+              >
+                ${t(mode.label)}
+              </button>`,
+          )}
+        </div>
+        <cvc-cli command=${`${command} --app ${this.appId}${sinceFlag}`}></cvc-cli>
         <span class="badge ${status.tone}">${status.label}</span>
         <span class="muted small"
           >${visible.length}${visible.length !== this.lines.length ? ` / ${this.lines.length}` : ''}
@@ -202,23 +254,44 @@ export class CvcAppLogs extends CvcElement {
         <button type="button" class="ghost" @click=${() => (this.lines = [])}>${t('logs.clear')}</button>
       </div>
       ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
-      <div class="lines card" role="log" aria-live="off">
+      <div class="lines card ${this.mode}" role="log" aria-live="off">
         ${
           visible.length === 0
             ? html`<p class="empty">${this.status === 'open' ? t('logs.waiting') : ''}</p>`
             : repeat(
                 visible,
                 (log) => log.id,
-                (log) =>
-                  html`<div class="line sev-${log.severity}">
-                    <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
-                    <span class="service" title=${log.instanceId}>${log.service}</span>
-                    <span class="message">${log.message}</span>
-                  </div>`,
+                (log) => (isAccessLog(log) ? this.renderAccessLine(log) : this.renderAppLine(log)),
               )
         }
       </div>
     `;
+  }
+
+  private renderAppLine(log: ApplicationRuntimeLog) {
+    return html`<div class="line sev-${log.severity}">
+      <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
+      <span class="service" title=${log.instanceId}>${log.service}</span>
+      <span class="message">${log.message}</span>
+    </div>`;
+  }
+
+  /**
+   * One request: time, status, method, path, duration, bytes sent, client address. The host the
+   * API reports is the Clever Cloud load balancer, not the requested domain: it stays in the title.
+   */
+  private renderAccessLine(log: ApplicationAccessLog) {
+    const { request, response } = log.detail;
+    const place = [log.source.city, log.source.countryCode].filter((part) => part !== '' && part != null).join(', ');
+    return html`<div class="line access s${Math.floor(response.statusCode / 100)}xx">
+      <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
+      <span class="status">${response.statusCode}</span>
+      <span class="method">${request.method}</span>
+      <span class="message" title="${request.scheme} · ${request.host}">${request.path}</span>
+      <span class="num">${response.time} ms</span>
+      <span class="num">${formatBytes(log.bytesOut)}</span>
+      <span class="ip" title=${place}>${log.source.ip}</span>
+    </div>`;
   }
 
   private onSinceChange(event: Event): void {
@@ -284,8 +357,87 @@ export class CvcAppLogs extends CvcElement {
       .line.sev-warning .message {
         color: var(--cvc-warn);
       }
+      .seg {
+        display: inline-flex;
+        gap: 0.15rem;
+      }
+      .seg button {
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        background: transparent;
+      }
+      .seg button.on {
+        background: var(--cvc-text);
+        color: var(--cvc-bg);
+        border-color: transparent;
+      }
+      .line.access {
+        grid-template-columns: 8ch 3ch 7ch minmax(0, 1fr) 8ch 8ch 15ch;
+        white-space: nowrap;
+      }
+      .line.access .message {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .line.access .method,
+      .line.access .ip {
+        color: var(--cvc-muted);
+      }
+      .line.access .num {
+        text-align: right;
+        color: var(--cvc-muted);
+      }
+      .line.access .ip {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .line.s2xx .status {
+        color: var(--cvc-ok);
+      }
+      .line.s3xx .status {
+        color: var(--cvc-info);
+      }
+      .line.s4xx .status {
+        color: var(--cvc-warn);
+      }
+      .line.s5xx .status,
+      .line.s5xx .message {
+        color: var(--cvc-danger);
+      }
     `,
   ];
+}
+
+function isAccessLog(log: LogLine): log is ApplicationAccessLog {
+  return 'detail' in log;
+}
+
+/** What the filter field looks into. */
+function searchText(log: LogLine): string {
+  if (!isAccessLog(log)) {
+    return log.message.toLowerCase();
+  }
+  const { request, response } = log.detail;
+  return `${response.statusCode} ${request.method} ${request.host}${request.path} ${log.source.ip} ${log.source.city}`.toLowerCase();
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} kB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function readMode(): LogMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'access' ? 'access' : 'app';
+  } catch {
+    return 'app';
+  }
 }
 
 declare global {
