@@ -4,8 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { CONFIG_OPTIONS } from '../../core/actions.js';
 import { arrangeDomains, summarizeInstances } from '../../core/app/overview.js';
 import { describeError } from '../../core/clever-client.js';
-import { COST_DAYS, type CostStore } from '../../core/home/cost-store.js';
-import { shownCost, type CostTable } from '../../core/home/costs.js';
+import type { CostStore } from '../../core/home/cost-store.js';
 import { CONSOLE_URL } from '../../core/constants.js';
 import { appStatus } from '../../core/home/status.js';
 import { isInProgress } from '../../core/home/activity.js';
@@ -19,13 +18,12 @@ import {
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
   formatDateTime,
-  formatDay,
-  formatMoney,
   formatRelative,
   INSTANCE_STATE_LABELS,
   shortCommit,
   stateLabel,
 } from '../shared/format.js';
+import { renderCostValue } from '../shared/cost-fact.js';
 import { statusIcon, statusMessage } from '../shared/status.js';
 import { sharedStyles } from '../shared/styles.js';
 import { domainListStyles, renderDomainRow } from './domain-row.js';
@@ -171,39 +169,12 @@ export class CvcAppOverview extends CvcElement {
    * excluded). Loading them for the first time is a deliberate click, as on the home page.
    */
   private renderCost() {
-    const store = this.costStore;
-    if (store == null) {
+    if (this.costStore == null) {
       return nothing;
-    }
-    const data = store.get(this.ownerId);
-    const yesterday = store.table(this.ownerId, 'yesterday');
-    const days30 = store.table(this.ownerId, 'days30');
-    const loading = data.loading || data.daysPending > 0;
-    const progress = t('costs.daysProgress', { done: COST_DAYS - data.daysPending, total: COST_DAYS });
-    let value;
-    if (days30 != null) {
-      const amount = (table: CostTable | null) =>
-        table == null ? '—' : formatMoney(shownCost(table, this.app) ?? 0, table.currency);
-      value = html`<span
-          title=${t('overview.costTitle', {
-            from: formatDay(days30.period?.from),
-            to: formatDay(days30.period?.to),
-          })}
-          >${t('overview.costValue', { yesterday: amount(yesterday), days30: amount(days30) })}</span
-        >
-        ${loading ? html`<span class="spinner" title=${progress}></span>` : nothing}`;
-    } else if (loading) {
-      value = html`<span class="muted"><span class="spinner"></span> ${progress}</span>`;
-    } else if (data.daysError != null) {
-      value = html`<span class="muted" title=${data.daysError}>${t('overview.costUnavailable')}</span>`;
-    } else {
-      value = html`<button type="button" class="link" @click=${() => void store.refresh(this.client, this.ownerId)}>
-        ${t('overview.costShow')}
-      </button>`;
     }
     return html`<div class="fact">
       <span class="label">${t('overview.band.cost')}</span>
-      <span class="value">${value}</span>
+      <span class="value">${renderCostValue(this.costStore, this.client, this.ownerId, this.app)}</span>
     </div>`;
   }
 

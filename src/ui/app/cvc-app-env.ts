@@ -5,6 +5,7 @@ import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
+import { maskValue, toDotenv } from '../../core/env.js';
 import { fetchEnvironment, type Environment, type EnvironmentVariable } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
 import { copyToClipboard } from '../shared/clipboard.js';
@@ -68,8 +69,7 @@ export class CvcAppEnv extends CvcElement {
   }
 
   private copyAll(): void {
-    const env = this.environment?.environment ?? [];
-    void this.copy(env.map((v) => `${v.name}=${quote(v.value)}`).join('\n'), '*');
+    void this.copy(toDotenv(this.environment?.environment ?? []), '*');
   }
 
   override render() {
@@ -144,7 +144,7 @@ export class CvcAppEnv extends CvcElement {
               const key = `${scope}:${variable.name}`;
               return html`<tr>
                 <td class="mono name">${variable.name}</td>
-                <td class="mono value">${this.revealed ? variable.value : mask(variable.value)}</td>
+                <td class="mono value">${this.revealed ? variable.value : maskValue(variable.value)}</td>
                 <td class="actions">
                   <button type="button" class="ghost small" @click=${() => this.copy(variable.value, key)}>
                     ${this.copied === key ? t('common.copied') : t('common.copy')}
@@ -221,16 +221,6 @@ export class CvcAppEnv extends CvcElement {
       }
     `,
   ];
-}
-
-function mask(value: string): string {
-  return value.length === 0 ? '' : '•'.repeat(Math.min(Math.max(value.length, 6), 24));
-}
-
-function quote(value: string): string {
-  return /^[A-Za-z0-9_./:@=+-]*$/.test(value)
-    ? value
-    : `"${value.replace(/(["\\$`])/g, '\\$1').replace(/\n/g, '\\n')}"`;
 }
 
 declare global {
