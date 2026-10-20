@@ -6,6 +6,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
+import { databaseProduct, type AddonWatchItem } from '../core/addons/database.js';
 import {
   describeOrigin,
   indexActivity,
@@ -273,6 +274,7 @@ export class CvcOrgaPage extends CvcElement {
       this.orga.addons.map((addon) => addon.id),
       { force: options.force },
     );
+    void this.addonStore?.versions.refresh(this.client, this.orga.id, this.orga.addons);
   }
 
   private toggleCosts(on: boolean): void {
@@ -458,7 +460,7 @@ export class CvcOrgaPage extends CvcElement {
     this.#costsPending =
       costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
-    const { context, filter, grouping, watch, visibleApps, visibleAddons, tree } = buildHomeList({
+    const { context, filter, grouping, watch, addonWatch, visibleApps, visibleAddons, tree } = buildHomeList({
       apps,
       addons,
       links: data.links,
@@ -471,6 +473,8 @@ export class CvcOrgaPage extends CvcElement {
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
       addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
       addonStateLabel,
+      dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
+      offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
     });
     this.#order = displayOrder(tree, this.prefs.collapsed);
     const appById = new Map(apps.map((app) => [app.id, app]));
@@ -603,7 +607,7 @@ export class CvcOrgaPage extends CvcElement {
         </div>
         <aside class="side ${this.sideTall ? 'tall' : ''}">
           <cvc-platform-status></cvc-platform-status>
-          ${this.renderCostCard(visibleApps, visibleAddons, costs)} ${this.renderWatch(watch)}
+          ${this.renderCostCard(visibleApps, visibleAddons, costs)} ${this.renderWatch(watch, addonWatch)}
           ${this.renderRecents(recents)}
         </aside>
       </div>
@@ -729,14 +733,14 @@ export class CvcOrgaPage extends CvcElement {
     </div>`;
   }
 
-  private renderWatch(items: WatchItem[]) {
-    if (items.length === 0) {
+  private renderWatch(items: WatchItem[], addonItems: AddonWatchItem[]) {
+    if (items.length === 0 && addonItems.length === 0) {
       return nothing;
     }
     const filtering = /(^|\s)is:watch(\s|$)/i.test(this.filterText);
     return html`<section class="watch card">
       <div class="row card-head">
-        <h2>${t('home.watch')} <span class="count">${items.length}</span></h2>
+        <h2>${t('home.watch')} <span class="count">${items.length + addonItems.length}</span></h2>
         <span class="grow"></span>
         <button
           type="button"
@@ -761,6 +765,22 @@ export class CvcOrgaPage extends CvcElement {
             <span class="muted small">${this.describeWatch(item)}</span>
           </li>`;
         })}
+        ${addonItems.map(
+          (item) =>
+            html`<li>
+              <span class="row">
+                <span class="badge warn">${t('watch.retired')}</span>
+                <a href=${this.addonHash(item.addon.id)}>${item.addon.name}</a>
+              </span>
+              <span class="muted small">
+                ${t('watch.retiredText', {
+                  product: databaseProduct(item.addon.providerId),
+                  version: item.version,
+                  range: t('database.versionRange', { from: item.offered[0], to: item.offered.at(-1) ?? '' }),
+                })}
+              </span>
+            </li>`,
+        )}
       </ul>
     </section>`;
   }

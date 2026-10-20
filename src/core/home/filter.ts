@@ -4,7 +4,7 @@
  *   api prod                       free text, every word must match the name, runtime or a tag
  *   is:app  is:addon               one kind only
  *   is:node  is:postgresql         runtime or add-on provider slug, like the Console's sidebar
- *   is:watch                       applications listed under "To watch"
+ *   is:watch                       applications and add-ons listed under "To watch"
  *   project:shop  env:prod         any `<key>:<value>` matches the tag `key:value` (or `key:value:…`)
  *   has:project                    has a tag with this key
  *   tag:env  runtime:java  state:arrêtée  name:api
@@ -48,7 +48,7 @@ export interface FilterItem {
   tags: string[];
   /** Extra searchable words: ids, linked resource names... */
   extra?: string[];
-  /** Words for `is:` beyond the slugs: `watch` for an application listed under "To watch". */
+  /** Words for `is:` beyond the slugs: `watch` for a resource listed under "To watch", `shared` for a shared add-on. */
   flags?: string[];
 }
 

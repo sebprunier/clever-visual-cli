@@ -157,6 +157,65 @@ export function fetchAddon(client: CcApiClient, ownerId: string, addonId: string
   return client.send(new GetAddonCommand({ ownerId, addonId }));
 }
 
+/** What the provider of a database add-on says about it, without its password. */
+export interface DatabaseDetails {
+  status: string;
+  version: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  features: Array<{ name: string; enabled: boolean }>;
+  locale: string | null;
+}
+
+/**
+ * `GET /v4/addon-providers/:provider/addons/:addonId`, which the client only uses inside its backup
+ * command. The payload also carries the password and the read-only users: they are dropped here, so
+ * they never reach a component.
+ */
+export async function fetchDatabaseDetails(
+  client: CcApiClient,
+  providerId: string,
+  addonId: string,
+): Promise<DatabaseDetails> {
+  const raw = (await rawGet(
+    client,
+    `/v4/addon-providers/${encodeURIComponent(providerId)}/addons/${encodeURIComponent(addonId)}`,
+  )) as Record<string, unknown>;
+  const features = Array.isArray(raw.features) ? (raw.features as Array<Record<string, unknown>>) : [];
+  return {
+    status: String(raw.status ?? ''),
+    version: String(raw.version ?? ''),
+    host: String(raw.host ?? ''),
+    port: Number(raw.port ?? 0),
+    database: String(raw.database ?? ''),
+    user: String(raw.user ?? ''),
+    features: features
+      .filter((feature) => typeof feature.name === 'string')
+      .map((feature) => ({ name: String(feature.name), enabled: feature.enabled === true })),
+    locale: typeof raw.locale === 'string' ? raw.locale : null,
+  };
+}
+
+/** The versions a provider offers for a new dedicated database, and its default. */
+export interface OfferedVersions {
+  versions: string[];
+  defaultVersion: string | null;
+}
+
+/** `GET /v4/addon-providers/:provider`: public, the same for every organisation. */
+export async function fetchOfferedVersions(client: CcApiClient, providerId: string): Promise<OfferedVersions> {
+  const raw = (await rawGet(client, `/v4/addon-providers/${encodeURIComponent(providerId)}`)) as {
+    dedicated?: Record<string, unknown>;
+    defaultDedicatedVersion?: unknown;
+  };
+  return {
+    versions: Object.keys(raw.dedicated ?? {}),
+    defaultVersion: typeof raw.defaultDedicatedVersion === 'string' ? raw.defaultDedicatedVersion : null,
+  };
+}
+
 /** The instances of an add-on: only dedicated plans have some; a shared plan answers an empty list. */
 export function fetchAddonInstances(client: CcApiClient, ownerId: string, addonId: string): Promise<AddonInstance[]> {
   return client.send(new ListAddonInstanceCommand({ ownerId, addonId }));
@@ -474,31 +533,20 @@ interface RawConsumptionDay {
 }
 
 /**
- * `GET /v4/billing/organisations/:id/consumption`, the call behind the
- * Console's consumption page. The client has no command for it yet, so this
- * one borrows the plumbing of a simple command. The API ignores `from` and
- * `to`; `date` selects one day, yesterday by default, and `currency` is
- * required.
+ * A GET the client has no command for yet: it borrows the plumbing of a
+ * simple command (authentication, the API bridge, retries) and hands back the
+ * JSON as it came.
  */
-class DailyConsumptionCommand extends GetPriceSystemCommand {
-  readonly #ownerId: string;
-  readonly #date: string;
-  readonly #currency: string;
+class RawGetCommand extends GetPriceSystemCommand {
+  readonly #url: string;
 
-  constructor(ownerId: string, date: string, currency: string) {
-    super({ ownerId });
-    this.#ownerId = ownerId;
-    this.#date = date;
-    this.#currency = currency;
+  constructor(url: string) {
+    super({});
+    this.#url = url;
   }
 
   override toRequestParams(): ReturnType<GetPriceSystemCommand['toRequestParams']> {
-    const query = new URLSearchParams({ currency: this.#currency, date: this.#date });
-    return {
-      method: 'GET',
-      url: `/v4/billing/organisations/${encodeURIComponent(this.#ownerId)}/consumption?${query}`,
-      headers: new Headers({ Accept: 'application/json' }),
-    };
+    return { method: 'GET', url: this.#url, headers: new Headers({ Accept: 'application/json' }) };
   }
 
   override transformCommandOutput(response: unknown): GetPriceSystemCommandOutput {
@@ -506,14 +554,26 @@ class DailyConsumptionCommand extends GetPriceSystemCommand {
   }
 }
 
-/** The consumption of one day per resource, or null when the billing system has not computed that day yet. */
+async function rawGet(client: CcApiClient, url: string): Promise<unknown> {
+  return (await client.send(new RawGetCommand(url))) as unknown;
+}
+
+/**
+ * The consumption of one day per resource, or null when the billing system has not computed that day yet.
+ * `GET /v4/billing/organisations/:id/consumption` is the call behind the Console's consumption page; it
+ * ignores `from` and `to`, `date` selects one day (yesterday by default) and `currency` is required.
+ */
 export async function fetchDailyConsumption(
   client: CcApiClient,
   ownerId: string,
   date: string,
   currency: string,
 ): Promise<DailyConsumption | null> {
-  const response = (await client.send(new DailyConsumptionCommand(ownerId, date, currency))) as unknown;
+  const query = new URLSearchParams({ currency, date });
+  const response = await rawGet(
+    client,
+    `/v4/billing/organisations/${encodeURIComponent(ownerId)}/consumption?${query}`,
+  );
   const days = Array.isArray(response) ? (response as RawConsumptionDay[]) : [];
   const day = days.find((candidate) => candidate.date === date);
   if (day == null || !Array.isArray(day.consumption)) {

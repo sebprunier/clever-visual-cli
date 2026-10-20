@@ -8,6 +8,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { fetchAddonInstances, type AddonInstance } from '../../data/api.js';
 import { addonState, type AddonState } from './addon-state.js';
+import { clearDbVersionStorage, DbVersionStore } from './db-version-store.js';
 
 const FRESH_FOR = 60_000;
 const SHARED_FOR = 24 * 60 * 60_000;
@@ -20,9 +21,17 @@ export interface AddonInstancesEntry {
 }
 
 export class AddonStore extends EventTarget {
+  /** The versions of the database add-ons, for "To watch"; its changes are this store's. */
+  readonly versions = new DbVersionStore();
+
   #entries = new Map<string, Map<string, AddonInstancesEntry>>();
   #shared = new Map<string, Record<string, number>>();
   #running = new Set<string>();
+
+  constructor() {
+    super();
+    this.versions.addEventListener('change', () => this.#emit());
+  }
 
   /** The state of an add-on, null while unknown. */
   state(ownerId: string, addonId: string): AddonState | null {
@@ -93,6 +102,7 @@ export class AddonStore extends EventTarget {
   forget(): void {
     this.#entries.clear();
     this.#shared.clear();
+    this.versions.forget();
     this.#emit();
   }
 
@@ -177,6 +187,7 @@ function readMarks(ownerId: string): Record<string, number> {
 
 /** For "Erase everything from this browser". */
 export function clearAddonStorage(): void {
+  clearDbVersionStorage();
   try {
     for (const key of Object.keys(localStorage).filter((key) => key.startsWith('cvc.addon-instances.'))) {
       localStorage.removeItem(key);

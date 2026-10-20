@@ -76,6 +76,25 @@ describe('add-on states', () => {
   });
 });
 
+describe('databases to watch', () => {
+  it('lists a database on a retired version and lets is:watch find it', () => {
+    const list = buildHomeList(
+      input({
+        filterText: 'is:watch',
+        dbVersion: (addon) => (addon.id === 'shop-db' ? '11' : null),
+        offeredVersions: () => ['13', '14', '15'],
+      }),
+    );
+    expect(list.addonWatch.map((item) => [item.addon.id, item.version])).toEqual([['shop-db', '11']]);
+    expect(list.visibleAddons.map((addon) => addon.id)).toEqual(['shop-db']);
+    expect(list.visibleApps).toEqual([]);
+  });
+
+  it('lists nothing while versions are unknown', () => {
+    expect(buildHomeList(input({})).addonWatch).toEqual([]);
+  });
+});
+
 describe('displayOrder', () => {
   it('lists applications then add-ons of each group, leaving collapsed groups out', () => {
     const { tree } = buildHomeList(input({ groupingText: 'project' }));

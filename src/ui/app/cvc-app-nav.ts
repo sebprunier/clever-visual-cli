@@ -215,6 +215,8 @@ export class CvcAppNav extends CvcElement {
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
       addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
       addonStateLabel,
+      dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
+      offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
     });
     const appIds = new Set(apps.map((app) => app.id));
     this.#appOrder = displayOrder(list.tree, this.prefs.collapsed).filter((id) => appIds.has(id));

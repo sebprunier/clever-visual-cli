@@ -4,6 +4,7 @@
  * page and the column of an application page build the same list from it.
  */
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
+import { addonWatchList, type AddonWatchItem } from '../addons/database.js';
 import { watchList, type AppActivity, type WatchItem } from './activity.js';
 import type { AddonState } from './addon-state.js';
 import type { CostTable } from './costs.js';
@@ -35,6 +36,9 @@ export interface HomeListInput {
   /** The state of an add-on, null while unknown, and its words. */
   addonState?: (addon: AddonSummary) => AddonState | null;
   addonStateLabel?: (state: AddonState) => string;
+  /** The version of a database add-on and the ones its provider offers, null while unknown: "To watch". */
+  dbVersion?: (addon: AddonSummary) => string | null;
+  offeredVersions?: (providerId: string) => readonly string[] | null;
 }
 
 export interface HomeList {
@@ -43,6 +47,8 @@ export interface HomeList {
   grouping: ParsedGrouping;
   /** What deserves attention, whatever the filter. */
   watch: WatchItem[];
+  /** The add-ons that deserve attention: databases on a retired version. */
+  addonWatch: AddonWatchItem[];
   visibleApps: ApplicationSummary[];
   visibleAddons: AddonSummary[];
   /** The groups, sorted; one level-0 node when the grouping is empty. */
@@ -64,7 +70,8 @@ export function buildHomeList(input: HomeListInput): HomeList {
   };
   const filter = parseFilter(input.filterText);
   const watch = watchList(apps, activity);
-  const watchIds = new Set(watch.map((item) => item.app.id));
+  const addonWatch = addonWatchList(addons, input.dbVersion ?? (() => null), input.offeredVersions ?? (() => null));
+  const watchIds = new Set([...watch.map((item) => item.app.id), ...addonWatch.map((item) => item.addon.id)]);
   const visibleApps = apps.filter((app) =>
     matchesFilter(filter, {
       kind: 'app',
@@ -87,7 +94,10 @@ export function buildHomeList(input: HomeListInput): HomeList {
           state: addonLabel(addon) ?? undefined,
           tags: addon.customerTags,
           extra: [addon.id, addon.realId],
-          flags: input.addonState?.(addon) === 'shared' ? ['shared'] : [],
+          flags: [
+            ...(input.addonState?.(addon) === 'shared' ? ['shared'] : []),
+            ...(watchIds.has(addon.id) ? ['watch'] : []),
+          ],
         }),
       )
     : [];
@@ -98,7 +108,7 @@ export function buildHomeList(input: HomeListInput): HomeList {
     costs: input.costs,
     addonState: input.addonState,
   });
-  return { context, filter, grouping, watch, visibleApps, visibleAddons, tree };
+  return { context, filter, grouping, watch, addonWatch, visibleApps, visibleAddons, tree };
 }
 
 /** Ids of the rows a reader sees, in display order: the content of collapsed groups is left out. */
