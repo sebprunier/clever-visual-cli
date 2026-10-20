@@ -208,6 +208,15 @@ export class CvcAddonPage extends CvcElement {
     }
   }
 
+  /** After a restart, a rebuild or an update started from the overview. */
+  private reloadOperator(): void {
+    const summary = this.orga.addons.find((addon) => addon.id === this.addonId);
+    if (summary != null) {
+      void this.loadOperator(this.client, summary.id, summary.realId, summary.providerId);
+      void this.addonStore?.refreshOne(this.client, this.orga.id, summary.id);
+    }
+  }
+
   private get view(): ListView {
     return { filter: this.filterText, grouping: this.groupingText };
   }
@@ -358,6 +367,7 @@ export class CvcAddonPage extends CvcElement {
                       .operatorVersions=${this.operatorVersions}
                       .operatorError=${this.operatorError}
                       .addons=${this.orga.addons}
+                      @cvc-operator-changed=${this.reloadOperator}
                     ></cvc-addon-overview>`
         }
       </section>

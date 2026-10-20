@@ -25,8 +25,14 @@ import { ListCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cel
 import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
 import { CheckKeycloakVersionCommand } from '@clevercloud/client/cc-api-commands/keycloak/check-keycloak-version-command.js';
 import { GetKeycloakInfoCommand } from '@clevercloud/client/cc-api-commands/keycloak/get-keycloak-info-command.js';
+import { RebootKeycloakCommand } from '@clevercloud/client/cc-api-commands/keycloak/reboot-keycloak-command.js';
+import { RebuildKeycloakCommand } from '@clevercloud/client/cc-api-commands/keycloak/rebuild-keycloak-command.js';
+import { UpdateKeycloakVersionCommand } from '@clevercloud/client/cc-api-commands/keycloak/update-keycloak-version-command.js';
 import { CheckOtoroshiVersionCommand } from '@clevercloud/client/cc-api-commands/otoroshi/check-otoroshi-version-command.js';
 import { GetOtoroshiInfoCommand } from '@clevercloud/client/cc-api-commands/otoroshi/get-otoroshi-info-command.js';
+import { RebootOtoroshiCommand } from '@clevercloud/client/cc-api-commands/otoroshi/reboot-otoroshi-command.js';
+import { RebuildOtoroshiCommand } from '@clevercloud/client/cc-api-commands/otoroshi/rebuild-otoroshi-command.js';
+import { UpdateOtoroshiVersionCommand } from '@clevercloud/client/cc-api-commands/otoroshi/update-otoroshi-version-command.js';
 import { UpdateConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/update-config-provider-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
 import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
@@ -417,6 +423,32 @@ export async function fetchOperatorVersions(
     available: check.availableVersions,
     needUpdate: check.needUpdate,
   };
+}
+
+/** `clever keycloak|otoroshi restart`: restarts the instance, the data stays. */
+export async function rebootOperator(client: CcApiClient, kind: OperatorKind, realId: string): Promise<void> {
+  await (kind === 'keycloak'
+    ? client.send(new RebootKeycloakCommand({ addonId: realId }))
+    : client.send(new RebootOtoroshiCommand({ addonId: realId })));
+}
+
+/** `clever keycloak|otoroshi rebuild`: rebuilds the instance, the data stays. */
+export async function rebuildOperator(client: CcApiClient, kind: OperatorKind, realId: string): Promise<void> {
+  await (kind === 'keycloak'
+    ? client.send(new RebuildKeycloakCommand({ addonId: realId }))
+    : client.send(new RebuildOtoroshiCommand({ addonId: realId })));
+}
+
+/** `clever keycloak|otoroshi version update --target`: rebuilt on that version. */
+export async function updateOperatorVersion(
+  client: CcApiClient,
+  kind: OperatorKind,
+  realId: string,
+  targetVersion: string,
+): Promise<void> {
+  await (kind === 'keycloak'
+    ? client.send(new UpdateKeycloakVersionCommand({ addonId: realId, targetVersion }))
+    : client.send(new UpdateOtoroshiVersionCommand({ addonId: realId, targetVersion })));
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */

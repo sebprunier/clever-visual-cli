@@ -1,8 +1,8 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { compareVersions, databaseProduct, isRetiredVersion, VERSIONED_PROVIDERS } from '../../core/addons/database.js';
-import { operatorKind, operatorProduct } from '../../core/addons/operator.js';
+import { operatorKind, operatorProduct, type OperatorAction } from '../../core/addons/operator.js';
 import { ADDON_STATE_STATUS, type AddonState } from '../../core/home/addon-state.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { appStatus } from '../../core/home/status.js';
@@ -21,6 +21,9 @@ import type {
   OperatorVersions,
 } from '../../data/api.js';
 import '../shared/cvc-cli.js';
+import { pushToast } from '../shared/events.js';
+import './cvc-operator-dialog.js';
+import type { OperatorDoneDetail } from './cvc-operator-dialog.js';
 import { renderCostValue } from '../shared/cost-fact.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import {
@@ -80,6 +83,9 @@ export class CvcAddonOverview extends CvcElement {
   @property({ attribute: false }) operatorError: string | null = null;
   /** The add-ons of the organisation, to name the ones an operator is built on. */
   @property({ attribute: false }) addons: readonly AddonSummary[] = [];
+
+  /** The operator action whose dialog is open. */
+  @state() private operatorAction: OperatorAction | null = null;
 
   private appHref(appId: string): string {
     const route: Route = { kind: 'app', ownerId: this.ownerId, appId, tab: 'overview' };
@@ -158,7 +164,8 @@ export class CvcAddonOverview extends CvcElement {
 
   /**
    * An operator: its version (flagged when an update is out), where to open
-   * it, what it is built on, its network group.
+   * it, what it is built on, its network group; restart, rebuild and update,
+   * each through a dialog that shows the `clever` command.
    */
   private renderOperator() {
     const kind = operatorKind(this.summary.providerId);
@@ -171,49 +178,89 @@ export class CvcAddonOverview extends CvcElement {
     const [before, after] = t('operator.credentials').split('{command}');
     const [flagBefore, flagAfter] = t('operator.featureFlag').split('{command}');
     return html`<section class="card">
-      <h3>${this.addon?.provider.name ?? product}</h3>
-      ${
-        operator == null
-          ? this.operatorError != null
-            ? html`<p class="error small" role="alert">${this.operatorError}</p>`
-            : html`<p class="muted small">${t('common.loading')}</p>`
-          : html`<dl>
-                <dt>${t('operator.version')}</dt>
-                <dd>
-                  ${t('operator.versionValue', { version: operator.version, java: operator.javaVersion })}
+        <h3>${this.addon?.provider.name ?? product}</h3>
+        ${
+          operator == null
+            ? this.operatorError != null
+              ? html`<p class="error small" role="alert">${this.operatorError}</p>`
+              : html`<p class="muted small">${t('common.loading')}</p>`
+            : html`<dl>
+                  <dt>${t('operator.version')}</dt>
+                  <dd>
+                    ${t('operator.versionValue', { version: operator.version, java: operator.javaVersion })}
+                    ${
+                      versions?.needUpdate
+                        ? html`<span class="badge info">${t('operator.updateOut', { version: versions.latest })}</span>`
+                        : nothing
+                    }
+                  </dd>
+                  <dt>${t('operator.open')}</dt>
+                  <dd class="companion">
+                    ${this.externalLink(operator.accessUrl, product)}
+                    ${
+                      operator.api == null
+                        ? nothing
+                        : html`${this.externalLink(operator.api.url, t('operator.api'))}
+                          ${this.externalLink(operator.api.swaggerUrl, 'Swagger UI')}`
+                    }
+                  </dd>
+                  <dt>${t('operator.builtOn')}</dt>
+                  <dd class="companion">${this.renderBuiltOn(operator)}</dd>
+                  <dt>${t('operator.networkGroup')}</dt>
+                  <dd>
+                    ${
+                      operator.networkGroup == null
+                        ? html`<span class="muted">${t('operator.none')}</span>`
+                        : html`<cvc-cli no-prompt command=${operator.networkGroup}></cvc-cli>`
+                    }
+                  </dd>
+                </dl>
+                <p class="muted small">
+                  ${before}<code>clever ${kind} get ${this.summary.id} --format json</code>${after}
+                </p>
+                <div class="row operator-actions">
+                  <button type="button" class="small" @click=${() => (this.operatorAction = 'restart')}>
+                    ${t('operator.restart')}
+                  </button>
+                  <button type="button" class="small" @click=${() => (this.operatorAction = 'rebuild')}>
+                    ${t('operator.rebuild')}
+                  </button>
                   ${
-                    versions?.needUpdate
-                      ? html`<span class="badge info">${t('operator.updateOut', { version: versions.latest })}</span>`
+                    versions != null && versions.available.length > 0
+                      ? html`<button
+                          type="button"
+                          class="small ${versions.needUpdate ? 'primary' : ''}"
+                          @click=${() => (this.operatorAction = 'update')}
+                        >
+                          ${t('operator.update')}
+                        </button>`
                       : nothing
                   }
-                </dd>
-                <dt>${t('operator.open')}</dt>
-                <dd class="companion">
-                  ${this.externalLink(operator.accessUrl, product)}
-                  ${
-                    operator.api == null
-                      ? nothing
-                      : html`${this.externalLink(operator.api.url, t('operator.api'))}
-                        ${this.externalLink(operator.api.swaggerUrl, 'Swagger UI')}`
-                  }
-                </dd>
-                <dt>${t('operator.builtOn')}</dt>
-                <dd class="companion">${this.renderBuiltOn(operator)}</dd>
-                <dt>${t('operator.networkGroup')}</dt>
-                <dd>
-                  ${
-                    operator.networkGroup == null
-                      ? html`<span class="muted">${t('operator.none')}</span>`
-                      : html`<cvc-cli no-prompt command=${operator.networkGroup}></cvc-cli>`
-                  }
-                </dd>
-              </dl>
-              <p class="muted small">
-                ${before}<code>clever ${kind} get ${this.summary.id} --format json</code>${after}
-              </p>
-              <p class="muted small">${flagBefore}<code>clever features enable operators</code>${flagAfter}</p>`
-      }
-    </section>`;
+                </div>
+                <p class="muted small">${flagBefore}<code>clever features enable operators</code>${flagAfter}</p>`
+        }
+      </section>
+      ${
+        this.operatorAction == null
+          ? nothing
+          : html`<cvc-operator-dialog
+              .client=${this.client}
+              kind=${kind}
+              action=${this.operatorAction}
+              addonId=${this.summary.id}
+              realId=${this.summary.realId}
+              name=${this.summary.name}
+              .versions=${versions}
+              @cvc-operator-close=${() => (this.operatorAction = null)}
+              @cvc-operator-done=${this.onOperatorDone}
+            ></cvc-operator-dialog>`
+      }`;
+  }
+
+  private onOperatorDone(event: CustomEvent<OperatorDoneDetail>): void {
+    this.operatorAction = null;
+    pushToast(this, { kind: 'success', message: event.detail.message });
+    this.dispatchEvent(new CustomEvent('cvc-operator-changed', { bubbles: true, composed: true }));
   }
 
   private externalLink(url: string, label: string) {
@@ -590,6 +637,14 @@ export class CvcAddonOverview extends CvcElement {
       }
       .more {
         margin: 0.6rem 0 0;
+      }
+      .operator-actions {
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .operator-actions button.small {
+        padding: 0.3rem 0.7rem;
+        font-size: 0.85rem;
       }
       dd.companion {
         display: flex;
