@@ -53,11 +53,11 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set, de
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-
 - [#3](https://github.com/sebprunier/clever-visual-cli/issues/3) Logs of a set of applications: a grid, or one merged feed.
 - [#4](https://github.com/sebprunier/clever-visual-cli/issues/4) Themes: light, dark and a modern look, chosen in the app.
+- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, then what each family offers (backups, buckets, operator versions…).
 
-Further out: PWA and shortcuts, static hosting on Clever Cloud itself, add-ons and backups, drains, network groups, API tokens, Kubernetes.
+Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 
 ## Run
 
