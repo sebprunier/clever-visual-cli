@@ -597,6 +597,10 @@ export const en = {
   'home.watch': 'To watch',
   'home.watchFilter': 'Only these in the list',
   'fav.title': 'Favourite views',
+  'sync.tooLarge': 'The views and preferences are too large to sync: the platform takes up to 5 MB.',
+  'sync.linked':
+    'The sync add-on is linked to {count} applications, which each change would redeploy: unlink them first.',
+  'sync.linked_one': 'The sync add-on is linked to an application, which each change would redeploy: unlink it first.',
   'fav.menu': 'Views',
   'fav.menuTitle': 'Favourite views: save the current one, apply another',
   'fav.currentTitle': 'The current view is this favourite',

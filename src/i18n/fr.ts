@@ -592,6 +592,12 @@ export const fr: Record<MessageKey, string> = {
   'home.watch': 'À surveiller',
   'home.watchFilter': 'Ne garder que ceux-là dans la liste',
   'fav.title': 'Vues favorites',
+  'sync.tooLarge':
+    'Les vues et préférences sont trop volumineuses pour être synchronisées : la plateforme accepte 5 Mo au plus.',
+  'sync.linked':
+    'L’add-on de synchro est lié à {count} applications, que chaque modification redéploierait : les délier d’abord.',
+  'sync.linked_one':
+    'L’add-on de synchro est lié à une application, que chaque modification redéploierait : la délier d’abord.',
   'fav.menu': 'Vues',
   'fav.menuTitle': 'Vues favorites : enregistrer la vue actuelle, en appliquer une autre',
   'fav.currentTitle': 'La vue actuelle est ce favori',

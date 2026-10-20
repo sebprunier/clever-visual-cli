@@ -51,6 +51,8 @@ import { ListDeploymentCommand } from '@clevercloud/client/cc-api-commands/deplo
 import type { Link } from '@clevercloud/client/cc-api-commands/link/link.types.js';
 import { AddLinkCommand } from '@clevercloud/client/cc-api-commands/link/add-link-command.js';
 import { ListLinkCommand } from '@clevercloud/client/cc-api-commands/link/list-link-command.js';
+import { CreateAddonCommand } from '@clevercloud/client/cc-api-commands/addon/create-addon-command.js';
+import { GetProductAddonCommand } from '@clevercloud/client/cc-api-commands/product/get-product-addon-command.js';
 import { RemoveLinkCommand } from '@clevercloud/client/cc-api-commands/link/remove-link-command.js';
 import { CreateDomainCommand } from '@clevercloud/client/cc-api-commands/domain/create-domain-command.js';
 import { DeleteDomainCommand } from '@clevercloud/client/cc-api-commands/domain/delete-domain-command.js';
@@ -447,6 +449,34 @@ export async function updateOperatorVersion(
   await (kind === 'keycloak'
     ? client.send(new UpdateKeycloakVersionCommand({ addonId: realId, targetVersion }))
     : client.send(new UpdateOtoroshiVersionCommand({ addonId: realId, targetVersion })));
+}
+
+/**
+ * `clever addon create config-provider <name>`: a configuration provider on its single, free plan,
+ * in Paris. The plan id is read from the catalogue rather than written here.
+ */
+export async function createConfigProvider(
+  client: CcApiClient,
+  ownerId: string,
+  name: string,
+): Promise<{ id: string; realId: string }> {
+  const product = await client.send(
+    new GetProductAddonCommand({ id: 'config-provider', withVersions: false, ownerId }),
+  );
+  const plan = product.plans.find((candidate) => candidate.slug === 'std') ?? product.plans[0];
+  if (plan == null) {
+    throw new Error('The configuration provider has no plan.');
+  }
+  const addon = await client.send(
+    new CreateAddonCommand({ ownerId, name, zone: 'par', providerId: 'config-provider', planId: plan.id }),
+  );
+  return { id: addon.id, realId: addon.realId };
+}
+
+/** How many applications an add-on is linked to: a configuration provider redeploys them on each change. */
+export async function countLinkedApplications(client: CcApiClient, ownerId: string, addonId: string): Promise<number> {
+  const links: Link[] = await client.send(new ListLinkCommand({ ownerId, addonId }));
+  return links.length;
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */
