@@ -2,8 +2,9 @@
  * Named favourite views of the home list, per organisation: a filter, a
  * grouping and a sort under a name, applied in one click and shared as a
  * link (`?q=&g=&s=`). Kept in localStorage (`cvc.favorites.<ownerId>`) with
- * the time of each change, which the export and the sync of #1 merge on.
+ * the time of each change, which the sync of #1 merges on.
  */
+import { notifyLocalChange } from './local-changes.js';
 import { readSort } from './prefs.js';
 import type { SortSpec } from './sorting.js';
 
@@ -120,20 +121,32 @@ function isView(value: unknown): value is FavoriteView {
 
 export function readFavorites(ownerId: string): Favorites {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PREFIX + ownerId) ?? 'null') as Partial<Favorites> | null;
-    if (parsed == null || !Array.isArray(parsed.views)) {
-      return NO_FAVORITES;
-    }
-    return {
-      views: parsed.views.filter(isView).map((view) => ({ ...view, sort: readSort(view.sort) })),
-      updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 0,
-    };
+    return parseFavorites(JSON.parse(localStorage.getItem(PREFIX + ownerId) ?? 'null'));
   } catch {
     return NO_FAVORITES;
   }
 }
 
+/** Favourites from stored or synced JSON, the views that do not hold together left out. */
+export function parseFavorites(value: unknown): Favorites {
+  const parsed = value as Partial<Favorites> | null;
+  if (parsed == null || typeof parsed !== 'object' || !Array.isArray(parsed.views)) {
+    return NO_FAVORITES;
+  }
+  return {
+    views: parsed.views.filter(isView).map((view) => ({ ...view, sort: readSort(view.sort) })),
+    updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 0,
+  };
+}
+
+/** A change made here (the list carries its time): the sync hears of it. */
 export function writeFavorites(ownerId: string, favorites: Favorites): void {
+  saveFavorites(ownerId, favorites);
+  notifyLocalChange(ownerId);
+}
+
+/** Stores them as they are: what the sync brings from another browser. */
+export function saveFavorites(ownerId: string, favorites: Favorites): void {
   try {
     localStorage.setItem(PREFIX + ownerId, JSON.stringify(favorites));
   } catch {
