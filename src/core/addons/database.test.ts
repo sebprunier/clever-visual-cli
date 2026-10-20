@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AddonSummary } from '../../data/api.js';
-import { addonWatchList, compareVersions, isRetiredVersion } from './database.js';
+import { addonWatchList, compareVersions, isRetiredVersion, restoreCommand } from './database.js';
 
 const OFFERED = ['13', '14', '15', '16', '17', '18'];
 
@@ -20,6 +20,21 @@ describe('versions', () => {
     expect(isRetiredVersion('19', OFFERED)).toBe(false);
     expect(isRetiredVersion('11', [])).toBe(false);
     expect(isRetiredVersion('', OFFERED)).toBe(false);
+  });
+});
+
+describe('restoreCommand', () => {
+  const target = { host: 'abc-postgresql.services.clever-cloud.com', port: 6578, user: 'u1', database: 'abc' };
+
+  it('builds pg_restore with the real connection and file', () => {
+    expect(restoreCommand('postgresql-addon', target, 'postgresql_x-20261018035211.dump')).toBe(
+      'pg_restore -h abc-postgresql.services.clever-cloud.com -p 6578 -U u1 -d abc' +
+        ' --no-owner --no-privileges --no-comments --format=c postgresql_x-20261018035211.dump',
+    );
+  });
+
+  it('has nothing for the other providers yet', () => {
+    expect(restoreCommand('redis-addon', target, 'dump.rdb')).toBeNull();
   });
 });
 

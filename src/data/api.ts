@@ -10,6 +10,8 @@ import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-a
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
 import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
+import type { Backup } from '@clevercloud/client/cc-api-commands/backup/backup.types.js';
+import { ListBackupCommand } from '@clevercloud/client/cc-api-commands/backup/list-backup-command.js';
 import type { Application } from '@clevercloud/client/cc-api-commands/application/application.types.js';
 import { ListApplicationCommand } from '@clevercloud/client/cc-api-commands/application/list-application-command.js';
 import { DeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/deploy-application-command.js';
@@ -73,6 +75,7 @@ import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/clien
 export type {
   Addon,
   AddonInstance,
+  Backup,
   AddonRuntimeLog,
   AddonSummary,
   Application,
@@ -155,6 +158,11 @@ export function openRuntimeLogs(
 /** An add-on in full: provider, plan, zone, creation date. */
 export function fetchAddon(client: CcApiClient, ownerId: string, addonId: string): Promise<Addon> {
   return client.send(new GetAddonCommand({ ownerId, addonId }));
+}
+
+/** `clever database backups`: the backups of a database add-on, most recent first. */
+export function fetchBackups(client: CcApiClient, ownerId: string, addonId: string): Promise<Backup[]> {
+  return client.send(new ListBackupCommand({ ownerId, addonId }));
 }
 
 /** What the provider of a database add-on says about it, without its password. */

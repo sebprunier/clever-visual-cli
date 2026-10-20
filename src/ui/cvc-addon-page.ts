@@ -1,6 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { BACKUP_PROVIDERS, VERSIONED_PROVIDERS } from '../core/addons/database.js';
 import { describeError } from '../core/clever-client.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
@@ -17,7 +18,14 @@ import {
   type AddonTab,
   type ListView,
 } from '../core/router.js';
-import { fetchAddon, type Addon, type OrganisationSummary } from '../data/api.js';
+import {
+  fetchAddon,
+  fetchDatabaseDetails,
+  type Addon,
+  type DatabaseDetails,
+  type OrganisationSummary,
+} from '../data/api.js';
+import './addon/cvc-addon-backups.js';
 import './addon/cvc-addon-env.js';
 import './addon/cvc-addon-logs.js';
 import './addon/cvc-addon-overview.js';
@@ -31,12 +39,13 @@ const TABS: ReadonlyArray<{ tab: AddonTab; label: MessageKey }> = [
   { tab: 'overview', label: 'tab.overview' },
   { tab: 'env', label: 'tab.env' },
   { tab: 'logs', label: 'tab.logs' },
+  { tab: 'backups', label: 'tab.backups' },
 ];
 
 /**
  * One add-on: its name and state, the overview, its exposed variables and, for
- * a dedicated plan, its logs; beside the home list the user comes from, as an
- * application page.
+ * a dedicated plan, its logs; for a database, its details and backups; beside
+ * the home list the user comes from, as an application page.
  */
 @customElement('cvc-addon-page')
 export class CvcAddonPage extends CvcElement {
@@ -51,6 +60,9 @@ export class CvcAddonPage extends CvcElement {
   @property({ type: Number }) revision = 0;
 
   @state() private addon: Addon | null = null;
+  /** What the provider says about a database: version, host, options. */
+  @state() private details: DatabaseDetails | null = null;
+  @state() private detailsError: string | null = null;
   @state() private error: string | null = null;
   @state() private filterText = '';
   @state() private groupingText = '';
@@ -77,6 +89,8 @@ export class CvcAddonPage extends CvcElement {
       this.filterText = view.filter ?? '';
       this.groupingText = view.grouping ?? readPrefs(this.orga.id).grouping ?? '';
       this.addon = null;
+      this.details = null;
+      this.detailsError = null;
       void this.load();
     } else if (changed.has('revision')) {
       void this.load();
@@ -101,6 +115,10 @@ export class CvcAddonPage extends CvcElement {
     const ownerId = this.orga.id;
     this.error = null;
     void this.addonStore?.refreshOne(client, ownerId, addonId);
+    const providerId = this.orga.addons.find((addon) => addon.id === addonId)?.providerId ?? '';
+    if (VERSIONED_PROVIDERS.includes(providerId) || BACKUP_PROVIDERS.includes(providerId)) {
+      void this.loadDetails(client, ownerId, providerId, addonId);
+    }
     try {
       const addon = await fetchAddon(client, ownerId, addonId);
       if (this.addonId === addonId) {
@@ -108,6 +126,21 @@ export class CvcAddonPage extends CvcElement {
       }
     } catch (error) {
       this.error = describeError(error);
+    }
+  }
+
+  private async loadDetails(client: CcApiClient, ownerId: string, providerId: string, addonId: string) {
+    this.detailsError = null;
+    void this.addonStore?.versions.ensureOffered(client, providerId);
+    try {
+      const details = await fetchDatabaseDetails(client, providerId, addonId);
+      if (this.addonId === addonId) {
+        this.details = details;
+        // The home page's "To watch" follows what this page just read.
+        this.addonStore?.versions.remember(ownerId, addonId, details.version);
+      }
+    } catch (error) {
+      this.detailsError = describeError(error);
     }
   }
 
@@ -152,8 +185,13 @@ export class CvcAddonPage extends CvcElement {
     const ownerId = this.orga.id;
     const state = this.addonStore?.state(ownerId, summary.id) ?? null;
     const status = state == null ? null : ADDON_STATE_STATUS[state];
-    // Logs come from instances: a shared add-on has none to stream.
-    const tabs = TABS.filter((entry) => entry.tab !== 'logs' || state !== 'shared');
+    // Logs come from instances: a shared add-on has none to stream. Backups are the databases'.
+    const withBackups = BACKUP_PROVIDERS.includes(summary.providerId);
+    const tabs = TABS.filter(
+      (entry) => (entry.tab !== 'logs' || state !== 'shared') && (entry.tab !== 'backups' || withBackups),
+    );
+    // Coming from the backups of a database to an add-on without any (from the list column).
+    const tab = this.tab === 'backups' && !withBackups ? 'overview' : this.tab;
     const context = {
       apps: this.orga.applications.filter((app) => !app.isArchived),
       links: this.store?.get(ownerId).links ?? {},
@@ -177,8 +215,8 @@ export class CvcAddonPage extends CvcElement {
           ${tabs.map(
             (entry) =>
               html`<a
-                class=${entry.tab === this.tab ? 'active' : ''}
-                aria-current=${entry.tab === this.tab ? 'page' : 'false'}
+                class=${entry.tab === tab ? 'active' : ''}
+                aria-current=${entry.tab === tab ? 'page' : 'false'}
                 href=${withListView(
                   routeToHash({ kind: 'addon', ownerId, addonId: summary.id, tab: entry.tab }),
                   this.view,
@@ -191,26 +229,37 @@ export class CvcAddonPage extends CvcElement {
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       <section class="content">
         ${
-          this.tab === 'env'
-            ? html`<cvc-addon-env .client=${this.client} ownerId=${ownerId} addonId=${summary.id}></cvc-addon-env>`
-            : this.tab === 'logs'
-              ? state === 'shared'
-                ? html`<p class="empty">${t('addon.logsShared')}</p>`
-                : html`<cvc-addon-logs
+          tab === 'backups'
+            ? html`<cvc-addon-backups
+                .client=${this.client}
+                ownerId=${ownerId}
+                addonId=${summary.id}
+                providerId=${summary.providerId}
+                .details=${this.details}
+              ></cvc-addon-backups>`
+            : tab === 'env'
+              ? html`<cvc-addon-env .client=${this.client} ownerId=${ownerId} addonId=${summary.id}></cvc-addon-env>`
+              : tab === 'logs'
+                ? state === 'shared'
+                  ? html`<p class="empty">${t('addon.logsShared')}</p>`
+                  : html`<cvc-addon-logs
+                      .client=${this.client}
+                      ownerId=${ownerId}
+                      addonId=${summary.id}
+                    ></cvc-addon-logs>`
+                : html`<cvc-addon-overview
                     .client=${this.client}
                     ownerId=${ownerId}
-                    addonId=${summary.id}
-                  ></cvc-addon-logs>`
-              : html`<cvc-addon-overview
-                  .client=${this.client}
-                  ownerId=${ownerId}
-                  .summary=${summary}
-                  .addon=${this.addon}
-                  .state=${state}
-                  .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
-                  .linkedApps=${linkedApps(summary.id, context)}
-                  .costStore=${this.costStore}
-                ></cvc-addon-overview>`
+                    .summary=${summary}
+                    .addon=${this.addon}
+                    .state=${state}
+                    .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
+                    .linkedApps=${linkedApps(summary.id, context)}
+                    .costStore=${this.costStore}
+                    .details=${this.details}
+                    .detailsError=${this.detailsError}
+                    .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
+                  ></cvc-addon-overview>`
         }
       </section>
     `;

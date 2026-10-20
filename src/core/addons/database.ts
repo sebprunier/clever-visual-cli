@@ -1,18 +1,34 @@
 /**
  * What the database add-ons share beyond the generic add-on page: the version
- * the provider reports against the ones Clever Cloud still offers.
- * PostgreSQL first; MySQL and MongoDB join these lists later.
+ * the provider reports against the ones Clever Cloud still offers, and the
+ * commands that bring a backup back. PostgreSQL first; MySQL and MongoDB join
+ * these lists when their tabs are written.
  */
 import type { AddonSummary } from '../../data/api.js';
+import { shellQuote } from '../shell.js';
 
 /** Providers whose details carry a version, compared with the offered ones for "To watch". */
 export const VERSIONED_PROVIDERS: readonly string[] = ['postgresql-addon'];
 
+/** Providers with a Backups tab. */
+export const BACKUP_PROVIDERS: readonly string[] = ['postgresql-addon'];
+
 const PRODUCTS: Readonly<Record<string, string>> = { 'postgresql-addon': 'PostgreSQL' };
+
+/** The variable that holds the password a restore command asks for. */
+export const PASSWORD_VARIABLES: Readonly<Record<string, string>> = { 'postgresql-addon': 'POSTGRESQL_ADDON_PASSWORD' };
 
 /** "PostgreSQL" for `postgresql-addon`: the summary of an add-on carries no provider name. */
 export function databaseProduct(providerId: string): string {
   return PRODUCTS[providerId] ?? providerId.replace(/-addon$/, '');
+}
+
+/** What a restore command needs from the add-on's details; never its password. */
+export interface ConnectionTarget {
+  host: string;
+  port: number;
+  user: string;
+  database: string;
 }
 
 /** "11", "15.4" → "11", "15": the offered versions are majors. */
@@ -45,6 +61,23 @@ export function isRetiredVersion(version: string, offered: readonly string[]): b
   const major = majorVersion(version);
   const oldest = [...offered].sort(compareVersions)[0];
   return !offered.includes(major) && compareVersions(major, oldest) < 0;
+}
+
+/** The command that loads a downloaded backup into the database, for the providers that have one. */
+export function restoreCommand(providerId: string, target: ConnectionTarget, file: string): string | null {
+  if (providerId !== 'postgresql-addon') {
+    return null;
+  }
+  // The flags of the client's own template (ListBackupCommand), with the real file name.
+  return [
+    'pg_restore',
+    `-h ${shellQuote(target.host)}`,
+    `-p ${target.port}`,
+    `-U ${shellQuote(target.user)}`,
+    `-d ${shellQuote(target.database)}`,
+    '--no-owner --no-privileges --no-comments --format=c',
+    shellQuote(file),
+  ].join(' ');
 }
 
 /** A database add-on on a version Clever Cloud no longer offers. */

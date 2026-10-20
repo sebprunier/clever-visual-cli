@@ -52,6 +52,7 @@ Beside it, the list you came from, names only, with the same filter, grouping, o
 - **Overview**: a band with the state, the plan, the instances, the cost of yesterday and of the last 30 days and the number of linked applications; the instances with their size and state, the linked applications, and aside the provider, plan, zone and identifiers.
 - **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
 - **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.
+- **PostgreSQL**: the overview adds the version, flagged when Clever Cloud no longer offers it, the host, port and database to copy, and the options chosen at creation (`clever addon create --option`). A **Backups** tab lists the daily backups to download, with the `clever database backups` commands and, for the chosen one, the `pg_restore` command; the password stays in the Variables tab.
 
 The same list column as on the application page sits beside it, and goes from applications to add-ons and back.
 
@@ -72,7 +73,7 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list and a page per add-on are there; next, what each family offers (backups, buckets, operator versions…).
+- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on and PostgreSQL are there; next, the other families (buckets, Redis, MongoDB, Elasticsearch, operators…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 

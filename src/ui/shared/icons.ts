@@ -48,3 +48,10 @@ export const ICON_START = html`<svg class="icon" viewBox="0 0 24 24" width="14" 
 export const ICON_STOP = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
   <rect x="6" y="6" width="12" height="12" rx="1.5" style="fill: currentColor" />
 </svg>`;
+
+/** An arrow into a tray: take a copy home. */
+export const ICON_DOWNLOAD = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <path d="M12 4v11" style=${ATTRS} />
+  <path d="M7 10l5 5 5-5" style=${ATTRS} />
+  <path d="M4 17v3h16v-3" style=${ATTRS} />
+</svg>`;

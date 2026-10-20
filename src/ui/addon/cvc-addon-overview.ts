@@ -1,13 +1,14 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { compareVersions, databaseProduct, isRetiredVersion, VERSIONED_PROVIDERS } from '../../core/addons/database.js';
 import { ADDON_STATE_STATUS, type AddonState } from '../../core/home/addon-state.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { appStatus } from '../../core/home/status.js';
 import { CONSOLE_URL } from '../../core/constants.js';
-import { t } from '../../core/i18n.js';
+import { t, type MessageKey } from '../../core/i18n.js';
 import { keepListView, routeToHash, type Route } from '../../core/router.js';
-import type { Addon, AddonInstance, AddonSummary, ApplicationSummary } from '../../data/api.js';
+import type { Addon, AddonInstance, AddonSummary, ApplicationSummary, DatabaseDetails } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { renderCostValue } from '../shared/cost-fact.js';
 import { CvcElement } from '../shared/cvc-element.js';
@@ -21,10 +22,17 @@ import {
 import { statusIcon, statusMessage } from '../shared/status.js';
 import { sharedStyles } from '../shared/styles.js';
 
+const FEATURE_LABELS: Readonly<Record<string, MessageKey>> = {
+  encryption: 'database.feature.encryption',
+  'direct-host-only': 'database.feature.direct-host-only',
+  'do-backup': 'database.feature.do-backup',
+};
+
 /**
  * The overview of an add-on: a band with its state, plan, instances, cost and
- * linked applications; its instances (or why it has none) and the
- * applications it serves; aside, the facts and identifiers.
+ * linked applications; for a database, its version, address and options; its
+ * instances (or why it has none) and the applications it serves; aside, the
+ * facts and identifiers.
  */
 @customElement('cvc-addon-overview')
 export class CvcAddonOverview extends CvcElement {
@@ -37,6 +45,11 @@ export class CvcAddonOverview extends CvcElement {
   @property({ attribute: false }) instances: AddonInstance[] | null = null;
   @property({ attribute: false }) linkedApps: ApplicationSummary[] = [];
   @property({ attribute: false }) costStore: CostStore | null = null;
+  /** For a database: what its provider says about it, or why it could not be read. */
+  @property({ attribute: false }) details: DatabaseDetails | null = null;
+  @property({ attribute: false }) detailsError: string | null = null;
+  /** The versions Clever Cloud offers for a new database of this provider. */
+  @property({ attribute: false }) offered: readonly string[] | null = null;
 
   private appHref(appId: string): string {
     const route: Route = { kind: 'app', ownerId: this.ownerId, appId, tab: 'overview' };
@@ -47,7 +60,7 @@ export class CvcAddonOverview extends CvcElement {
     return html`
       ${this.renderBand()}
       <div class="columns">
-        <div class="main">${this.renderInstances()} ${this.renderLinkedApps()}</div>
+        <div class="main">${this.renderDatabase()} ${this.renderInstances()} ${this.renderLinkedApps()}</div>
         <aside class="side">${this.renderFacts()} ${this.renderIdentifiers()}</aside>
       </div>
     `;
@@ -103,6 +116,77 @@ export class CvcAddonOverview extends CvcElement {
         <span class="value">${this.linkedApps.length}</span>
       </div>
     </section>`;
+  }
+
+  /**
+   * Version, flagged with what Clever Cloud offers instead when retired; the
+   * address to copy; the options the add-on was created with, read-only.
+   */
+  private renderDatabase() {
+    if (!VERSIONED_PROVIDERS.includes(this.summary.providerId)) {
+      return nothing;
+    }
+    const details = this.details;
+    const offered = this.offered == null ? null : [...this.offered].sort(compareVersions);
+    const retired = details != null && offered != null && isRetiredVersion(details.version, offered);
+    return html`<section class="card">
+      <h3>${this.addon?.provider.name ?? databaseProduct(this.summary.providerId)}</h3>
+      ${
+        details == null
+          ? this.detailsError != null
+            ? html`<p class="error small" role="alert">${this.detailsError}</p>`
+            : html`<p class="muted small">${t('common.loading')}</p>`
+          : html`<dl>
+                <dt>${t('database.version')}</dt>
+                <dd class="version">
+                  <span>
+                    ${details.version}
+                    ${retired ? html`<span class="badge warn">${t('database.retired')}</span>` : nothing}
+                  </span>
+                  ${
+                    retired && offered != null
+                      ? html`<span class="muted small">
+                          ${t('database.offered', {
+                            range: t('database.versionRange', { from: offered[0], to: offered.at(-1) ?? '' }),
+                          })}
+                        </span>`
+                      : nothing
+                  }
+                </dd>
+                <dt>${t('database.host')}</dt>
+                <dd><cvc-cli no-prompt command=${details.host}></cvc-cli></dd>
+                <dt>${t('database.port')}</dt>
+                <dd><cvc-cli no-prompt command=${String(details.port)}></cvc-cli></dd>
+                <dt>${t('database.name')}</dt>
+                <dd><cvc-cli no-prompt command=${details.database}></cvc-cli></dd>
+              </dl>
+              ${this.renderCreationOptions(details)}`
+      }
+    </section>`;
+  }
+
+  /** The provider's features, as `clever addon create --option <name>=true` sets them. */
+  private renderCreationOptions(details: DatabaseDetails) {
+    if (details.features.length === 0) {
+      return nothing;
+    }
+    const [before, after] = t('database.creationHint').split('{command}');
+    return html`<div class="creation">
+      <p class="sub">${t('database.creationOptions')}</p>
+      <ul class="plain options">
+        ${details.features.map(
+          (feature) =>
+            html`<li>
+              <label class=${feature.enabled ? '' : 'muted'}>
+                <input type="checkbox" disabled .checked=${feature.enabled} />
+                ${FEATURE_LABELS[feature.name] ? t(FEATURE_LABELS[feature.name]) : feature.name}
+                <code class="muted small">${feature.name}</code>
+              </label>
+            </li>`,
+        )}
+      </ul>
+      <p class="muted small">${before}<code>clever addon create --option &lt;name&gt;=true</code>${after}</p>
+    </div>`;
   }
 
   private renderInstances() {
@@ -302,6 +386,47 @@ export class CvcAddonOverview extends CvcElement {
       }
       .note {
         margin: 0.75rem 0 0;
+      }
+      dd .badge {
+        margin-left: 0.4rem;
+      }
+      dd.version {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      dd cvc-cli {
+        display: flex;
+      }
+      .creation {
+        margin-top: 0.9rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--cvc-border);
+      }
+      .creation .sub {
+        margin: 0 0 0.4rem;
+        font-family: var(--cvc-label-font);
+        font-size: 0.85rem;
+        color: var(--cvc-muted);
+      }
+      .creation p:last-child {
+        margin: 0.5rem 0 0;
+      }
+      ul.options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1.25rem;
+      }
+      .options code {
+        font-size: 0.75rem;
+      }
+      .options label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .options input {
+        margin: 0;
       }
       dl {
         display: grid;
