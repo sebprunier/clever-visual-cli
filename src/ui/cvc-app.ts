@@ -11,6 +11,7 @@ import {
 } from '../core/actions.js';
 import { clearCliReleaseStorage, isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
+import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
 import { CLI_VERSION } from '../core/constants.js';
 import { markEnvChanged } from '../core/env-pending.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
@@ -37,7 +38,9 @@ import './cvc-toaster.js';
 import type { CvcToaster, Toast } from './cvc-toaster.js';
 import './cvc-unlock.js';
 import { appMark } from './shared/brand.js';
+import './shared/cvc-cli.js';
 import type { OpenActionDetail } from './shared/events.js';
+import { formatRelative } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
 type Phase = 'loading' | 'login' | 'adding' | 'unlock' | 'workspace';
@@ -69,8 +72,14 @@ export class CvcApp extends CvcElement {
   private readonly homeStore = new HomeStore();
   private readonly costStore = new CostStore();
   private readonly addonStore = new AddonStore();
+  /** The sync of the views through the personal space's configuration provider (#1). */
+  private readonly syncStore = new SyncStore();
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
+  private readonly onSessionChange = () => {
+    this.attachSync();
+    this.requestUpdate();
+  };
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && this.menu?.open) {
       // Handled here so the page under the menu keeps its selection.
@@ -134,8 +143,10 @@ export class CvcApp extends CvcElement {
     this.removeEventListener('cvc-refresh-summary', this.onRefreshSummary);
     window.removeEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute?.();
-    this.session?.removeEventListener('change', this.onChange);
+    this.session?.removeEventListener('change', this.onSessionChange);
     this.session?.vault.removeEventListener('change', this.onChange);
+    this.syncStore.removeEventListener('change', this.onChange);
+    this.syncStore.removeEventListener('created', this.onSyncCreated);
     super.disconnectedCallback();
   }
 
@@ -159,8 +170,10 @@ export class CvcApp extends CvcElement {
   private async boot(): Promise<void> {
     const vault = await Vault.load();
     const session = new Session(vault);
-    session.addEventListener('change', this.onChange);
+    session.addEventListener('change', this.onSessionChange);
     vault.addEventListener('change', this.onChange);
+    this.syncStore.addEventListener('change', this.onChange);
+    this.syncStore.addEventListener('created', this.onSyncCreated);
     this.session = session;
     await this.syncPhase();
   }
@@ -225,7 +238,25 @@ export class CvcApp extends CvcElement {
     await this.syncPhase();
   }
 
+  /** The new add-on belongs in the personal space's list. */
+  private readonly onSyncCreated = () => void this.session?.refreshSummary();
+
+  /** The sync follows the signed-in account: its personal space holds the add-on, when there is one. */
+  private attachSync(): void {
+    const session = this.session;
+    const client = session?.client ?? null;
+    if (session == null || client == null) {
+      this.syncStore.detach();
+      return;
+    }
+    const personal = session.organisations.find((orga) => orga.id.startsWith('user_'));
+    if (session.summary != null && personal != null) {
+      this.syncStore.attach(client, personal.id, personal.addons);
+    }
+  }
+
   private destroyEverything(): void {
+    this.syncStore.detach();
     this.session?.deactivate();
     this.session?.vault.destroy();
     clearClientCaches();
@@ -587,6 +618,7 @@ export class CvcApp extends CvcElement {
           .store=${this.homeStore}
           .costStore=${this.costStore}
           .addonStore=${this.addonStore}
+          .syncStore=${this.syncStore}
           userId=${session.profile?.userId ?? ''}
           .revision=${this.revision}
         ></cvc-orga-page>`;
@@ -656,6 +688,56 @@ export class CvcApp extends CvcElement {
     </p>`;
   }
 
+  /**
+   * The sync of the views and display preferences: enabled here as well as
+   * from the views menu, even after "Not now"; the add-on, once there, is
+   * linked to, since deleting it is how the sync stops.
+   */
+  private renderSync() {
+    const sync = this.syncStore;
+    if (sync.state === 'idle') {
+      return nothing;
+    }
+    const addon = sync.addon;
+    return html`<section class="card stack">
+      <h2>${t('sync.title')}</h2>
+      ${
+        sync.state === 'on' && addon != null
+          ? html`<p class="small">
+                ${
+                  sync.busy
+                    ? t('sync.syncing')
+                    : sync.lastSyncAt != null
+                      ? html`${t('sync.on')} · ${t('sync.lastSync', { when: formatRelative(sync.lastSyncAt) })}`
+                      : t('sync.on')
+                }
+              </p>
+              <p class="muted small">
+                ${t('sync.accountOn')}
+                <a href=${routeToHash({ kind: 'addon', ownerId: sync.ownerId, addonId: addon.id, tab: 'overview' })}
+                  >${t('sync.openAddon')}</a
+                >
+              </p>
+              <div class="row">
+                <button type="button" ?disabled=${sync.busy} @click=${() => sync.syncNow()}>${t('sync.now')}</button>
+              </div>`
+          : html`<p class="muted small">${t('sync.accountOff')}</p>
+              <cvc-cli block command=${SYNC_CREATE_COMMAND}></cvc-cli>
+              <div class="row">
+                <button
+                  type="button"
+                  class="primary"
+                  ?disabled=${sync.state === 'enabling'}
+                  @click=${() => sync.enable()}
+                >
+                  ${sync.state === 'enabling' ? t('sync.enabling') : t('sync.enable')}
+                </button>
+              </div>`
+      }
+      ${sync.error != null ? html`<p class="error small" role="alert">${t(sync.state === 'on' ? 'sync.failed' : 'sync.createFailed', { error: sync.error })}</p>` : nothing}
+    </section>`;
+  }
+
   private renderAccount(session: Session) {
     const vault = session.vault;
     return html`
@@ -695,6 +777,7 @@ export class CvcApp extends CvcElement {
             </button>
           </div>
         </section>
+        ${this.renderSync()}
         <section class="card stack">
           <h2>${t('common.language')}</h2>
           <div class="row">

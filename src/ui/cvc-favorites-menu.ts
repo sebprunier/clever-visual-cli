@@ -1,4 +1,4 @@
-import { css, html, nothing } from 'lit';
+import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import {
   findFavorite,
@@ -11,7 +11,10 @@ import {
 import { DEFAULT_PREFS } from '../core/home/prefs.js';
 import { t } from '../core/i18n.js';
 import { routeToHash, withHashParams } from '../core/router.js';
+import { SYNC_CREATE_COMMAND, type SyncStore } from '../core/sync/sync-store.js';
 import { copyToClipboard } from './shared/clipboard.js';
+import './shared/cvc-cli.js';
+import { formatRelative } from './shared/format.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { ICON_EDIT, ICON_LINK } from './shared/icons.js';
 import { sharedStyles } from './shared/styles.js';
@@ -44,6 +47,8 @@ export class CvcFavoritesMenu extends CvcElement {
   @property() ownerId = '';
   @property({ attribute: false }) favorites: Favorites = NO_FAVORITES;
   @property({ attribute: false }) current: ViewSpec = { filter: '', grouping: '', sort: DEFAULT_PREFS.sort };
+  /** The sync: offered once there is a favourite, its state shown once on. */
+  @property({ attribute: false }) sync: SyncStore | null = null;
 
   @state() private open = false;
   /** The name typed for the current view. */
@@ -53,6 +58,20 @@ export class CvcFavoritesMenu extends CvcElement {
 
   @query('.trigger') private trigger?: HTMLButtonElement;
   @query('[popover]') private panel?: HTMLElement;
+
+  private readonly onSyncChange = () => this.requestUpdate();
+
+  override willUpdate(changed: PropertyValues<this>): void {
+    if (changed.has('sync')) {
+      (changed.get('sync') as SyncStore | null | undefined)?.removeEventListener('change', this.onSyncChange);
+      this.sync?.addEventListener('change', this.onSyncChange);
+    }
+  }
+
+  override disconnectedCallback(): void {
+    this.sync?.removeEventListener('change', this.onSyncChange);
+    super.disconnectedCallback();
+  }
 
   /** Placed under the button, its right edge on the button's, before it shows. */
   private onBeforeToggle(event: Event): void {
@@ -115,7 +134,10 @@ export class CvcFavoritesMenu extends CvcElement {
       return;
     }
     this.emit<FavoriteNameDetail>('cvc-favorite-save', { name: this.name });
-    this.close();
+    // Kept open while the sync is still to offer: the moment a view is worth keeping elsewhere.
+    if (this.sync?.state !== 'off' || this.sync.declined) {
+      this.close();
+    }
   }
 
   private apply(view: FavoriteView): void {
@@ -210,6 +232,53 @@ export class CvcFavoritesMenu extends CvcElement {
                 ${views.map((view) => this.renderView(view, view.id === active?.id))}
               </ul>`
         }
+        ${this.renderSync(views.length)}
+      </div>`;
+  }
+
+  /**
+   * Off: the offer to sync, once there is a view worth keeping and unless it
+   * was declined; it creates an add-on, so it waits for a click. On: when the
+   * views were last synced, or why they could not be.
+   */
+  private renderSync(count: number) {
+    const sync = this.sync;
+    if (sync == null || sync.state === 'idle') {
+      return nothing;
+    }
+    if (sync.state === 'enabling') {
+      return html`<hr />
+        <p class="muted small">${t('sync.enabling')}</p>`;
+    }
+    if (sync.state === 'on') {
+      return html`<hr />
+        <p class="small sync-state">
+          ${
+            sync.error != null
+              ? html`<span class="danger">${t('sync.failed', { error: sync.error })}</span>
+                  <button type="button" class="link" @click=${() => sync.syncNow()}>${t('common.retry')}</button>`
+              : html`<span class="muted"
+                  >${sync.busy ? t('sync.syncing') : t('sync.on')}${
+                    sync.lastSyncAt != null && !sync.busy
+                      ? ` · ${t('sync.lastSync', { when: formatRelative(sync.lastSyncAt) })}`
+                      : ''
+                  }</span
+                >`
+          }
+        </p>`;
+    }
+    if (count === 0 || sync.declined) {
+      return nothing;
+    }
+    return html`<hr />
+      <div class="offer">
+        <p class="small">${t('sync.offer')}</p>
+        <cvc-cli block command=${SYNC_CREATE_COMMAND}></cvc-cli>
+        ${sync.error != null ? html`<p class="small danger">${t('sync.createFailed', { error: sync.error })}</p>` : nothing}
+        <div class="row">
+          <button type="button" class="primary small" @click=${() => sync.enable()}>${t('sync.enable')}</button>
+          <button type="button" class="ghost small" @click=${() => sync.decline()}>${t('sync.notNow')}</button>
+        </div>
       </div>`;
   }
 
@@ -430,6 +499,24 @@ export class CvcFavoritesMenu extends CvcElement {
         background: none;
         color: var(--cvc-muted);
         border-radius: 6px;
+      }
+      .offer {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .offer .row {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .sync-state {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .danger {
+        color: var(--cvc-danger);
       }
       .icon-button:hover {
         color: var(--cvc-text);

@@ -54,6 +54,7 @@ import {
 } from '../core/home/favorites.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
 import { readFolded, toggleFolded, writeFolded, type SideCard } from '../core/home/side-cards.js';
+import type { SyncAppliedDetail, SyncStore } from '../core/sync/sync-store.js';
 import { listRecents } from '../core/home/recents.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
@@ -160,6 +161,8 @@ export class CvcOrgaPage extends CvcElement {
   @property({ attribute: false }) store!: HomeStore;
   @property({ attribute: false }) costStore!: CostStore;
   @property({ attribute: false }) addonStore: AddonStore | null = null;
+  /** The sync of the views, whose state the views menu shows. */
+  @property({ attribute: false }) syncStore: SyncStore | null = null;
   /** Id of the signed-in user, to say "toi" in the activity column. */
   @property() userId = '';
   /** Bumped by the shell after an action so the activity reloads. */
@@ -196,6 +199,13 @@ export class CvcOrgaPage extends CvcElement {
   #lastClicked: string | null = null;
 
   private readonly onStoreChange = () => this.requestUpdate();
+  /** Another browser changed the views or preferences of this organisation: show them. */
+  private readonly onSyncApplied = (event: Event) => {
+    if ((event as CustomEvent<SyncAppliedDetail>).detail.owners.includes(this.orga?.id)) {
+      this.prefs = readPrefs(this.orga.id);
+      this.favorites = readFavorites(this.orga.id);
+    }
+  };
   private readonly onKeyDown = (event: KeyboardEvent) => {
     if (event.metaKey || event.ctrlKey || event.altKey) {
       return;
@@ -233,6 +243,8 @@ export class CvcOrgaPage extends CvcElement {
     this.store?.removeEventListener('change', this.onStoreChange);
     this.costStore?.removeEventListener('change', this.onStoreChange);
     this.addonStore?.removeEventListener('change', this.onStoreChange);
+    this.syncStore?.removeEventListener('change', this.onStoreChange);
+    this.syncStore?.removeEventListener('applied', this.onSyncApplied);
     this.#sideObserver?.disconnect();
     this.#sideObserver = null;
     super.disconnectedCallback();
@@ -260,6 +272,13 @@ export class CvcOrgaPage extends CvcElement {
     if (changed.has('costStore')) {
       (changed.get('costStore') as CostStore | undefined)?.removeEventListener('change', this.onStoreChange);
       this.costStore?.addEventListener('change', this.onStoreChange);
+    }
+    if (changed.has('syncStore')) {
+      const previous = changed.get('syncStore') as SyncStore | null | undefined;
+      previous?.removeEventListener('change', this.onStoreChange);
+      previous?.removeEventListener('applied', this.onSyncApplied);
+      this.syncStore?.addEventListener('change', this.onStoreChange);
+      this.syncStore?.addEventListener('applied', this.onSyncApplied);
     }
     if (changed.has('addonStore')) {
       (changed.get('addonStore') as AddonStore | null | undefined)?.removeEventListener('change', this.onStoreChange);
@@ -573,6 +592,7 @@ export class CvcOrgaPage extends CvcElement {
                 ownerId=${this.orga.id}
                 .favorites=${this.favorites}
                 .current=${this.currentView}
+                .sync=${this.syncStore}
                 @cvc-favorite-save=${(event: CustomEvent<FavoriteNameDetail>) =>
                   this.setFavorites(addFavorite(this.favorites, event.detail.name, this.currentView))}
                 @cvc-favorite-apply=${(event: CustomEvent<FavoriteViewDetail>) => this.applyFavorite(event.detail.view)}

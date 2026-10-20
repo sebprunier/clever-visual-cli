@@ -592,6 +592,23 @@ export const fr: Record<MessageKey, string> = {
   'home.watch': 'À surveiller',
   'home.watchFilter': 'Ne garder que ceux-là dans la liste',
   'fav.title': 'Vues favorites',
+  'sync.title': 'Synchronisation des vues',
+  'sync.accountOff':
+    'Tes vues favorites et tes préférences d’affichage restent dans ce navigateur. Synchronisées, elles te suivent dans tous les navigateurs connectés à ce compte, grâce à un config provider gratuit nommé clever-visual-cli dans ton espace perso.',
+  'sync.accountOn':
+    'Tes vues favorites et tes préférences d’affichage sont gardées dans l’add-on clever-visual-cli de ton espace perso. Le supprimer arrête la synchro ; ce que ce navigateur a reste.',
+  'sync.openAddon': 'Ouvrir l’add-on',
+  'sync.now': 'Synchroniser maintenant',
+  'sync.failed': 'Synchro impossible : {error}',
+  'sync.createFailed': 'L’add-on n’a pas été créé : {error}',
+  'sync.offer':
+    'Synchroniser tes vues entre tes navigateurs ? Ça crée un add-on gratuit, un config provider nommé clever-visual-cli, dans ton espace perso.',
+  'sync.enable': 'Activer',
+  'sync.notNow': 'Pas maintenant',
+  'sync.enabling': 'Création de l’add-on…',
+  'sync.on': 'Synchronisées entre tes navigateurs',
+  'sync.syncing': 'Synchronisation…',
+  'sync.lastSync': 'dernière synchro {when}',
   'sync.tooLarge':
     'Les vues et préférences sont trop volumineuses pour être synchronisées : la plateforme accepte 5 Mo au plus.',
   'sync.linked':

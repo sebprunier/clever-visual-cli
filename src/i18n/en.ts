@@ -597,6 +597,23 @@ export const en = {
   'home.watch': 'To watch',
   'home.watchFilter': 'Only these in the list',
   'fav.title': 'Favourite views',
+  'sync.title': 'Views sync',
+  'sync.accountOff':
+    'Your favourite views and display preferences stay in this browser. Synced, they follow you to every browser signed in to this account, through a free configuration provider named clever-visual-cli in your personal space.',
+  'sync.accountOn':
+    'Your favourite views and display preferences are kept in the clever-visual-cli add-on of your personal space. Deleting it stops the sync; what this browser has stays.',
+  'sync.openAddon': 'Open the add-on',
+  'sync.now': 'Sync now',
+  'sync.failed': 'Sync failed: {error}',
+  'sync.createFailed': 'The add-on was not created: {error}',
+  'sync.offer':
+    'Sync your views between your browsers? This creates a free add-on, a configuration provider named clever-visual-cli, in your personal space.',
+  'sync.enable': 'Enable',
+  'sync.notNow': 'Not now',
+  'sync.enabling': 'Creating the add-on…',
+  'sync.on': 'Synced between your browsers',
+  'sync.syncing': 'Syncing…',
+  'sync.lastSync': 'last sync {when}',
   'sync.tooLarge': 'The views and preferences are too large to sync: the platform takes up to 5 MB.',
   'sync.linked':
     'The sync add-on is linked to {count} applications, which each change would redeploy: unlink them first.',
