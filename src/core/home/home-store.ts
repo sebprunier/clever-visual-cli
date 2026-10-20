@@ -224,7 +224,11 @@ function writeLinks(ownerId: string, stored: StoredLinks): void {
 export function clearHomeStorage(): void {
   try {
     const keys = Object.keys(localStorage).filter(
-      (key) => key.startsWith('cvc.links.') || key.startsWith('cvc.home.') || key === 'cvc.recents',
+      (key) =>
+        key.startsWith('cvc.links.') ||
+        key.startsWith('cvc.home.') ||
+        key.startsWith('cvc.favorites.') ||
+        key === 'cvc.recents',
     );
     for (const key of keys) {
       localStorage.removeItem(key);

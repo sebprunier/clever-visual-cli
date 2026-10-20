@@ -39,6 +39,19 @@ import {
 import type { HomeStore } from '../core/home/home-store.js';
 import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { buildHomeList, displayOrder } from '../core/home/list.js';
+import {
+  addFavorite,
+  NO_FAVORITES,
+  readFavorites,
+  readSortParam,
+  removeFavorite,
+  renameFavorite,
+  restoreFavorite,
+  writeFavorites,
+  type FavoriteView,
+  type Favorites,
+  type ViewSpec,
+} from '../core/home/favorites.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
 import { listRecents } from '../core/home/recents.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
@@ -51,6 +64,8 @@ import { readHashParams, routeToHash, withHashParams, withListView, writeHashPar
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
+import './cvc-favorites-menu.js';
+import type { FavoriteNameDetail, FavoriteRenameDetail, FavoriteViewDetail } from './cvc-favorites-menu.js';
 import './shared/cvc-menu-button.js';
 import type { MenuSelectDetail } from './shared/cvc-menu-button.js';
 import './cvc-tag-dialog.js';
@@ -157,6 +172,8 @@ export class CvcOrgaPage extends CvcElement {
   @state() private bulkDialog: BulkKind | null = null;
   /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
   @state() private sideTall = false;
+  /** The named views of this organisation. */
+  @state() private favorites: Favorites = NO_FAVORITES;
   /** The "To watch" card shows all its entries, not only the first ones. */
   @state() private watchUnfolded = false;
 
@@ -253,6 +270,14 @@ export class CvcOrgaPage extends CvcElement {
         this.filterText = params.get('q') ?? '';
         this.groupingText = params.get('g') ?? this.prefs.grouping ?? '';
         this.selected = new Set();
+        this.favorites = readFavorites(this.orga.id);
+        // A shared view carries its sort; it becomes the sort of this browser and leaves the URL, which only
+        // follows the filter and the grouping.
+        const sort = readSortParam(params.get('s'));
+        if (sort != null) {
+          this.setPrefs({ sort });
+        }
+        writeHashParams({ s: null });
       }
       this.refresh({});
     } else if (changed.has('revision')) {
@@ -300,6 +325,43 @@ export class CvcOrgaPage extends CvcElement {
   private setGrouping(text: string): void {
     this.groupingText = text;
     this.setPrefs({ grouping: text });
+  }
+
+  private get currentView(): ViewSpec {
+    return { filter: this.filterText, grouping: this.groupingText, sort: this.prefs.sort };
+  }
+
+  private setFavorites(favorites: Favorites): void {
+    this.favorites = favorites;
+    writeFavorites(this.orga.id, favorites);
+  }
+
+  private applyFavorite(view: FavoriteView): void {
+    this.filterText = view.filter;
+    this.setGrouping(view.grouping);
+    this.setPrefs({ sort: view.sort });
+  }
+
+  private deleteFavorite(view: FavoriteView): void {
+    const index = this.favorites.views.findIndex((candidate) => candidate.id === view.id);
+    this.setFavorites(removeFavorite(this.favorites, view.id));
+    const ownerId = this.orga.id;
+    pushToast(this, {
+      kind: 'info',
+      message: t('fav.removed', { name: view.name }),
+      action: {
+        label: t('fav.undo'),
+        run: () => {
+          // The organisation may have changed meanwhile: put it back where it was removed.
+          const current = ownerId === this.orga.id ? this.favorites : readFavorites(ownerId);
+          const restored = restoreFavorite(current, view, index);
+          writeFavorites(ownerId, restored);
+          if (ownerId === this.orga.id) {
+            this.favorites = restored;
+          }
+        },
+      },
+    });
   }
 
   private toggleGroup(path: string): void {
@@ -473,7 +535,7 @@ export class CvcOrgaPage extends CvcElement {
       <div class="layout">
         <div class="main">
           <header class="head">
-            <div class="row">
+            <div class="row head-row">
               <div class="title">
                 <h1>${this.orga.name}</h1>
                 <span class="muted">${t('home.counts', { apps: apps.length, addons: addons.length })}</span>
@@ -489,9 +551,20 @@ export class CvcOrgaPage extends CvcElement {
                     ? html`<span class="muted small">${t('home.activityLoading')}</span>`
                     : nothing
               }
+              <cvc-favorites-menu
+                ownerId=${this.orga.id}
+                .favorites=${this.favorites}
+                .current=${this.currentView}
+                @cvc-favorite-save=${(event: CustomEvent<FavoriteNameDetail>) =>
+                  this.setFavorites(addFavorite(this.favorites, event.detail.name, this.currentView))}
+                @cvc-favorite-apply=${(event: CustomEvent<FavoriteViewDetail>) => this.applyFavorite(event.detail.view)}
+                @cvc-favorite-rename=${(event: CustomEvent<FavoriteRenameDetail>) =>
+                  this.setFavorites(renameFavorite(this.favorites, event.detail.id, event.detail.name))}
+                @cvc-favorite-remove=${(event: CustomEvent<FavoriteViewDetail>) => this.deleteFavorite(event.detail.view)}
+              ></cvc-favorites-menu>
               <button
                 type="button"
-                class="ghost with-icon"
+                class="ghost small with-icon head-button"
                 title=${t('home.refreshTitle')}
                 ?disabled=${data.deploymentsLoading || data.linksPending > 0}
                 @click=${() => {
@@ -1426,6 +1499,35 @@ export class CvcOrgaPage extends CvcElement {
         gap: 0.6rem;
         flex-wrap: wrap;
       }
+      /* One line: the long command shrinks (and ends with an ellipsis) rather than pushing the
+         buttons onto a line of their own. */
+      .head-row {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+      }
+      .head-row .title {
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+      }
+      .head-row h1,
+      .head-row .title > .muted {
+        flex: none;
+        white-space: nowrap;
+      }
+      .head-row .title cvc-cli {
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      .head-row > :not(.title) {
+        flex: none;
+      }
+      @media (max-width: 720px) {
+        .head-row,
+        .head-row .title {
+          flex-wrap: wrap;
+        }
+      }
       .title .muted {
         font-size: 0.9rem;
       }
@@ -1586,6 +1688,10 @@ export class CvcOrgaPage extends CvcElement {
       }
       .watch {
         border-color: color-mix(in srgb, var(--cvc-warn) 45%, var(--cvc-border));
+      }
+      .head-button {
+        padding: 0.3rem 0.65rem;
+        font-size: 0.85rem;
       }
       .watch ul {
         list-style: none;

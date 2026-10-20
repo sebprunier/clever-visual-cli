@@ -61,3 +61,11 @@ export const ICON_EDIT = html`<svg class="icon" viewBox="0 0 24 24" width="14" h
   <path d="M4 20h4L19 9l-4-4L4 16v4z" style=${ATTRS} />
   <path d="M13.5 6.5l4 4" style=${ATTRS} />
 </svg>`;
+
+/** A chain link, for "copy the link". */
+export const ICON_LINK = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <path
+    d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"
+    style=${ATTRS}
+  />
+</svg>`;
