@@ -92,6 +92,21 @@ export function planTagOperation(operation: TagOperation, resources: readonly Ta
 }
 
 /** The steps that undo `steps`, most recent first. */
+/**
+ * The steps that turn the tags of one resource into `next`, as the editor of
+ * an application or add-on page sets them: removals, then additions, each tag
+ * once, nothing for a tag kept.
+ */
+export function planTagEdit(resource: TagResource, next: readonly string[]): TagStep[] {
+  const wanted = [...new Set(next.map((tag) => tag.trim()).filter((tag) => tag !== ''))];
+  return [
+    ...resource.tags
+      .filter((tag) => !wanted.includes(tag))
+      .map((tag): TagStep => ({ resource, action: 'remove', tag })),
+    ...wanted.filter((tag) => !resource.tags.includes(tag)).map((tag): TagStep => ({ resource, action: 'add', tag })),
+  ];
+}
+
 export function invertSteps(steps: readonly TagStep[]): TagStep[] {
   return [...steps].reverse().map((step) => ({ ...step, action: step.action === 'add' ? 'remove' : 'add' }));
 }
@@ -107,6 +122,11 @@ export function describeStep(step: TagStep, ownerId: string): string {
   const resource = step.resource.kind === 'app' ? `applications/${step.resource.id}` : `addons/${step.resource.id}`;
   const url = `${API_HOST}/v2/organisations/${ownerId}/${resource}/tags/${encodeURIComponent(step.tag)}`;
   return `clever curl -X ${method} ${shellQuote(url)}`;
+}
+
+/** The tags used anywhere in an organisation, sorted: the suggestions of a tag field. */
+export function tagsInUse(items: ReadonlyArray<{ customerTags: string[] }>): string[] {
+  return [...new Set(items.flatMap((item) => item.customerTags))].sort((a, b) => a.localeCompare(b, 'fr'));
 }
 
 /** The tags present on at least one of the resources, sorted. */

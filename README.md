@@ -39,6 +39,7 @@ A dense list of every application and add-on, with the last deployment of each a
 
 ### Application page
 
+- **Tags** under the name, edited from the pencil beside them in a dialog: remove some, add others with the organisation's tags as suggestions, see the `clever curl` calls, apply, undo from the notification.
 - **Overview**, arranged by use: a band with the state, the running instances, the last deployment, the cost of yesterday and of the last 30 days, and the primary domain; scaling (dedicated build included), the options, the first domains and the recent activity; aside, the runtime, deployment and identifiers to read or copy. Changes go through "Edit", which shows the `clever` command.
 - **Domains**: all of them, the primary first, with a filter for applications that have dozens.
 - **Logs**: the application's, the access logs (status, method, path, duration, size, client), or both interleaved by date, the requests on a light tint; with filter, pause and a replay window.
@@ -49,6 +50,7 @@ Beside it, the list you came from, names only, with the same filter, grouping, o
 
 ### Add-on page
 
+- **Tags** under the name, edited as on an application page; the ones the add-on inherits from its linked applications for grouping are shown dashed.
 - **Overview**: a band with the state, the plan, the instances, the cost of yesterday and of the last 30 days and the number of linked applications; the instances with their size and state, the linked applications, and aside the provider, plan, zone and identifiers.
 - **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
 - **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.

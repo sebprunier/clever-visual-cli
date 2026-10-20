@@ -3,6 +3,7 @@ import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import {
   buildTree,
   groupingSuggestions,
+  inheritedTags,
   linkedAddons,
   parseGrouping,
   tagValue,
@@ -153,5 +154,24 @@ describe('home grouping', () => {
   it('lists linked add-ons with strong links first, tolerating missing links', () => {
     expect(linkedAddons('web', context).map((item) => item.id)).toEqual(['pg', 'redis', 'config']);
     expect(linkedAddons('unknown', context)).toEqual([]);
+  });
+});
+
+describe('inherited tags', () => {
+  it('takes the key:value tags of the linked applications for the keys the add-on lacks', () => {
+    const [web, api] = apps;
+    expect(inheritedTags(addons[1], [web, api])).toEqual([
+      { tag: 'env:prod', from: ['shop-web', 'shop-api'] },
+      { tag: 'project:shop:prod', from: ['shop-web', 'shop-api'] },
+    ]);
+  });
+
+  it('leaves the keys the add-on has its own tag for, and plain tags', () => {
+    const tagged = addon('x', 'x', 'redis-addon', ['Project:other']);
+    const plain = app('p', 'plain', ['legacy', 'env:dev']);
+    expect(inheritedTags(tagged, [apps[0], plain])).toEqual([
+      { tag: 'env:dev', from: ['plain'] },
+      { tag: 'env:prod', from: ['shop-web'] },
+    ]);
   });
 });

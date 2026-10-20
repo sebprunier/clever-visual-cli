@@ -10,6 +10,7 @@ import type { CostStore } from '../core/home/cost-store.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { readPrefs } from '../core/home/prefs.js';
 import { appStatus } from '../core/home/status.js';
+import { tagsInUse } from '../core/home/tagging.js';
 import {
   readListView,
   routeToHash,
@@ -32,6 +33,7 @@ import './app/cvc-app-domains.js';
 import './app/cvc-app-env.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
+import './shared/cvc-resource-tags.js';
 import { openAction } from './shared/events.js';
 import { ICON_RESTART, ICON_START, ICON_STOP } from './shared/icons.js';
 import { statusIcon, statusMessage } from './shared/status.js';
@@ -210,6 +212,17 @@ export class CvcAppPage extends CvcElement {
               : nothing
           }
         </div>
+        <cvc-resource-tags
+          class="tags"
+          .client=${this.client}
+          ownerId=${this.ownerId}
+          .resource=${
+            this.summaryApp == null
+              ? null
+              : { id: this.summaryApp.id, kind: 'app', name: this.summaryApp.name, tags: this.summaryApp.customerTags }
+          }
+          .suggestions=${this.orga == null ? [] : tagsInUse([...this.orga.applications, ...this.orga.addons])}
+        ></cvc-resource-tags>
         <nav class="tabs" aria-label=${t('app.sectionsAria')}>
           ${(Object.keys(APP_TAB_LABELS) as AppTab[]).map(
             (tab) =>
@@ -294,6 +307,10 @@ export class CvcAppPage extends CvcElement {
       }
       header {
         margin-bottom: 1rem;
+      }
+      header .tags {
+        display: block;
+        margin-top: 0.5rem;
       }
       .title img {
         border-radius: 8px;

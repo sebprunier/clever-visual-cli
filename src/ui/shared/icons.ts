@@ -55,3 +55,9 @@ export const ICON_DOWNLOAD = html`<svg class="icon" viewBox="0 0 24 24" width="1
   <path d="M7 10l5 5 5-5" style=${ATTRS} />
   <path d="M4 17v3h16v-3" style=${ATTRS} />
 </svg>`;
+
+/** A pencil: change what is shown beside it. */
+export const ICON_EDIT = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <path d="M4 20h4L19 9l-4-4L4 16v4z" style=${ATTRS} />
+  <path d="M13.5 6.5l4 4" style=${ATTRS} />
+</svg>`;

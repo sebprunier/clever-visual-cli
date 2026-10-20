@@ -6,9 +6,10 @@ import { describeError } from '../core/clever-client.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
 import type { CostStore } from '../core/home/cost-store.js';
-import { linkedApps } from '../core/home/grouping.js';
+import { inheritedTags, linkedApps } from '../core/home/grouping.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { readPrefs } from '../core/home/prefs.js';
+import { tagsInUse } from '../core/home/tagging.js';
 import { t, type MessageKey } from '../core/i18n.js';
 import {
   readListView,
@@ -30,6 +31,7 @@ import './addon/cvc-addon-env.js';
 import './addon/cvc-addon-logs.js';
 import './addon/cvc-addon-overview.js';
 import './app/cvc-app-nav.js';
+import './shared/cvc-resource-tags.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { addonStateLabel } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
@@ -211,6 +213,14 @@ export class CvcAddonPage extends CvcElement {
                   >`
           }
         </div>
+        <cvc-resource-tags
+          class="tags"
+          .client=${this.client}
+          ownerId=${ownerId}
+          .resource=${{ id: summary.id, kind: 'addon', name: summary.name, tags: summary.customerTags }}
+          .inherited=${inheritedTags(summary, linkedApps(summary.id, context))}
+          .suggestions=${tagsInUse([...this.orga.applications, ...this.orga.addons])}
+        ></cvc-resource-tags>
         <nav class="tabs" aria-label=${t('addon.sectionsAria')}>
           ${tabs.map(
             (entry) =>
@@ -287,6 +297,10 @@ export class CvcAddonPage extends CvcElement {
       }
       header {
         margin-bottom: 1rem;
+      }
+      header .tags {
+        display: block;
+        margin-top: 0.5rem;
       }
       .title img {
         border-radius: 8px;

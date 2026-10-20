@@ -378,6 +378,39 @@ function valuesOf(item: Item, key: string, context: GroupingContext): Values {
   }
 }
 
+/** The key of a `key:value` tag, normalised as grouping keys are; null for a tag without one. */
+export function tagKey(tag: string): string | null {
+  const colon = tag.indexOf(':');
+  return colon <= 0 ? null : normalise(tag.slice(0, colon));
+}
+
+/**
+ * The tags an add-on takes from its linked applications, as grouping reads
+ * them: for each key the add-on has no tag for, the `key:value` tags of those
+ * applications, each with the names of the applications it comes from.
+ */
+export function inheritedTags(
+  addon: AddonSummary,
+  apps: readonly ApplicationSummary[],
+): Array<{ tag: string; from: string[] }> {
+  const own = new Set(addon.customerTags.map(tagKey).filter((key) => key != null));
+  const sources = new Map<string, string[]>();
+  for (const app of apps) {
+    for (const tag of app.customerTags) {
+      const key = tagKey(tag);
+      if (key == null || own.has(key)) {
+        continue;
+      }
+      const from = sources.get(tag) ?? [];
+      if (!from.includes(app.name)) {
+        from.push(app.name);
+      }
+      sources.set(tag, from);
+    }
+  }
+  return [...sources].map(([tag, from]) => ({ tag, from })).sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
 /** `project:shop:prod` with key `project` → `shop`; `env:prod` with key `env` → `prod`; otherwise null. */
 export function tagValue(tag: string, key: string): string | null {
   const colon = tag.indexOf(':');

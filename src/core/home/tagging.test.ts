@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   describeStep,
   invertSteps,
+  planTagEdit,
   planTagOperation,
   runSteps,
   tagsOf,
@@ -76,5 +77,19 @@ describe('bulk tagging', () => {
     expect(result.failed.map((failure) => failure.step.resource.name)).toEqual(['db']);
     expect(result.failed[0].error).toContain('boom');
     expect(progress).toEqual([1, 2, 3]);
+  });
+});
+
+describe('editing the tags of one resource', () => {
+  it('removes what is gone and adds what is new, once each', () => {
+    expect(outline(planTagEdit(web, ['env:prod', 'owner:team', ' owner:team ', '']))).toEqual([
+      '-project:shop:prod@web',
+      '+owner:team@web',
+    ]);
+  });
+
+  it('plans nothing when the tags are the same, in any order', () => {
+    expect(planTagEdit(web, ['project:shop:prod', 'env:prod'])).toEqual([]);
+    expect(planTagEdit(bare, [])).toEqual([]);
   });
 });
