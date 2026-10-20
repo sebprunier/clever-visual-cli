@@ -95,6 +95,7 @@ import {
   type DailyConsumption,
   type InvoiceLines,
 } from '../core/home/costs.js';
+import { readVersionCheck } from '../core/addons/operator.js';
 import { t } from '../core/i18n.js';
 import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/client/utils/environment.types.js';
 
@@ -406,6 +407,8 @@ export interface OperatorVersions {
   latest: string;
   available: string[];
   needUpdate: boolean;
+  /** Installed as `latest`: the latest release at each build, never behind by name. */
+  followsLatest: boolean;
 }
 
 export async function fetchOperatorVersions(
@@ -417,12 +420,7 @@ export async function fetchOperatorVersions(
     kind === 'keycloak'
       ? await client.send(new CheckKeycloakVersionCommand({ addonId: realId }))
       : await client.send(new CheckOtoroshiVersionCommand({ addonId: realId }));
-  return {
-    installed: check.installed,
-    latest: check.latest,
-    available: check.availableVersions,
-    needUpdate: check.needUpdate,
-  };
+  return readVersionCheck(check.installed, check.latest, check.availableVersions, check.needUpdate);
 }
 
 /** `clever keycloak|otoroshi restart`: restarts the instance, the data stays. */

@@ -615,6 +615,7 @@ export const en = {
   'operator.version': 'Version',
   'operator.versionValue': '{version} (Java {java})',
   'operator.updateOut': '{version} is out',
+  'operator.followsLatest': 'the latest release at each build ({version} today)',
   'operator.access': 'Access',
   'operator.application': 'application',
   'operator.api': 'Admin API',

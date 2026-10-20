@@ -7,6 +7,7 @@ import {
   operatorState,
   operatorWatchList,
   otoroshictlCommands,
+  readVersionCheck,
 } from './operator.js';
 
 describe('operators', () => {
@@ -21,6 +22,17 @@ describe('operators', () => {
     expect(operatorState('WANTS_TO_BE_UP')).toBe('starting');
     expect(operatorState('SHOULD_BE_DOWN')).toBe('down');
     expect(operatorState('MODERATED')).toBe('down');
+  });
+
+  it('does not call an operator installed as latest behind', () => {
+    expect(readVersionCheck('latest', 'v17.17.0_1784304500', [], true)).toMatchObject({
+      needUpdate: false,
+      followsLatest: true,
+    });
+    expect(readVersionCheck('26.7.2', '26.8.0', ['26.8.0'], true)).toMatchObject({
+      needUpdate: true,
+      followsLatest: false,
+    });
   });
 
   it('shows Otoroshi versions without their build timestamp', () => {
@@ -51,7 +63,8 @@ describe('operators', () => {
     };
     const items = operatorWatchList(
       [addon('a', 'PROD-auth', 'keycloak'), addon('b', 'DEV-auth', 'keycloak'), addon('c', 'gateway', 'otoroshi')],
-      (candidate) => (versions[candidate.id] ? { ...versions[candidate.id], available: [] } : null),
+      (candidate) =>
+        versions[candidate.id] ? { ...versions[candidate.id], available: [], followsLatest: false } : null,
     );
     expect(items.map((item) => [item.addon.name, item.installed, item.latest])).toEqual([
       ['gateway', 'latest', 'v17.17.0'],

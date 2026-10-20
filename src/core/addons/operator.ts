@@ -19,6 +19,22 @@ export function operatorProduct(kind: OperatorKind): string {
   return PRODUCTS[kind];
 }
 
+/**
+ * `latest` is not a version but a choice: the entrypoint application's
+ * `CC_KEYCLOAK_VERSION` / `CC_OTOROSHI_VERSION` asks for the latest release
+ * at each build. The version check compares that word with the latest
+ * release by name and always says an update is out; it is not one.
+ */
+export function readVersionCheck(
+  installed: string,
+  latest: string,
+  available: string[],
+  needUpdate: boolean,
+): OperatorVersions {
+  const followsLatest = installed === 'latest';
+  return { installed, latest, available, needUpdate: needUpdate && !followsLatest, followsLatest };
+}
+
 /** "v17.17.0_1784304500" → "v17.17.0": Otoroshi versions carry a build timestamp the reader does not need. */
 export function displayVersion(version: string): string {
   return version.replace(/_\d{9,}$/, '');

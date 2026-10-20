@@ -228,7 +228,11 @@ export class CvcAddonOverview extends CvcElement {
                         ? html`<span class="badge info" title=${versions.latest}
                             >${t('operator.updateOut', { version: displayVersion(versions.latest) })}</span
                           >`
-                        : nothing
+                        : versions?.followsLatest
+                          ? html`<span class="muted small" title=${versions.latest}>
+                              · ${t('operator.followsLatest', { version: displayVersion(versions.latest) })}
+                            </span>`
+                          : nothing
                     }
                   </dd>
                   <dt>${t('operator.access')}</dt>

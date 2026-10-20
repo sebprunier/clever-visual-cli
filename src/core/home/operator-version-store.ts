@@ -122,6 +122,7 @@ function readFresh(key: string): Record<string, Dated> {
           now - entry[1].at < KEEP_FOR &&
           typeof entry[1].value?.installed === 'string' &&
           typeof entry[1].value?.needUpdate === 'boolean' &&
+          typeof entry[1].value?.followsLatest === 'boolean' &&
           // Kept before the entrypoint was: read again.
           entry[1].entrypoint !== undefined,
       ),

@@ -105,7 +105,13 @@ describe('databases to watch', () => {
           } as unknown as AddonSummary,
         ],
         filterText: 'is:watch',
-        operatorVersions: () => ({ installed: '26.7.2', latest: '26.8.0', available: ['26.8.0'], needUpdate: true }),
+        operatorVersions: () => ({
+          installed: '26.7.2',
+          latest: '26.8.0',
+          available: ['26.8.0'],
+          needUpdate: true,
+          followsLatest: false,
+        }),
       }),
     );
     expect(list.addonWatch.map((item) => [item.kind, item.addon.id])).toEqual([['update', 'auth']]);

@@ -610,6 +610,7 @@ export const fr: Record<MessageKey, string> = {
   'operator.version': 'Version',
   'operator.versionValue': '{version} (Java {java})',
   'operator.updateOut': '{version} disponible',
+  'operator.followsLatest': 'la dernière version publiée à chaque construction ({version} aujourd’hui)',
   'operator.access': 'Accès',
   'operator.application': 'application',
   'operator.api': 'API d’administration',
