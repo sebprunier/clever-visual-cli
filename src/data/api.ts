@@ -23,6 +23,10 @@ import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-co
 import { ListCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-bucket-command.js';
 import { ListCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-object-command.js';
 import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
+import { CheckKeycloakVersionCommand } from '@clevercloud/client/cc-api-commands/keycloak/check-keycloak-version-command.js';
+import { GetKeycloakInfoCommand } from '@clevercloud/client/cc-api-commands/keycloak/get-keycloak-info-command.js';
+import { CheckOtoroshiVersionCommand } from '@clevercloud/client/cc-api-commands/otoroshi/check-otoroshi-version-command.js';
+import { GetOtoroshiInfoCommand } from '@clevercloud/client/cc-api-commands/otoroshi/get-otoroshi-info-command.js';
 import { UpdateConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/update-config-provider-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
 import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
@@ -346,6 +350,73 @@ export async function fetchCellarDownloadUrl(
     new GetCellarObjectDownloadUrlCommand({ ownerId, addonId: realId, bucketName, objectKey }),
   );
   return signed.url;
+}
+
+/*
+ * Operators: add-ons Clever Cloud runs on top of an application and other add-ons (`clever keycloak`,
+ * `clever otoroshi`). Their real id (`keycloak_…`, `otoroshi_…`) spares the client a lookup.
+ */
+
+export type OperatorKind = 'keycloak' | 'otoroshi';
+
+/** What an operator is and is built on; its initial credentials, environment and API secret are dropped. */
+export interface OperatorDetails {
+  version: string;
+  javaVersion: string;
+  accessUrl: string;
+  /** The application that serves it. */
+  entrypoint: string | null;
+  /** Real ids of the add-ons underneath: an FS bucket and a PostgreSQL, a Redis… */
+  resources: string[];
+  networkGroup: string | null;
+  /** Otoroshi's admin API, without its credentials. */
+  api: { url: string; swaggerUrl: string } | null;
+}
+
+export async function fetchOperatorDetails(
+  client: CcApiClient,
+  kind: OperatorKind,
+  realId: string,
+): Promise<OperatorDetails> {
+  const info =
+    kind === 'keycloak'
+      ? await client.send(new GetKeycloakInfoCommand({ addonId: realId }))
+      : await client.send(new GetOtoroshiInfoCommand({ addonId: realId }));
+  const { entrypoint, ...others } = info.resources as Record<string, string | null | undefined>;
+  return {
+    version: info.version,
+    javaVersion: info.javaVersion,
+    accessUrl: info.accessUrl,
+    entrypoint: entrypoint ?? null,
+    resources: Object.values(others).filter((id): id is string => typeof id === 'string' && id !== ''),
+    networkGroup: info.features.networkGroup?.id ?? null,
+    api: 'api' in info ? { url: info.api.url, swaggerUrl: info.api.swaggerUrl } : null,
+  };
+}
+
+/** `clever keycloak|otoroshi version check`. */
+export interface OperatorVersions {
+  installed: string;
+  latest: string;
+  available: string[];
+  needUpdate: boolean;
+}
+
+export async function fetchOperatorVersions(
+  client: CcApiClient,
+  kind: OperatorKind,
+  realId: string,
+): Promise<OperatorVersions> {
+  const check =
+    kind === 'keycloak'
+      ? await client.send(new CheckKeycloakVersionCommand({ addonId: realId }))
+      : await client.send(new CheckOtoroshiVersionCommand({ addonId: realId }));
+  return {
+    installed: check.installed,
+    latest: check.latest,
+    available: check.availableVersions,
+    needUpdate: check.needUpdate,
+  };
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */

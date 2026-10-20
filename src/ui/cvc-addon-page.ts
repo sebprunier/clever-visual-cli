@@ -2,6 +2,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { BACKUP_PROVIDERS, VERSIONED_PROVIDERS } from '../core/addons/database.js';
+import { operatorKind } from '../core/addons/operator.js';
 import { describeError } from '../core/clever-client.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
@@ -23,8 +24,12 @@ import {
   fetchAddon,
   fetchCellarInfo,
   fetchDatabaseDetails,
+  fetchOperatorDetails,
+  fetchOperatorVersions,
   type Addon,
   type CellarInfo,
+  type OperatorDetails,
+  type OperatorVersions,
   type DatabaseDetails,
   type OrganisationSummary,
 } from '../data/api.js';
@@ -74,6 +79,10 @@ export class CvcAddonPage extends CvcElement {
   /** What a Cellar add-on holds: buckets, objects, size, traffic. */
   @state() private cellar: CellarInfo | null = null;
   @state() private cellarError: string | null = null;
+  /** What an operator is built on, and its version check. */
+  @state() private operator: OperatorDetails | null = null;
+  @state() private operatorVersions: OperatorVersions | null = null;
+  @state() private operatorError: string | null = null;
   @state() private error: string | null = null;
   @state() private filterText = '';
   @state() private groupingText = '';
@@ -104,6 +113,9 @@ export class CvcAddonPage extends CvcElement {
       this.detailsError = null;
       this.cellar = null;
       this.cellarError = null;
+      this.operator = null;
+      this.operatorVersions = null;
+      this.operatorError = null;
       void this.load();
     } else if (changed.has('revision')) {
       void this.load();
@@ -135,6 +147,9 @@ export class CvcAddonPage extends CvcElement {
     }
     if (providerId === CELLAR_PROVIDER && summary != null) {
       void this.loadCellar(client, ownerId, addonId, summary.realId);
+    }
+    if (operatorKind(providerId) != null && summary != null) {
+      void this.loadOperator(client, addonId, summary.realId, providerId);
     }
     try {
       const addon = await fetchAddon(client, ownerId, addonId);
@@ -170,6 +185,26 @@ export class CvcAddonPage extends CvcElement {
       }
     } catch (error) {
       this.cellarError = describeError(error);
+    }
+  }
+
+  private async loadOperator(client: CcApiClient, addonId: string, realId: string, providerId: string): Promise<void> {
+    const kind = operatorKind(providerId);
+    if (kind == null) {
+      return;
+    }
+    this.operatorError = null;
+    try {
+      const [details, versions] = await Promise.all([
+        fetchOperatorDetails(client, kind, realId),
+        fetchOperatorVersions(client, kind, realId),
+      ]);
+      if (this.addonId === addonId) {
+        this.operator = details;
+        this.operatorVersions = versions;
+      }
+    } catch (error) {
+      this.operatorError = describeError(error);
     }
   }
 
@@ -319,6 +354,10 @@ export class CvcAddonPage extends CvcElement {
                       .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
                       .cellar=${this.cellar}
                       .cellarError=${this.cellarError}
+                      .operator=${this.operator}
+                      .operatorVersions=${this.operatorVersions}
+                      .operatorError=${this.operatorError}
+                      .addons=${this.orga.addons}
                     ></cvc-addon-overview>`
         }
       </section>

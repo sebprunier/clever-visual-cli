@@ -2,6 +2,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { compareVersions, databaseProduct, isRetiredVersion, VERSIONED_PROVIDERS } from '../../core/addons/database.js';
+import { operatorKind, operatorProduct } from '../../core/addons/operator.js';
 import { ADDON_STATE_STATUS, type AddonState } from '../../core/home/addon-state.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { appStatus } from '../../core/home/status.js';
@@ -16,6 +17,8 @@ import type {
   CellarInfo,
   Companion,
   DatabaseDetails,
+  OperatorDetails,
+  OperatorVersions,
 } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { renderCostValue } from '../shared/cost-fact.js';
@@ -71,6 +74,12 @@ export class CvcAddonOverview extends CvcElement {
   /** For Cellar: what it holds and its traffic, or why it could not be read. */
   @property({ attribute: false }) cellar: CellarInfo | null = null;
   @property({ attribute: false }) cellarError: string | null = null;
+  /** For an operator: what it is built on and its version check, or why they could not be read. */
+  @property({ attribute: false }) operator: OperatorDetails | null = null;
+  @property({ attribute: false }) operatorVersions: OperatorVersions | null = null;
+  @property({ attribute: false }) operatorError: string | null = null;
+  /** The add-ons of the organisation, to name the ones an operator is built on. */
+  @property({ attribute: false }) addons: readonly AddonSummary[] = [];
 
   private appHref(appId: string): string {
     const route: Route = { kind: 'app', ownerId: this.ownerId, appId, tab: 'overview' };
@@ -82,7 +91,8 @@ export class CvcAddonOverview extends CvcElement {
       ${this.renderBand()}
       <div class="columns">
         <div class="main">
-          ${this.renderDatabase()} ${this.renderCellar()} ${this.renderInstances()} ${this.renderLinkedApps()}
+          ${this.renderDatabase()} ${this.renderCellar()} ${this.renderOperator()} ${this.renderInstances()}
+          ${this.renderLinkedApps()}
         </div>
         <aside class="side">${this.renderFacts()} ${this.renderIdentifiers()}</aside>
       </div>
@@ -139,6 +149,98 @@ export class CvcAddonOverview extends CvcElement {
         <span class="value">${this.linkedApps.length}</span>
       </div>
     </section>`;
+  }
+
+  private addonHref(addonId: string): string {
+    const route: Route = { kind: 'addon', ownerId: this.ownerId, addonId, tab: 'overview' };
+    return keepListView(routeToHash(route), route, window.location.hash);
+  }
+
+  /**
+   * An operator: its version (flagged when an update is out), where to open
+   * it, what it is built on, its network group.
+   */
+  private renderOperator() {
+    const kind = operatorKind(this.summary.providerId);
+    if (kind == null) {
+      return nothing;
+    }
+    const operator = this.operator;
+    const versions = this.operatorVersions;
+    const product = operatorProduct(kind);
+    const [before, after] = t('operator.credentials').split('{command}');
+    const [flagBefore, flagAfter] = t('operator.featureFlag').split('{command}');
+    return html`<section class="card">
+      <h3>${this.addon?.provider.name ?? product}</h3>
+      ${
+        operator == null
+          ? this.operatorError != null
+            ? html`<p class="error small" role="alert">${this.operatorError}</p>`
+            : html`<p class="muted small">${t('common.loading')}</p>`
+          : html`<dl>
+                <dt>${t('operator.version')}</dt>
+                <dd>
+                  ${t('operator.versionValue', { version: operator.version, java: operator.javaVersion })}
+                  ${
+                    versions?.needUpdate
+                      ? html`<span class="badge info">${t('operator.updateOut', { version: versions.latest })}</span>`
+                      : nothing
+                  }
+                </dd>
+                <dt>${t('operator.open')}</dt>
+                <dd class="companion">
+                  ${this.externalLink(operator.accessUrl, product)}
+                  ${
+                    operator.api == null
+                      ? nothing
+                      : html`${this.externalLink(operator.api.url, t('operator.api'))}
+                        ${this.externalLink(operator.api.swaggerUrl, 'Swagger UI')}`
+                  }
+                </dd>
+                <dt>${t('operator.builtOn')}</dt>
+                <dd class="companion">${this.renderBuiltOn(operator)}</dd>
+                <dt>${t('operator.networkGroup')}</dt>
+                <dd>
+                  ${
+                    operator.networkGroup == null
+                      ? html`<span class="muted">${t('operator.none')}</span>`
+                      : html`<cvc-cli no-prompt command=${operator.networkGroup}></cvc-cli>`
+                  }
+                </dd>
+              </dl>
+              <p class="muted small">
+                ${before}<code>clever ${kind} get ${this.summary.id} --format json</code>${after}
+              </p>
+              <p class="muted small">${flagBefore}<code>clever features enable operators</code>${flagAfter}</p>`
+      }
+    </section>`;
+  }
+
+  private externalLink(url: string, label: string) {
+    if (url === '') {
+      return nothing;
+    }
+    return html`<a href=${/^https?:\/\//.test(url) ? url : `https://${url}`} target="_blank" rel="noopener noreferrer"
+      >${label} ↗</a
+    >`;
+  }
+
+  /** The entrypoint application and the add-ons underneath, each opening its page. */
+  private renderBuiltOn(operator: OperatorDetails) {
+    const app = this.applications.find((candidate) => candidate.id === operator.entrypoint);
+    const status = app == null ? null : appStatus(app.state, null);
+    return html`${
+      app == null || status == null
+        ? nothing
+        : html`<a href=${this.appHref(app.id)}>${app.name}</a>
+            <span class="status" title=${statusMessage(status)}>${statusIcon(status)}</span>`
+    }
+    ${operator.resources.map((realId) => {
+      const addon = this.addons.find((candidate) => candidate.realId === realId);
+      return addon == null
+        ? html`<span class="muted small mono">${realId}</span>`
+        : html`<a href=${this.addonHref(addon.id)}>${addon.name}</a>`;
+    })}`;
   }
 
   /** Buckets, objects, size and the traffic of the billing period, with the way to browse them. */
