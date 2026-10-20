@@ -31,11 +31,6 @@ export interface ConnectionTarget {
   database: string;
 }
 
-/** "11", "15.4" → "11", "15": the offered versions are majors. */
-export function majorVersion(version: string): string {
-  return version.trim().split('.')[0];
-}
-
 /** Numeric order, "9" before "13". */
 export function compareVersions(a: string, b: string): number {
   const left = a.split('.').map(Number);
@@ -49,18 +44,26 @@ export function compareVersions(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+/** "15.4" at the precision of "13" is "15"; "7.0.11" at the precision of "8.10.2" stays itself. */
+function atPrecisionOf(version: string, entry: string): string {
+  return version.trim().split('.').slice(0, entry.split('.').length).join('.');
+}
+
 /**
- * Older than every version Clever Cloud offers for a new database. A version
- * missing from the list but newer than its oldest entry is not called retired:
- * the list may simply lag behind.
+ * Older than every version Clever Cloud offers for a new database, compared at
+ * the precision of the offered list: majors for PostgreSQL ("11" against "13"),
+ * "5.7" for MySQL, "8.10.2" for Redis. A version missing from the list but
+ * newer than its oldest entry is not called retired: the list may lag behind.
  */
 export function isRetiredVersion(version: string, offered: readonly string[]): boolean {
-  if (version === '' || offered.length === 0) {
+  if (version.trim() === '' || offered.length === 0) {
     return false;
   }
-  const major = majorVersion(version);
+  if (offered.some((entry) => atPrecisionOf(version, entry) === entry)) {
+    return false;
+  }
   const oldest = [...offered].sort(compareVersions)[0];
-  return !offered.includes(major) && compareVersions(major, oldest) < 0;
+  return compareVersions(atPrecisionOf(version, oldest), oldest) < 0;
 }
 
 /** The command that loads a downloaded backup into the database, for the providers that have one. */

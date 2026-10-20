@@ -16,6 +16,17 @@ describe('versions', () => {
     expect(isRetiredVersion('15.4', OFFERED)).toBe(false);
   });
 
+  it('compares at the precision of the offered list', () => {
+    expect(isRetiredVersion('7.0.11', ['8.10.2'])).toBe(true);
+    expect(isRetiredVersion('7.2.4', ['8.10.2'])).toBe(true);
+    expect(isRetiredVersion('8.10.2', ['8.10.2'])).toBe(false);
+    expect(isRetiredVersion('4.0.3', ['4.0.3'])).toBe(false);
+    const mysql = ['5.7', '8.0', '8.4', '9.7'];
+    expect(isRetiredVersion('5.7', mysql)).toBe(false);
+    expect(isRetiredVersion('8.0.46', mysql)).toBe(false);
+    expect(isRetiredVersion('5.6', mysql)).toBe(true);
+  });
+
   it('does not call retired a version the list does not know yet, nor anything without a list', () => {
     expect(isRetiredVersion('19', OFFERED)).toBe(false);
     expect(isRetiredVersion('11', [])).toBe(false);
