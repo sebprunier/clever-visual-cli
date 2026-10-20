@@ -48,6 +48,20 @@ export function operatorCommand(kind: OperatorKind, action: OperatorAction, addo
     : `clever ${kind} ${action} ${addonId}`;
 }
 
+/**
+ * The way to drive an Otoroshi from otoroshictl, its own CLI: install it, add
+ * this Otoroshi to its configuration from `clever otoroshi get-config`, list
+ * the routes (the sequence of the clever-tools 4.4 changelog).
+ */
+export function otoroshictlCommands(addonId: string): string[] {
+  return [
+    'cargo install otoroshictl',
+    'clever features enable operators',
+    `clever otoroshi get-config ${addonId} | otoroshictl config import --current --stdin`,
+    'otoroshictl resources get routes',
+  ];
+}
+
 /** An operator with a newer version out. */
 export interface OperatorWatchItem {
   kind: 'update';

@@ -619,6 +619,8 @@ export const fr: Record<MessageKey, string> = {
   'operator.none': 'aucun',
   'operator.credentials':
     'Les identifiants initiaux sont dans la Console, ou dans la commande ci-dessus avec --format json.',
+  'operator.otoroshictlHint':
+    '{tool}, le CLI d’Otoroshi de Cloud APIM, pilote l’API d’administration depuis un terminal. Pour y ajouter cet Otoroshi :',
   'operator.featureFlag': 'Commandes clever-tools expérimentales : {command} une fois.',
   'operator.restart': 'Redémarrer…',
   'operator.rebuild': 'Reconstruire…',

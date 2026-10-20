@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AddonSummary } from '../../data/api.js';
-import { displayVersion, operatorCommand, operatorKind, operatorState, operatorWatchList } from './operator.js';
+import {
+  displayVersion,
+  operatorCommand,
+  operatorKind,
+  operatorState,
+  operatorWatchList,
+  otoroshictlCommands,
+} from './operator.js';
 
 describe('operators', () => {
   it('knows Keycloak and Otoroshi only', () => {
@@ -26,6 +33,12 @@ describe('operators', () => {
     expect(operatorCommand('otoroshi', 'rebuild', 'addon_2')).toBe('clever otoroshi rebuild addon_2');
     expect(operatorCommand('keycloak', 'update', 'addon_1', '26.8.0')).toBe(
       'clever keycloak version update addon_1 --target 26.8.0',
+    );
+  });
+
+  it('adds an Otoroshi to otoroshictl through its clever-tools configuration', () => {
+    expect(otoroshictlCommands('addon_3')).toContain(
+      'clever otoroshi get-config addon_3 | otoroshictl config import --current --stdin',
     );
   });
 

@@ -623,6 +623,8 @@ export const en = {
   'operator.networkGroup': 'Network group',
   'operator.none': 'none',
   'operator.credentials': 'The initial credentials are in the Console, or in the command above with --format json.',
+  'operator.otoroshictlHint':
+    '{tool}, the Otoroshi CLI by Cloud APIM, drives the admin API from a terminal. To add this Otoroshi to it:',
   'operator.featureFlag': 'Experimental clever-tools commands: {command} once.',
   'operator.restart': 'Restart…',
   'operator.rebuild': 'Rebuild…',

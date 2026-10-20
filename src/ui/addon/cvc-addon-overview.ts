@@ -2,7 +2,13 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { compareVersions, databaseProduct, isRetiredVersion, VERSIONED_PROVIDERS } from '../../core/addons/database.js';
-import { displayVersion, operatorKind, operatorProduct, type OperatorAction } from '../../core/addons/operator.js';
+import {
+  displayVersion,
+  operatorKind,
+  operatorProduct,
+  otoroshictlCommands,
+  type OperatorAction,
+} from '../../core/addons/operator.js';
 import { ADDON_STATE_STATUS, type AddonState } from '../../core/home/addon-state.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { appStatus } from '../../core/home/status.js';
@@ -169,7 +175,7 @@ export class CvcAddonOverview extends CvcElement {
    * restart, rebuild and update beside it (each through a dialog that shows
    * the `clever` command), the command that describes it, the facts (version,
    * where to reach it, network group), what it is built on, one resource per
-   * line, and the notes last.
+   * line, and the notes last. otoroshictl gets a card of its own.
    */
   private renderOperator() {
     const kind = operatorKind(this.summary.providerId);
@@ -256,6 +262,7 @@ export class CvcAddonOverview extends CvcElement {
                 </ul>`
         }
       </section>
+      ${kind === 'otoroshi' && operator != null ? this.renderOtoroshictl() : nothing}
       ${
         this.operatorAction == null
           ? nothing
@@ -271,6 +278,21 @@ export class CvcAddonOverview extends CvcElement {
               @cvc-operator-done=${this.onOperatorDone}
             ></cvc-operator-dialog>`
       }`;
+  }
+
+  /** otoroshictl, Otoroshi's own CLI: the commands that add this Otoroshi to it. */
+  private renderOtoroshictl() {
+    const commands = otoroshictlCommands(this.summary.id);
+    const [before, after] = t('operator.otoroshictlHint').split('{tool}');
+    return html`<section class="card">
+      <h3>otoroshictl</h3>
+      <p class="muted small intro">
+        ${before}<a href="https://github.com/cloud-apim/otoroshictl" target="_blank" rel="noopener noreferrer"
+          >otoroshictl ↗</a
+        >${after}
+      </p>
+      <cvc-cli block .command=${commands.join('\n')} .count=${commands.length}></cvc-cli>
+    </section>`;
   }
 
   private onOperatorDone(event: CustomEvent<OperatorDoneDetail>): void {
@@ -745,6 +767,9 @@ export class CvcAddonOverview extends CvcElement {
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
+      }
+      .intro {
+        margin: 0 0 0.6rem;
       }
       dd.companion {
         display: flex;
