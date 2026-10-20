@@ -524,6 +524,8 @@ export const en = {
   'home.renameTag': 'Rename a tag',
   'home.watch': 'To watch',
   'home.watchFilter': 'Only these in the list',
+  'home.watchMore': 'Show the {count} others',
+  'home.watchLess': 'Show fewer',
   'watch.failed': 'failure',
   'watch.deploying': 'in progress',
   'watch.moderated': 'moderated',

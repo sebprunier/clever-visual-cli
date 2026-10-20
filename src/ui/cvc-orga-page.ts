@@ -119,6 +119,9 @@ const COLUMN_LABELS: Record<SortColumn, MessageKey> = {
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
 const COLUMNS = 8;
+/** Past this many entries, the "To watch" card shows its first ones and folds the others. */
+const WATCH_FOLD_ABOVE = 6;
+const WATCH_FOLDED = 5;
 
 const WATCH_LABELS: Record<WatchItem['kind'], { label: MessageKey; tone: string }> = {
   failed: { label: 'watch.failed', tone: 'danger' },
@@ -153,6 +156,8 @@ export class CvcOrgaPage extends CvcElement {
   @state() private bulkDialog: BulkKind | null = null;
   /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
   @state() private sideTall = false;
+  /** The "To watch" card shows all its entries, not only the first ones. */
+  @state() private watchUnfolded = false;
 
   @query('input[name="filter"]') private filterInput?: HTMLInputElement;
   @query('aside.side') private sideElement?: HTMLElement;
@@ -707,13 +712,19 @@ export class CvcOrgaPage extends CvcElement {
   }
 
   private renderWatch(items: WatchItem[], addonItems: AddonWatchItem[]) {
-    if (items.length === 0 && addonItems.length === 0) {
+    const total = items.length + addonItems.length;
+    if (total === 0) {
       return nothing;
     }
     const filtering = /(^|\s)is:watch(\s|$)/i.test(this.filterText);
+    // A long card shows its first entries, application alerts first; the others on demand.
+    const folds = total > WATCH_FOLD_ABOVE;
+    const shown = folds && !this.watchUnfolded ? WATCH_FOLDED : total;
+    const appItems = items.slice(0, shown);
+    const databaseItems = addonItems.slice(0, shown - appItems.length);
     return html`<section class="watch card">
       <div class="row card-head">
-        <h2>${t('home.watch')} <span class="count">${items.length + addonItems.length}</span></h2>
+        <h2>${t('home.watch')} <span class="count">${total}</span></h2>
         <span class="grow"></span>
         <button
           type="button"
@@ -725,8 +736,8 @@ export class CvcOrgaPage extends CvcElement {
           is:watch
         </button>
       </div>
-      <ul>
-        ${items.map((item) => {
+      <ul id="watch-list">
+        ${appItems.map((item) => {
           const { label, tone } = WATCH_LABELS[item.kind];
           return html`<li>
             <span class="row">
@@ -738,7 +749,7 @@ export class CvcOrgaPage extends CvcElement {
             <span class="muted small">${this.describeWatch(item)}</span>
           </li>`;
         })}
-        ${addonItems.map(
+        ${databaseItems.map(
           (item) =>
             html`<li>
               <span class="row">
@@ -755,6 +766,19 @@ export class CvcOrgaPage extends CvcElement {
             </li>`,
         )}
       </ul>
+      ${
+        folds
+          ? html`<button
+              type="button"
+              class="link small more"
+              aria-controls="watch-list"
+              aria-expanded=${this.watchUnfolded}
+              @click=${() => (this.watchUnfolded = !this.watchUnfolded)}
+            >
+              ${this.watchUnfolded ? t('home.watchLess') : t('home.watchMore', { count: total - WATCH_FOLDED })}
+            </button>`
+          : nothing
+      }
     </section>`;
   }
 
@@ -1576,6 +1600,9 @@ export class CvcOrgaPage extends CvcElement {
       }
       .watch a:hover {
         text-decoration: underline;
+      }
+      .watch .more {
+        margin-top: 0.5rem;
       }
 
       .recents p {

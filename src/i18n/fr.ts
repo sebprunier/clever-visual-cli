@@ -518,6 +518,8 @@ export const fr: Record<MessageKey, string> = {
   'home.renameTag': 'Renommer un tag',
   'home.watch': 'À surveiller',
   'home.watchFilter': 'Ne garder que ceux-là dans la liste',
+  'home.watchMore': 'Voir les {count} autres',
+  'home.watchLess': 'En voir moins',
   'watch.failed': 'échec',
   'watch.deploying': 'en cours',
   'watch.moderated': 'modérée',
