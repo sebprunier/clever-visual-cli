@@ -16,7 +16,7 @@ It is a visual CLI first. Every screen shows the `clever` command it stands for,
 - **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com`, `console.clever-cloud.com`, and read-only calls to the public status page.
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
 - **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands target clever-tools 5.2 or later.
-- **English and French**, picked from the browser, switchable from the menu.
+- **English and French**, picked from the browser, switchable from the account menu.
 - **Open source**, Apache-2.0, built in the open, one feature at a time.
 
 ## What it does today

@@ -54,12 +54,19 @@ export class CvcApp extends CvcElement {
 
   @query('cvc-command-palette') private palette?: CvcCommandPalette;
   @query('cvc-toaster') private toaster?: CvcToaster;
+  @query('details.menu') private menu?: HTMLDetailsElement;
 
   private readonly homeStore = new HomeStore();
   private readonly costStore = new CostStore();
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && this.menu?.open) {
+      // Handled here so the page under the menu keeps its selection.
+      event.preventDefault();
+      this.closeMenu(true);
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       if (this.phase === 'workspace' && this.pendingAction == null) {
@@ -76,10 +83,17 @@ export class CvcApp extends CvcElement {
   private readonly onRefreshSummary = () => {
     void this.session?.refreshSummary();
   };
+  /** A click anywhere but in the account menu closes it. */
+  private readonly onPointerDown = (event: PointerEvent) => {
+    if (this.menu?.open && !event.composedPath().includes(this.menu)) {
+      this.closeMenu(false);
+    }
+  };
 
   override connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('pointerdown', this.onPointerDown);
     this.addEventListener('cvc-open-action', this.onOpenAction);
     this.addEventListener('cvc-toast', this.onToast);
     this.addEventListener('cvc-refresh-summary', this.onRefreshSummary);
@@ -100,6 +114,7 @@ export class CvcApp extends CvcElement {
 
   override disconnectedCallback(): void {
     window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('pointerdown', this.onPointerDown);
     this.removeEventListener('cvc-open-action', this.onOpenAction);
     this.removeEventListener('cvc-toast', this.onToast);
     this.removeEventListener('cvc-refresh-summary', this.onRefreshSummary);
@@ -158,6 +173,16 @@ export class CvcApp extends CvcElement {
       this.homeStore.forget();
       this.costStore.forget();
       await session.activate(active);
+    }
+  }
+
+  private closeMenu(refocus: boolean): void {
+    if (this.menu == null) {
+      return;
+    }
+    this.menu.open = false;
+    if (refocus) {
+      this.menu.querySelector('summary')?.focus();
     }
   }
 
@@ -298,10 +323,10 @@ export class CvcApp extends CvcElement {
     });
     commands.push({
       id: 'session:account',
-      title: t('shell.myAccount'),
+      title: t('account.accountsInBrowser'),
       subtitle: session.profile?.email,
       group: 'Session',
-      cli: 'clever profile',
+      cli: 'clever profile list',
       run: () => navigate({ kind: 'account' }),
     });
     for (const profile of session.vault.profiles) {
@@ -412,7 +437,9 @@ export class CvcApp extends CvcElement {
           <summary>${profile?.name ?? profile?.email ?? t('shell.account')}</summary>
           <div class="menu-items">
             <span class="muted small">${profile?.email}</span>
-            <a href=${routeToHash({ kind: 'account' })}>${t('shell.myAccount')}</a>
+            <a href=${routeToHash({ kind: 'account' })} @click=${() => this.closeMenu(false)}
+              >${t('account.accountsInBrowser')}</a
+            >
             <label class="row small lang">
               ${t('common.language')}
               <select
@@ -425,14 +452,22 @@ export class CvcApp extends CvcElement {
                 )}
               </select>
             </label>
-            <button type="button" class="link" @click=${() => session.refreshSummary()}>${t('common.refresh')}</button>
-            <button type="button" class="link" @click=${() => (this.phase = 'adding')}>${t('shell.addAccount')}</button>
+            <hr />
             ${
               session.vault.mode === 'encrypted'
                 ? html`<button type="button" class="link" @click=${this.lock}>${t('shell.lock')}</button>`
                 : nothing
             }
-            <button type="button" class="link" @click=${this.forgetActiveAccount}>${t('shell.logout')}</button>
+            <button
+              type="button"
+              class="link"
+              @click=${() => {
+                this.closeMenu(false);
+                void this.forgetActiveAccount();
+              }}
+            >
+              ${t('shell.logout')}
+            </button>
           </div>
         </details>
       </header>
@@ -510,9 +545,8 @@ export class CvcApp extends CvcElement {
     const vault = session.vault;
     return html`
       <div class="account stack">
-        <h1>${t('shell.myAccount')}</h1>
+        <h1>${t('account.accountsInBrowser')}</h1>
         <section class="card stack">
-          <h2>${t('account.accountsInBrowser')}</h2>
           <p class="muted small">
             ${vault.mode === 'encrypted' ? t('account.encryptedNote') : t('account.sessionNote')}
           </p>
@@ -639,6 +673,12 @@ export class CvcApp extends CvcElement {
         text-decoration: none;
         color: var(--cvc-text);
       }
+      .menu-items hr {
+        width: 100%;
+        margin: 0.1rem 0;
+        border: none;
+        border-top: 1px solid var(--cvc-border);
+      }
       main {
         flex: 1;
         min-height: 0;
@@ -669,7 +709,8 @@ export class CvcApp extends CvcElement {
       .profiles li {
         justify-content: space-between;
       }
-      .profiles li > span {
+      /* The name and e-mail block; the badge next to it is a span too. */
+      .profiles li > span:first-child {
         display: flex;
         flex-direction: column;
       }

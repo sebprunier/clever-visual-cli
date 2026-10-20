@@ -482,6 +482,7 @@ export class CvcOrgaPage extends CvcElement {
                 title=${t('home.refreshTitle')}
                 ?disabled=${data.deploymentsLoading || data.linksPending > 0}
                 @click=${() => {
+                  requestSummaryRefresh(this);
                   this.refresh({ force: true, forceLinks: true });
                   void loadPlatformStatus({ force: true });
                 }}
