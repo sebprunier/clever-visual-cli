@@ -8,8 +8,20 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
-import type { CellarInfo } from '@clevercloud/client/cc-api-commands/cellar/cellar.types.js';
+import type {
+  CellarBucket,
+  CellarBucketList,
+  CellarBucketSummary,
+  CellarDirectory,
+  CellarInfo,
+  CellarObjectItem,
+  CellarObjectList,
+} from '@clevercloud/client/cc-api-commands/cellar/cellar.types.js';
+import { GetCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-bucket-command.js';
 import { GetCellarInfoCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-info-command.js';
+import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-download-url-command.js';
+import { ListCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-bucket-command.js';
+import { ListCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-object-command.js';
 import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
 import { UpdateConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/update-config-provider-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
@@ -80,7 +92,13 @@ export type {
   Addon,
   AddonInstance,
   Backup,
+  CellarBucket,
+  CellarBucketList,
+  CellarBucketSummary,
+  CellarDirectory,
   CellarInfo,
+  CellarObjectItem,
+  CellarObjectList,
   AddonRuntimeLog,
   AddonSummary,
   Application,
@@ -285,6 +303,49 @@ export function replaceConfigProviderEnvironment(
 /** Buckets, objects, total size and the traffic of the billing period. */
 export function fetchCellarInfo(client: CcApiClient, ownerId: string, realId: string): Promise<CellarInfo> {
   return client.send(new GetCellarInfoCommand({ ownerId, addonId: realId }));
+}
+
+export function fetchCellarBuckets(client: CcApiClient, ownerId: string, realId: string): Promise<CellarBucketList> {
+  return client.send(new ListCellarBucketCommand({ ownerId, addonId: realId }));
+}
+
+/** One bucket, with its versioning status. */
+export function fetchCellarBucket(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+): Promise<CellarBucket> {
+  return client.send(new GetCellarBucketCommand({ ownerId, addonId: realId, bucketName }));
+}
+
+/** One page of a bucket under a prefix: its directories (common prefixes) and objects, and the next cursor. */
+export function fetchCellarObjects(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  prefix: string,
+  cursor?: string,
+  count = 100,
+): Promise<CellarObjectList> {
+  return client.send(
+    new ListCellarObjectCommand({ ownerId, addonId: realId, bucketName, prefix: prefix || undefined, cursor, count }),
+  );
+}
+
+/** A URL that downloads one object without credentials; signing it stores nothing. */
+export async function fetchCellarDownloadUrl(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  objectKey: string,
+): Promise<string> {
+  const signed = await client.send(
+    new GetCellarObjectDownloadUrlCommand({ ownerId, addonId: realId, bucketName, objectKey }),
+  );
+  return signed.url;
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */

@@ -141,12 +141,13 @@ export class CvcAddonOverview extends CvcElement {
     </section>`;
   }
 
-  /** Buckets, objects, size and the traffic of the billing period. */
+  /** Buckets, objects, size and the traffic of the billing period, with the way to browse them. */
   private renderCellar() {
     if (this.summary.providerId !== 'cellar-addon') {
       return nothing;
     }
     const cellar = this.cellar;
+    const route: Route = { kind: 'addon', ownerId: this.ownerId, addonId: this.summary.id, tab: 'buckets' };
     return html`<section class="card">
       <h3>${this.addon?.provider.name ?? 'Cellar'}</h3>
       ${
@@ -155,20 +156,23 @@ export class CvcAddonOverview extends CvcElement {
             ? html`<p class="error small" role="alert">${this.cellarError}</p>`
             : html`<p class="muted small">${t('common.loading')}</p>`
           : html`<dl>
-              <dt>${t('cellar.buckets')}</dt>
-              <dd>${formatCount(cellar.buckets.count)}</dd>
-              <dt>${t('cellar.objects')}</dt>
-              <dd>${formatCount(cellar.buckets.objects)}</dd>
-              <dt>${t('cellar.size')}</dt>
-              <dd>${formatBytes(cellar.buckets.size)}</dd>
-              <dt>${t('cellar.traffic')}</dt>
-              <dd>
-                ${t('cellar.trafficValue', {
-                  inbound: formatBytes(cellar.traffic.inbound),
-                  outbound: formatBytes(cellar.traffic.outbound),
-                })}
-              </dd>
-            </dl>`
+                <dt>${t('cellar.buckets')}</dt>
+                <dd>${formatCount(cellar.buckets.count)}</dd>
+                <dt>${t('cellar.objects')}</dt>
+                <dd>${formatCount(cellar.buckets.objects)}</dd>
+                <dt>${t('cellar.size')}</dt>
+                <dd>${formatBytes(cellar.buckets.size)}</dd>
+                <dt>${t('cellar.traffic')}</dt>
+                <dd>
+                  ${t('cellar.trafficValue', {
+                    inbound: formatBytes(cellar.traffic.inbound),
+                    outbound: formatBytes(cellar.traffic.outbound),
+                  })}
+                </dd>
+              </dl>
+              <p class="small more">
+                <a href=${keepListView(routeToHash(route), route, window.location.hash)}>${t('cellar.browse')}</a>
+              </p>`
       }
     </section>`;
   }
@@ -481,6 +485,9 @@ export class CvcAddonOverview extends CvcElement {
       }
       dd cvc-cli {
         display: flex;
+      }
+      .more {
+        margin: 0.6rem 0 0;
       }
       dd.companion {
         display: flex;

@@ -29,6 +29,7 @@ import {
   type OrganisationSummary,
 } from '../data/api.js';
 import './addon/cvc-addon-backups.js';
+import './addon/cvc-addon-buckets.js';
 import './addon/cvc-addon-env.js';
 import './addon/cvc-addon-logs.js';
 import './addon/cvc-addon-overview.js';
@@ -43,6 +44,7 @@ const CELLAR_PROVIDER = 'cellar-addon';
 
 const TABS: ReadonlyArray<{ tab: AddonTab; label: MessageKey }> = [
   { tab: 'overview', label: 'tab.overview' },
+  { tab: 'buckets', label: 'tab.buckets' },
   { tab: 'env', label: 'tab.env' },
   { tab: 'logs', label: 'tab.logs' },
   { tab: 'backups', label: 'tab.backups' },
@@ -212,13 +214,18 @@ export class CvcAddonPage extends CvcElement {
     const ownerId = this.orga.id;
     const state = this.addonStore?.state(ownerId, summary.id) ?? null;
     const status = state == null ? null : ADDON_STATE_STATUS[state];
-    // Logs come from instances: a shared add-on has none to stream. Backups are the databases'.
+    // Logs come from instances: a shared add-on has none to stream. Backups are the databases', buckets Cellar's.
     const withBackups = BACKUP_PROVIDERS.includes(summary.providerId);
+    const withBuckets = summary.providerId === CELLAR_PROVIDER;
     const tabs = TABS.filter(
-      (entry) => (entry.tab !== 'logs' || state !== 'shared') && (entry.tab !== 'backups' || withBackups),
+      (entry) =>
+        (entry.tab !== 'logs' || state !== 'shared') &&
+        (entry.tab !== 'backups' || withBackups) &&
+        (entry.tab !== 'buckets' || withBuckets),
     );
-    // Coming from the backups of a database to an add-on without any (from the list column).
-    const tab = this.tab === 'backups' && !withBackups ? 'overview' : this.tab;
+    // Coming from a tab this add-on does not have (another add-on picked in the list column).
+    const tab =
+      (this.tab === 'backups' && !withBackups) || (this.tab === 'buckets' && !withBuckets) ? 'overview' : this.tab;
     const context = {
       apps: this.orga.applications.filter((app) => !app.isArchived),
       links: this.store?.get(ownerId).links ?? {},
@@ -264,48 +271,55 @@ export class CvcAddonPage extends CvcElement {
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       <section class="content">
         ${
-          tab === 'backups'
-            ? html`<cvc-addon-backups
+          tab === 'buckets'
+            ? html`<cvc-addon-buckets
                 .client=${this.client}
                 ownerId=${ownerId}
                 addonId=${summary.id}
-                providerId=${summary.providerId}
-                .details=${this.details}
-                ?shared=${state === 'shared'}
-              ></cvc-addon-backups>`
-            : tab === 'env'
-              ? html`<cvc-addon-env
+                realId=${summary.realId}
+              ></cvc-addon-buckets>`
+            : tab === 'backups'
+              ? html`<cvc-addon-backups
                   .client=${this.client}
                   ownerId=${ownerId}
                   addonId=${summary.id}
                   providerId=${summary.providerId}
-                  realId=${summary.realId}
-                  .linkedApps=${linkedApps(summary.id, context)}
-                ></cvc-addon-env>`
-              : tab === 'logs'
-                ? state === 'shared'
-                  ? html`<p class="empty">${t('addon.logsShared')}</p>`
-                  : html`<cvc-addon-logs
-                      .client=${this.client}
-                      ownerId=${ownerId}
-                      addonId=${summary.id}
-                    ></cvc-addon-logs>`
-                : html`<cvc-addon-overview
+                  .details=${this.details}
+                  ?shared=${state === 'shared'}
+                ></cvc-addon-backups>`
+              : tab === 'env'
+                ? html`<cvc-addon-env
                     .client=${this.client}
                     ownerId=${ownerId}
-                    .summary=${summary}
-                    .addon=${this.addon}
-                    .state=${state}
-                    .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
+                    addonId=${summary.id}
+                    providerId=${summary.providerId}
+                    realId=${summary.realId}
                     .linkedApps=${linkedApps(summary.id, context)}
-                    .applications=${this.orga.applications}
-                    .costStore=${this.costStore}
-                    .details=${this.details}
-                    .detailsError=${this.detailsError}
-                    .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
-                    .cellar=${this.cellar}
-                    .cellarError=${this.cellarError}
-                  ></cvc-addon-overview>`
+                  ></cvc-addon-env>`
+                : tab === 'logs'
+                  ? state === 'shared'
+                    ? html`<p class="empty">${t('addon.logsShared')}</p>`
+                    : html`<cvc-addon-logs
+                        .client=${this.client}
+                        ownerId=${ownerId}
+                        addonId=${summary.id}
+                      ></cvc-addon-logs>`
+                  : html`<cvc-addon-overview
+                      .client=${this.client}
+                      ownerId=${ownerId}
+                      .summary=${summary}
+                      .addon=${this.addon}
+                      .state=${state}
+                      .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
+                      .linkedApps=${linkedApps(summary.id, context)}
+                      .applications=${this.orga.applications}
+                      .costStore=${this.costStore}
+                      .details=${this.details}
+                      .detailsError=${this.detailsError}
+                      .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
+                      .cellar=${this.cellar}
+                      .cellarError=${this.cellarError}
+                    ></cvc-addon-overview>`
         }
       </section>
     `;

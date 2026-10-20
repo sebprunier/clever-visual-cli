@@ -55,7 +55,7 @@ Beside it, the list you came from, names only, with the same filter, grouping, o
 - **Tags** under the name, edited as on an application page; the ones the add-on inherits from its linked applications for grouping are shown dashed.
 - **Overview**: a band with the state, the plan, the instances, the cost of yesterday and of the last 30 days and the number of linked applications; the instances with their size and state, the linked applications, and aside the provider, plan, zone and identifiers.
 - **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
-- **Cellar**: the overview adds the buckets, objects, total size and the traffic of the billing period.
+- **Cellar**: the overview adds the buckets, objects, total size and the traffic of the billing period. A **Buckets** tab lists the buckets and browses one like a file browser (directories first, 100 entries a page, the open folder in the URL so the back button and links work), with its versioning status and a download button that signs the URL only when clicked. Everything goes through the Clever Cloud API, without the S3 keys; clever-tools has no Cellar command, so the equivalent shown is the `clever curl` call.
 - **Configuration providers**: their variables are edited in the Variables tab as a draft (rename, change, add, strike out, paste a `.env`), with what changes, the equivalent `clever config-provider set|rm` commands and the linked applications Clever Cloud will redeploy. The list is written in one go, after checking nobody changed it meanwhile, and the toast offers to undo.
 - **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.
 - **Databases** (PostgreSQL, MySQL, Redis, MongoDB): the overview adds the version, flagged when Clever Cloud no longer offers it, the host, port and database to copy, and the options chosen at creation (`clever addon create --option`). A **Backups** tab lists the daily backups to download, with the `clever database backups` commands and, for the chosen one, what comes next: the `pg_restore` or `mysql` command that loads it back (the password stays in the Variables tab), the archive to extract for Redis.
@@ -80,7 +80,7 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, the databases (PostgreSQL, MySQL, Redis, MongoDB), Elasticsearch and configuration providers are there; next, the other families (buckets, operators…).
+- [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, the databases (PostgreSQL, MySQL, Redis, MongoDB), Elasticsearch configuration providers and Cellar are there; next, the operators (Keycloak, Otoroshi…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 
