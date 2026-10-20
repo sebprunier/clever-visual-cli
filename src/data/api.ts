@@ -175,12 +175,20 @@ export interface DatabaseDetails {
   user: string;
   features: Array<{ name: string; enabled: boolean }>;
   locale: string | null;
+  /** Elasticsearch: Kibana and APM when enabled, each with its host and the application running it. */
+  companions: Companion[];
+}
+
+export interface Companion {
+  name: 'kibana' | 'apm';
+  host: string;
+  appId: string | null;
 }
 
 /**
  * `GET /v4/addon-providers/:provider/addons/:addonId`, which the client only uses inside its backup
- * command. The payload also carries the password and the read-only users: they are dropped here, so
- * they never reach a component.
+ * command. The payload also carries the passwords, the read-only users and, for Elasticsearch, the
+ * APM token: they are dropped here, so they never reach a component.
  */
 export async function fetchDatabaseDetails(
   client: CcApiClient,
@@ -192,6 +200,14 @@ export async function fetchDatabaseDetails(
     `/v4/addon-providers/${encodeURIComponent(providerId)}/addons/${encodeURIComponent(addonId)}`,
   )) as Record<string, unknown>;
   const features = Array.isArray(raw.features) ? (raw.features as Array<Record<string, unknown>>) : [];
+  const services = Array.isArray(raw.services) ? (raw.services as Array<Record<string, unknown>>) : [];
+  const companions = (['kibana', 'apm'] as const)
+    .filter((name) => services.some((service) => service.name === name && service.enabled === true))
+    .map((name) => ({
+      name,
+      host: typeof raw[`${name}_host`] === 'string' ? (raw[`${name}_host`] as string) : '',
+      appId: typeof raw[`${name}_application`] === 'string' ? (raw[`${name}_application`] as string) : null,
+    }));
   return {
     status: String(raw.status ?? ''),
     version: String(raw.version ?? ''),
@@ -203,6 +219,7 @@ export async function fetchDatabaseDetails(
       .filter((feature) => typeof feature.name === 'string')
       .map((feature) => ({ name: String(feature.name), enabled: feature.enabled === true })),
     locale: typeof raw.locale === 'string' ? raw.locale : null,
+    companions,
   };
 }
 

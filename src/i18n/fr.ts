@@ -204,6 +204,10 @@ export const fr: Record<MessageKey, string> = {
   'database.feature.do-backup': 'Sauvegardes quotidiennes',
   'database.feature.skip-log-bin': 'Sans journal binaire',
   'database.hostInVariables': 'L’hôte est dans l’onglet Variables.',
+  'database.feature.kibana': 'Kibana',
+  'database.feature.apm': 'APM',
+  'database.openService': 'Ouvrir {name}',
+  'database.runBy': 'application',
   'database.creationOptions': 'Options choisies à la création',
   'database.creationHint': 'Passées avec {command} ; clever-tools n’a pas de commande pour les changer ensuite.',
   'backups.hint':

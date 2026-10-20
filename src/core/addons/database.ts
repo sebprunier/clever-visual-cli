@@ -1,8 +1,8 @@
 /**
  * What the database add-ons share beyond the generic add-on page: the version
  * the provider reports against the ones Clever Cloud still offers, and what
- * can be done with a backup once downloaded. PostgreSQL, MySQL, Redis and
- * MongoDB answer the same provider API.
+ * can be done with a backup once downloaded. PostgreSQL, MySQL, Redis,
+ * MongoDB and Elasticsearch answer the same provider API.
  */
 import type { AddonSummary } from '../../data/api.js';
 import { shellQuote } from '../shell.js';
@@ -10,7 +10,7 @@ import { shellQuote } from '../shell.js';
 const DATABASES = ['postgresql-addon', 'mysql-addon', 'redis-addon', 'mongodb-addon'];
 
 /** Providers whose details carry a version, compared with the offered ones for "To watch". */
-export const VERSIONED_PROVIDERS: readonly string[] = DATABASES;
+export const VERSIONED_PROVIDERS: readonly string[] = [...DATABASES, 'es-addon'];
 
 /** Providers with a Backups tab. */
 export const BACKUP_PROVIDERS: readonly string[] = DATABASES;
@@ -23,6 +23,7 @@ const PRODUCTS: Readonly<Record<string, string>> = {
   'mysql-addon': 'MySQL',
   'redis-addon': 'Redis',
   'mongodb-addon': 'MongoDB',
+  'es-addon': 'Elasticsearch',
 };
 
 /** The variable that holds the password a restore command asks for. */

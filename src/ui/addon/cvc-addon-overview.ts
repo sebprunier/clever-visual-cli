@@ -8,7 +8,14 @@ import { appStatus } from '../../core/home/status.js';
 import { CONSOLE_URL } from '../../core/constants.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import { keepListView, routeToHash, type Route } from '../../core/router.js';
-import type { Addon, AddonInstance, AddonSummary, ApplicationSummary, DatabaseDetails } from '../../data/api.js';
+import type {
+  Addon,
+  AddonInstance,
+  AddonSummary,
+  ApplicationSummary,
+  Companion,
+  DatabaseDetails,
+} from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { renderCostValue } from '../shared/cost-fact.js';
 import { CvcElement } from '../shared/cvc-element.js';
@@ -28,7 +35,11 @@ const FEATURE_LABELS: Readonly<Record<string, MessageKey>> = {
   'direct-host-only': 'database.feature.direct-host-only',
   'do-backup': 'database.feature.do-backup',
   'skip-log-bin': 'database.feature.skip-log-bin',
+  kibana: 'database.feature.kibana',
+  apm: 'database.feature.apm',
 };
+
+const COMPANION_LABELS: Readonly<Record<Companion['name'], string>> = { kibana: 'Kibana', apm: 'APM' };
 
 /**
  * The overview of an add-on: a band with its state, plan, instances, cost and
@@ -46,6 +57,8 @@ export class CvcAddonOverview extends CvcElement {
   @property({ attribute: false }) state: AddonState | null = null;
   @property({ attribute: false }) instances: AddonInstance[] | null = null;
   @property({ attribute: false }) linkedApps: ApplicationSummary[] = [];
+  /** The applications of the organisation, to name the one running Kibana or APM. */
+  @property({ attribute: false }) applications: readonly ApplicationSummary[] = [];
   @property({ attribute: false }) costStore: CostStore | null = null;
   /** For a database: what its provider says about it, or why it could not be read. */
   @property({ attribute: false }) details: DatabaseDetails | null = null;
@@ -156,6 +169,7 @@ export class CvcAddonOverview extends CvcElement {
                 ${this.renderCopyFact(t('database.host'), details.host)}
                 ${this.renderCopyFact(t('database.port'), details.port > 0 ? String(details.port) : '')}
                 ${this.renderCopyFact(t('database.name'), details.database)}
+                ${details.companions.map((companion) => this.renderCompanion(companion))}
               </dl>
               ${details.host === '' ? html`<p class="muted small">${t('database.hostInVariables')}</p>` : nothing}
               ${this.renderCreationOptions(details)}`
@@ -169,6 +183,30 @@ export class CvcAddonOverview extends CvcElement {
       ? nothing
       : html`<dt>${label}</dt>
           <dd><cvc-cli no-prompt command=${value}></cvc-cli></dd>`;
+  }
+
+  /** Kibana or APM: the service to open, and the application of the organisation that runs it. */
+  private renderCompanion(companion: Companion) {
+    const label = COMPANION_LABELS[companion.name];
+    const app = this.applications.find((candidate) => candidate.id === companion.appId);
+    const status = app == null ? null : appStatus(app.state, null);
+    return html`<dt>${label}</dt>
+      <dd class="companion">
+        ${
+          companion.host === ''
+            ? nothing
+            : html`<a href=${`https://${companion.host}`} target="_blank" rel="noopener noreferrer"
+                >${t('database.openService', { name: label })} ↗</a
+              >`
+        }
+        ${
+          app == null || status == null
+            ? nothing
+            : html`<span class="muted small">${t('database.runBy')}</span>
+                <a href=${this.appHref(app.id)}>${app.name}</a>
+                <span class="status" title=${statusMessage(status)}>${statusIcon(status)}</span>`
+        }
+      </dd>`;
   }
 
   /** The provider's features, as `clever addon create --option <name>=true` sets them. */
@@ -403,6 +441,15 @@ export class CvcAddonOverview extends CvcElement {
       }
       dd cvc-cli {
         display: flex;
+      }
+      dd.companion {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      dd.companion .status {
+        display: inline-flex;
       }
       .creation {
         margin-top: 0.9rem;

@@ -266,6 +266,7 @@ export class CvcAddonPage extends CvcElement {
                     .state=${state}
                     .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
                     .linkedApps=${linkedApps(summary.id, context)}
+                    .applications=${this.orga.applications}
                     .costStore=${this.costStore}
                     .details=${this.details}
                     .detailsError=${this.detailsError}

@@ -57,6 +57,7 @@ Beside it, the list you came from, names only, with the same filter, grouping, o
 - **Variables**: what the add-on exposes to the applications linked to it, hidden by default, with copy and `.env` export.
 - **Logs**: the add-on's live logs, with filter, pause and a replay window. A shared add-on has no instance of its own, so no logs either.
 - **Databases** (PostgreSQL, MySQL, Redis, MongoDB): the overview adds the version, flagged when Clever Cloud no longer offers it, the host, port and database to copy, and the options chosen at creation (`clever addon create --option`). A **Backups** tab lists the daily backups to download, with the `clever database backups` commands and, for the chosen one, what comes next: the `pg_restore` or `mysql` command that loads it back (the password stays in the Variables tab), the archive to extract for Redis.
+- **Elasticsearch**: the same card with the Elasticsearch host, Kibana and APM when enabled (the service to open and the application running it).
 
 The same list column as on the application page sits beside it, and goes from applications to add-ons and back.
 

@@ -210,6 +210,10 @@ export const en = {
   'database.feature.do-backup': 'Daily backups',
   'database.feature.skip-log-bin': 'Binary log off',
   'database.hostInVariables': 'The host is in the Variables tab.',
+  'database.feature.kibana': 'Kibana',
+  'database.feature.apm': 'APM',
+  'database.openService': 'Open {name}',
+  'database.runBy': 'application',
   'database.creationOptions': 'Options chosen at creation',
   'database.creationHint': 'Set with {command}; clever-tools has no command to change them afterwards.',
   'backups.hint':
