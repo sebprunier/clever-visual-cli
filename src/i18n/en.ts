@@ -70,7 +70,8 @@ export const en = {
   'palette.group.Session': 'Session',
 
   // --- sign-in
-  'login.tagline': 'A backend-less Clever Cloud console: everything happens between this browser and the APIs.',
+  'login.tagline':
+    'A visual interface for the Clever Cloud CLI, with a few extras. Not a new Console: everything happens between this browser and the APIs.',
   'login.addAccount': 'Add a Clever Cloud account.',
   'login.devProfile.title': 'Local clever-tools profile',
   'login.devProfile.before': 'Development mode: the Vite server exposes the profile',

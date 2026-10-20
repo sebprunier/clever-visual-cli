@@ -65,7 +65,8 @@ export const fr: Record<MessageKey, string> = {
   'palette.group.Organisations': 'Organisations',
   'palette.group.Session': 'Session',
 
-  'login.tagline': 'Une console Clever Cloud sans backend : tout se passe entre ce navigateur et les API.',
+  'login.tagline':
+    'Une interface visuelle du CLI Clever Cloud, avec quelques bonus. Pas une nouvelle Console : tout se passe entre ce navigateur et les API.',
   'login.addAccount': 'Ajouter un compte Clever Cloud.',
   'login.devProfile.title': 'Profil clever-tools local',
   'login.devProfile.before': 'Mode développement : le serveur Vite expose le profil',

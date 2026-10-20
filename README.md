@@ -2,15 +2,33 @@
 
 # clever-visual-cli
 
-A Clever Cloud console for daily use, as a single static page: no backend, your own API token, the same client library as the official CLI.
+A visual interface for [clever-tools](https://github.com/CleverCloud/clever-tools), the Clever Cloud CLI, with a few extras on top. Every screen stands for a `clever` command: it shows it, with the real identifiers, and copies it in one click.
 
-> Community project, not affiliated with Clever Cloud. Status: usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
+> **This is not a new Console.** The [Clever Cloud Console](https://console.clever-cloud.com) remains the place to create, configure and explore, and this page often sends you there. clever-visual-cli is something extra, for the days spent in the CLI. A community project, not affiliated with Clever Cloud.
+
+**Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token or through the Console; everything stays in your browser.
+
+Status: usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
+
+## Who we are
+
+[Mathieu Ancelin](https://github.com/mathieuancelin) and [Sébastien Prunier](https://github.com/sebprunier), both [Clever Cloud ambassadors](https://www.clever.cloud/blog/company/2025/12/16/clever-cloud-ambassadors-building-the-program-together/). Both of us have used Clever Cloud for more than ten years, across several organisations and dozens of applications.
 
 ## The idea
 
-I have been a Clever Cloud user for more than ten years, across several organisations and dozens of applications. The official Console is good at discovering and configuring. Day-to-day operations ask for something else: density, speed, and working on sets of applications rather than one at a time. This is the console I wanted for that.
+We like clever-tools, and we wanted the same CLI, visually: its commands laid out on a screen, over a whole organisation at once. Each screen names the command it stands for, ready to copy, so using it teaches clever-tools along the way and nothing here is out of reach of a script.
 
-It is a visual CLI first. Every screen shows the `clever` command it stands for, so using it teaches [clever-tools](https://github.com/CleverCloud/clever-tools) along the way. And where a screen does better than a terminal, it goes further: filter expressions, grouping by tags, consolidated costs per project and environment, bulk actions on a selection, soon the logs of several applications side by side.
+Then come the extras, the few things a screen does better than a terminal:
+
+- filtering and grouping a whole organisation by tags, as in `project > env(prod,dev)`;
+- costs per project and environment, from the billing data;
+- acting on a selection: tags, restarts, stops, the logs of several applications side by side;
+- one "To watch" card for failed deployments, stuck starts and databases on a retired version;
+- browsing a Cellar bucket, editing a configuration provider as a draft.
+
+## Why it was easy
+
+clever-tools and the Clever Cloud APIs are well designed and well documented. [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the Console are built on, runs in a browser as it is: the same commands, API token and OAuth authentication, log streams, and the APIs answer any origin. So this project is mostly interface work, a static page without a backend; the platform did the hard part. Thanks to the Clever Cloud teams for that.
 
 ## Principles
 
@@ -146,4 +164,4 @@ Stack: Vite, TypeScript, Lit, no UI library, `#` routing so the page runs on any
 
 ## Licence
 
-[Apache-2.0](./LICENSE). Copyright 2026 Sébastien Prunier.
+[Apache-2.0](./LICENSE). Copyright 2026 Mathieu Ancelin and Sébastien Prunier.
