@@ -16,6 +16,7 @@ import {
   addonStateLabel,
   formatDateTime,
   formatRelative,
+  formatVersionRange,
   INSTANCE_STATE_LABELS,
   stateLabel,
 } from '../shared/format.js';
@@ -26,6 +27,7 @@ const FEATURE_LABELS: Readonly<Record<string, MessageKey>> = {
   encryption: 'database.feature.encryption',
   'direct-host-only': 'database.feature.direct-host-only',
   'do-backup': 'database.feature.do-backup',
+  'skip-log-bin': 'database.feature.skip-log-bin',
 };
 
 /**
@@ -146,23 +148,27 @@ export class CvcAddonOverview extends CvcElement {
                   ${
                     retired && offered != null
                       ? html`<span class="muted small">
-                          ${t('database.offered', {
-                            range: t('database.versionRange', { from: offered[0], to: offered.at(-1) ?? '' }),
-                          })}
+                          ${t('database.offered', { range: formatVersionRange(offered) })}
                         </span>`
                       : nothing
                   }
                 </dd>
-                <dt>${t('database.host')}</dt>
-                <dd><cvc-cli no-prompt command=${details.host}></cvc-cli></dd>
-                <dt>${t('database.port')}</dt>
-                <dd><cvc-cli no-prompt command=${String(details.port)}></cvc-cli></dd>
-                <dt>${t('database.name')}</dt>
-                <dd><cvc-cli no-prompt command=${details.database}></cvc-cli></dd>
+                ${this.renderCopyFact(t('database.host'), details.host)}
+                ${this.renderCopyFact(t('database.port'), details.port > 0 ? String(details.port) : '')}
+                ${this.renderCopyFact(t('database.name'), details.database)}
               </dl>
+              ${details.host === '' ? html`<p class="muted small">${t('database.hostInVariables')}</p>` : nothing}
               ${this.renderCreationOptions(details)}`
       }
     </section>`;
+  }
+
+  /** A value to copy; Redis has no host nor database name in its details. */
+  private renderCopyFact(label: string, value: string) {
+    return value === ''
+      ? nothing
+      : html`<dt>${label}</dt>
+          <dd><cvc-cli no-prompt command=${value}></cvc-cli></dd>`;
   }
 
   /** The provider's features, as `clever addon create --option <name>=true` sets them. */

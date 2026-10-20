@@ -68,6 +68,7 @@ import {
   formatMoney,
   formatMonth,
   formatRelative,
+  formatVersionRange,
   stateLabel,
 } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
@@ -748,7 +749,7 @@ export class CvcOrgaPage extends CvcElement {
                 ${t('watch.retiredText', {
                   product: databaseProduct(item.addon.providerId),
                   version: item.version,
-                  range: t('database.versionRange', { from: item.offered[0], to: item.offered.at(-1) ?? '' }),
+                  range: formatVersionRange(item.offered),
                 })}
               </span>
             </li>`,

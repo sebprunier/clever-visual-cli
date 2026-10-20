@@ -1,9 +1,9 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { PASSWORD_VARIABLES, restoreCommand } from '../../core/addons/database.js';
+import { backupUse, SHARED_WITHOUT_BACKUPS } from '../../core/addons/database.js';
 import { describeError } from '../../core/clever-client.js';
-import { t } from '../../core/i18n.js';
+import { t, type MessageKey } from '../../core/i18n.js';
 import { shellQuote } from '../../core/shell.js';
 import { fetchBackups, type Backup, type DatabaseDetails } from '../../data/api.js';
 import '../shared/cvc-cli.js';
@@ -15,10 +15,17 @@ import { sharedStyles } from '../shared/styles.js';
 /** Download links are signed for two hours: the list is read again well before. */
 const RELOAD_AFTER = 90 * 60_000;
 
+/** What to know once a backup that does not load back from here is downloaded. */
+const RETRIEVE_HINTS: Readonly<Record<string, MessageKey>> = {
+  'redis-addon': 'backups.redisHint',
+  'mongodb-addon': 'backups.mongodbHint',
+};
+
 /**
  * `clever database backups`: the backups of a database add-on, each one to
- * download, and the two commands that bring the chosen one back. Nothing is
- * restored from here: restoring writes into a database applications use.
+ * download, and what to do with the chosen one: the commands that load it back
+ * into PostgreSQL or MySQL, how to read a Redis archive. Nothing is restored
+ * from here: restoring writes into a database applications use.
  */
 @customElement('cvc-addon-backups')
 export class CvcAddonBackups extends CvcElement {
@@ -28,6 +35,8 @@ export class CvcAddonBackups extends CvcElement {
   @property() providerId = '';
   /** Host, port, user and database for the restore command; never the password. */
   @property({ attribute: false }) details: DatabaseDetails | null = null;
+  /** A shared plan: MySQL and MongoDB take no backup of those. */
+  @property({ type: Boolean }) shared = false;
 
   @state() private backups: Backup[] | null = null;
   @state() private error: string | null = null;
@@ -73,6 +82,7 @@ export class CvcAddonBackups extends CvcElement {
 
   override render() {
     const backups = this.backups;
+    const takesNone = this.shared && SHARED_WITHOUT_BACKUPS.includes(this.providerId);
     return html`
       <div class="row toolbar">
         <cvc-cli command=${`clever database backups ${this.addonId}`}></cvc-cli>
@@ -81,13 +91,13 @@ export class CvcAddonBackups extends CvcElement {
           ${ICON_REFRESH} ${t('common.refresh')}
         </button>
       </div>
-      <p class="muted small hint">${t('backups.hint')}</p>
+      ${takesNone ? nothing : html`<p class="muted small hint">${t('backups.hint')}</p>`}
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${
         backups == null
           ? html`<p class="empty">${t('common.loading')}</p>`
           : backups.length === 0
-            ? html`<p class="empty">${t('backups.none')}</p>`
+            ? html`<p class="empty">${t(takesNone ? 'backups.noneShared' : 'backups.none')}</p>`
             : html`<div class="card table">
                   <table>
                     <thead>
@@ -129,7 +139,7 @@ export class CvcAddonBackups extends CvcElement {
             aria-pressed=${picked}
             @click=${() => (this.picked = picked ? null : backup.backupId)}
           >
-            ${t('backups.pick')}
+            ${t(backupUse(this.providerId, null, '').kind === 'restore' ? 'backups.pick' : 'backups.pickRetrieve')}
           </button>
         </div>
       </td>
@@ -140,22 +150,35 @@ export class CvcAddonBackups extends CvcElement {
     if (backup == null) {
       return nothing;
     }
-    const file = backup.filename ?? `${backup.backupId}.dump`;
-    const restore = this.details == null ? null : restoreCommand(this.providerId, this.details, file);
-    const password = PASSWORD_VARIABLES[this.providerId];
+    const file = backup.filename ?? backup.backupId;
+    const use = backupUse(this.providerId, this.details, file);
+    const download = `clever database backups download ${this.addonId} ${backup.backupId} --output ${shellQuote(file)}`;
+    const date = formatDateTime(backup.createdAt);
+    const hint = RETRIEVE_HINTS[this.providerId];
+    if (use.kind === 'retrieve') {
+      return html`<section class="card restore">
+        <h3>${t('backups.retrieveTitle', { date })}</h3>
+        <p class="step">${t(use.command == null ? 'backups.downloadOnly' : 'backups.restoreDownload')}</p>
+        <cvc-cli block command=${download}></cvc-cli>
+        ${
+          use.command == null
+            ? nothing
+            : html`<p class="step">${t('backups.extract')}</p>
+                <cvc-cli block command=${use.command}></cvc-cli>`
+        }
+        ${hint ? html`<p class="muted small">${t(hint)}</p>` : nothing}
+      </section>`;
+    }
     return html`<section class="card restore">
-      <h3>${t('backups.restoreTitle', { date: formatDateTime(backup.createdAt) })}</h3>
+      <h3>${t('backups.restoreTitle', { date })}</h3>
       <p class="step">${t('backups.restoreDownload')}</p>
-      <cvc-cli
-        block
-        command=${`clever database backups download ${this.addonId} ${backup.backupId} --output ${shellQuote(file)}`}
-      ></cvc-cli>
+      <cvc-cli block command=${download}></cvc-cli>
       ${
-        restore == null
+        use.command == null
           ? nothing
           : html`<p class="step">${t('backups.restoreLoad')}</p>
-              <cvc-cli block command=${restore}></cvc-cli>
-              ${password ? html`<p class="muted small">${t('backups.passwordHint', { name: password })}</p>` : nothing}`
+              <cvc-cli block command=${use.command}></cvc-cli>
+              ${use.password ? html`<p class="muted small">${t('backups.passwordHint', { name: use.password })}</p>` : nothing}`
       }
       <p class="muted small">${t('backups.restoreWarning')}</p>
     </section>`;

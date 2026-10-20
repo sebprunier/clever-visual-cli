@@ -246,6 +246,7 @@ export class CvcAddonPage extends CvcElement {
                 addonId=${summary.id}
                 providerId=${summary.providerId}
                 .details=${this.details}
+                ?shared=${state === 'shared'}
               ></cvc-addon-backups>`
             : tab === 'env'
               ? html`<cvc-addon-env .client=${this.client} ownerId=${ownerId} addonId=${summary.id}></cvc-addon-env>`

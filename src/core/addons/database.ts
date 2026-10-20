@@ -1,22 +1,35 @@
 /**
  * What the database add-ons share beyond the generic add-on page: the version
- * the provider reports against the ones Clever Cloud still offers, and the
- * commands that bring a backup back. PostgreSQL first; MySQL and MongoDB join
- * these lists when their tabs are written.
+ * the provider reports against the ones Clever Cloud still offers, and what
+ * can be done with a backup once downloaded. PostgreSQL, MySQL, Redis and
+ * MongoDB answer the same provider API.
  */
 import type { AddonSummary } from '../../data/api.js';
 import { shellQuote } from '../shell.js';
 
+const DATABASES = ['postgresql-addon', 'mysql-addon', 'redis-addon', 'mongodb-addon'];
+
 /** Providers whose details carry a version, compared with the offered ones for "To watch". */
-export const VERSIONED_PROVIDERS: readonly string[] = ['postgresql-addon'];
+export const VERSIONED_PROVIDERS: readonly string[] = DATABASES;
 
 /** Providers with a Backups tab. */
-export const BACKUP_PROVIDERS: readonly string[] = ['postgresql-addon'];
+export const BACKUP_PROVIDERS: readonly string[] = DATABASES;
 
-const PRODUCTS: Readonly<Record<string, string>> = { 'postgresql-addon': 'PostgreSQL' };
+/** Providers whose shared plan takes no backup, unlike PostgreSQL's. */
+export const SHARED_WITHOUT_BACKUPS: readonly string[] = ['mysql-addon', 'mongodb-addon'];
+
+const PRODUCTS: Readonly<Record<string, string>> = {
+  'postgresql-addon': 'PostgreSQL',
+  'mysql-addon': 'MySQL',
+  'redis-addon': 'Redis',
+  'mongodb-addon': 'MongoDB',
+};
 
 /** The variable that holds the password a restore command asks for. */
-export const PASSWORD_VARIABLES: Readonly<Record<string, string>> = { 'postgresql-addon': 'POSTGRESQL_ADDON_PASSWORD' };
+const PASSWORD_VARIABLES: Readonly<Record<string, string>> = {
+  'postgresql-addon': 'POSTGRESQL_ADDON_PASSWORD',
+  'mysql-addon': 'MYSQL_ADDON_PASSWORD',
+};
 
 /** "PostgreSQL" for `postgresql-addon`: the summary of an add-on carries no provider name. */
 export function databaseProduct(providerId: string): string {
@@ -66,21 +79,58 @@ export function isRetiredVersion(version: string, offered: readonly string[]): b
   return compareVersions(atPrecisionOf(version, oldest), oldest) < 0;
 }
 
-/** The command that loads a downloaded backup into the database, for the providers that have one. */
-export function restoreCommand(providerId: string, target: ConnectionTarget, file: string): string | null {
-  if (providerId !== 'postgresql-addon') {
-    return null;
+/** What follows the download of a backup. */
+export interface BackupUse {
+  /** `restore` loads it into the add-on; `retrieve` only gets the data out. */
+  kind: 'restore' | 'retrieve';
+  /** The next command, when one is known and the details it needs are there. */
+  command: string | null;
+  /** The variable holding the password that command asks for. */
+  password: string | null;
+}
+
+/**
+ * PostgreSQL and MySQL backups load back with their client; a Redis backup is
+ * an archive of its `.rdb` and `.aof` files, read by a local `redis-server`;
+ * MongoDB's restore command lives in the provider dashboard.
+ */
+export function backupUse(providerId: string, target: ConnectionTarget | null, file: string): BackupUse {
+  const password = PASSWORD_VARIABLES[providerId] ?? null;
+  switch (providerId) {
+    case 'postgresql-addon':
+      // The flags of the client's own template (ListBackupCommand), with the real file name.
+      return {
+        kind: 'restore',
+        command:
+          target == null
+            ? null
+            : [
+                'pg_restore',
+                `-h ${shellQuote(target.host)}`,
+                `-p ${target.port}`,
+                `-U ${shellQuote(target.user)}`,
+                `-d ${shellQuote(target.database)}`,
+                '--no-owner --no-privileges --no-comments --format=c',
+                shellQuote(file),
+              ].join(' '),
+        password,
+      };
+    case 'mysql-addon':
+      // A gzipped SQL dump; `-p` alone makes mysql ask for the password.
+      return {
+        kind: 'restore',
+        command:
+          target == null
+            ? null
+            : `gunzip -c ${shellQuote(file)} | mysql -h ${shellQuote(target.host)} -P ${target.port}` +
+              ` -u ${shellQuote(target.user)} -p -D ${shellQuote(target.database)}`,
+        password,
+      };
+    case 'redis-addon':
+      return { kind: 'retrieve', command: `tar -xzf ${shellQuote(file)}`, password: null };
+    default:
+      return { kind: 'retrieve', command: null, password: null };
   }
-  // The flags of the client's own template (ListBackupCommand), with the real file name.
-  return [
-    'pg_restore',
-    `-h ${shellQuote(target.host)}`,
-    `-p ${target.port}`,
-    `-U ${shellQuote(target.user)}`,
-    `-d ${shellQuote(target.database)}`,
-    '--no-owner --no-privileges --no-comments --format=c',
-    shellQuote(file),
-  ].join(' ');
 }
 
 /** A database add-on on a version Clever Cloud no longer offers. */
@@ -92,7 +142,7 @@ export interface AddonWatchItem {
   offered: string[];
 }
 
-/** The add-ons of the "To watch" card: retired versions, oldest first, then by name. */
+/** The add-ons of the "To watch" card: retired versions by product, oldest first, then by name. */
 export function addonWatchList(
   addons: readonly AddonSummary[],
   version: (addon: AddonSummary) => string | null,
@@ -109,5 +159,10 @@ export function addonWatchList(
       items.push({ kind: 'retired', addon, version: current, offered: [...versions].sort(compareVersions) });
     }
   }
-  return items.sort((a, b) => compareVersions(a.version, b.version) || a.addon.name.localeCompare(b.addon.name));
+  return items.sort(
+    (a, b) =>
+      databaseProduct(a.addon.providerId).localeCompare(databaseProduct(b.addon.providerId)) ||
+      compareVersions(a.version, b.version) ||
+      a.addon.name.localeCompare(b.addon.name),
+  );
 }

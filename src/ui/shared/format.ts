@@ -188,6 +188,13 @@ export function shortId(id: string, keep = 8): string {
   return index === -1 ? id.slice(0, keep) : `${id.slice(0, index + 1)}${id.slice(index + 1, index + 1 + keep)}`;
 }
 
+/** "13 to 18", or "8.10.2" when Clever Cloud offers a single version; the list sorted oldest first. */
+export function formatVersionRange(offered: readonly string[]): string {
+  const from = offered[0] ?? '';
+  const to = offered.at(-1) ?? '';
+  return from === to ? from : t('database.versionRange', { from, to });
+}
+
 function toDate(value: string | number | null | undefined): Date | null {
   // The API reports "never" as 0 for timestamps.
   if (value == null || value === '' || value === 0) {
