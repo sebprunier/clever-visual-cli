@@ -38,13 +38,17 @@ A dense list of every application and add-on, with the last deployment of each a
 
 ### Application page
 
-Overview, instances, deployments, environment variables (hidden values, copy, `.env` export), live logs with filter, pause and a replay window.
+- **Overview**, arranged by use: a band with the state, the running instances, the last deployment, the cost of yesterday and of the last 30 days, and the primary domain; scaling (dedicated build included), the options, the first domains and the recent activity; aside, the runtime, deployment and identifiers to read or copy. Changes go through "Edit", which shows the `clever` command.
+- **Domains**: all of them, the primary first, with a filter for applications that have dozens.
+- **Logs**: the application's or, one switch away, the access logs (status, method, path, duration, size, client), with filter, pause and a replay window.
+- **Activity**, **environment variables** (hidden values, copy, `.env` export), and **dependencies**: the linked add-ons and applications, link and unlink, and the applications that depend on this one.
+- Exposed configuration, TCP redirections, metrics and network groups stay with the Console.
 
 Beside it, the list you came from, names only, with the same filter, grouping, order and collapsed groups as the home page, both editable in place. Another application opens on the same tab (from the logs of one to the logs of the next), and `Alt+↑` / `Alt+↓` move through the list. The column folds to a thin strip.
 
 ### Actions
 
-From the palette or the page: restart, stop, cancel a deployment, scale, set, delete or import variables, add, remove or pick the primary domain. Every dialog shows the equivalent `clever` command live, ready to copy.
+From the palette or the page: restart, stop, cancel a deployment, scale, set the options, set, delete or import variables, add, remove or pick the primary domain, link or unlink add-ons and applications. Every dialog shows the equivalent `clever` command live, ready to copy.
 
 ### Command palette
 
