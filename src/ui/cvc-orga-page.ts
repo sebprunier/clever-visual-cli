@@ -6,7 +6,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { CONSOLE_URL } from '../core/constants.js';
 import { databaseProduct, type AddonWatchItem } from '../core/addons/database.js';
-import { operatorKind, operatorProduct, type OperatorWatchItem } from '../core/addons/operator.js';
+import { displayVersion, operatorKind, operatorProduct, type OperatorWatchItem } from '../core/addons/operator.js';
 import {
   describeOrigin,
   indexActivity,
@@ -776,7 +776,7 @@ export class CvcOrgaPage extends CvcElement {
                   ${t('watch.updateText', {
                     product: operatorProduct(operatorKind(item.addon.providerId) ?? 'keycloak'),
                     installed: item.installed,
-                    latest: item.latest,
+                    latest: displayVersion(item.latest),
                   })}
                 </span>
               </li>`,

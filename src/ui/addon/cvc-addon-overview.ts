@@ -2,7 +2,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { compareVersions, databaseProduct, isRetiredVersion, VERSIONED_PROVIDERS } from '../../core/addons/database.js';
-import { operatorKind, operatorProduct, type OperatorAction } from '../../core/addons/operator.js';
+import { displayVersion, operatorKind, operatorProduct, type OperatorAction } from '../../core/addons/operator.js';
 import { ADDON_STATE_STATUS, type AddonState } from '../../core/home/addon-state.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { appStatus } from '../../core/home/status.js';
@@ -165,9 +165,11 @@ export class CvcAddonOverview extends CvcElement {
   }
 
   /**
-   * An operator: its version (flagged when an update is out), where to open
-   * it, what it is built on, its network group; restart, rebuild and update,
-   * each through a dialog that shows the `clever` command.
+   * An operator, laid out as the cards of an application page: its name with
+   * restart, rebuild and update beside it (each through a dialog that shows
+   * the `clever` command), the command that describes it, the facts (version,
+   * where to reach it, network group), what it is built on, one resource per
+   * line, and the notes last.
    */
   private renderOperator() {
     const kind = operatorKind(this.summary.providerId);
@@ -177,10 +179,35 @@ export class CvcAddonOverview extends CvcElement {
     const operator = this.operator;
     const versions = this.operatorVersions;
     const product = operatorProduct(kind);
-    const [before, after] = t('operator.credentials').split('{command}');
     const [flagBefore, flagAfter] = t('operator.featureFlag').split('{command}');
-    return html`<section class="card">
-        <h3>${this.addon?.provider.name ?? product}</h3>
+    return html`<section class="card operator">
+        <h3>
+          <span>${this.addon?.provider.name ?? product}</span>
+          ${
+            operator == null
+              ? nothing
+              : html`<span class="head-actions">
+                  <button type="button" class="ghost small" @click=${() => (this.operatorAction = 'restart')}>
+                    ${t('operator.restart')}
+                  </button>
+                  <button type="button" class="ghost small" @click=${() => (this.operatorAction = 'rebuild')}>
+                    ${t('operator.rebuild')}
+                  </button>
+                  ${
+                    versions != null && versions.available.length > 0
+                      ? html`<button
+                          type="button"
+                          class="small ${versions.needUpdate ? 'primary' : 'ghost'}"
+                          @click=${() => (this.operatorAction = 'update')}
+                        >
+                          ${t('operator.update')}
+                        </button>`
+                      : nothing
+                  }
+                </span>`
+          }
+        </h3>
+        <cvc-cli class="card-cli" command=${`clever ${kind} get ${this.summary.id}`}></cvc-cli>
         ${
           operator == null
             ? this.operatorError != null
@@ -189,15 +216,17 @@ export class CvcAddonOverview extends CvcElement {
             : html`<dl>
                   <dt>${t('operator.version')}</dt>
                   <dd>
-                    ${t('operator.versionValue', { version: operator.version, java: operator.javaVersion })}
+                    ${operator.version} <span class="muted small">· Java ${operator.javaVersion}</span>
                     ${
                       versions?.needUpdate
-                        ? html`<span class="badge info">${t('operator.updateOut', { version: versions.latest })}</span>`
+                        ? html`<span class="badge info" title=${versions.latest}
+                            >${t('operator.updateOut', { version: displayVersion(versions.latest) })}</span
+                          >`
                         : nothing
                     }
                   </dd>
-                  <dt>${t('operator.open')}</dt>
-                  <dd class="companion">
+                  <dt>${t('operator.access')}</dt>
+                  <dd class="links">
                     ${this.externalLink(operator.accessUrl, product)}
                     ${
                       operator.api == null
@@ -206,8 +235,6 @@ export class CvcAddonOverview extends CvcElement {
                           ${this.externalLink(operator.api.swaggerUrl, 'Swagger UI')}`
                     }
                   </dd>
-                  <dt>${t('operator.builtOn')}</dt>
-                  <dd class="companion">${this.renderBuiltOn(operator)}</dd>
                   <dt>${t('operator.networkGroup')}</dt>
                   <dd>
                     ${
@@ -217,29 +244,16 @@ export class CvcAddonOverview extends CvcElement {
                     }
                   </dd>
                 </dl>
-                <p class="muted small">
-                  ${before}<code>clever ${kind} get ${this.summary.id} --format json</code>${after}
-                </p>
-                <div class="row operator-actions">
-                  <button type="button" class="small" @click=${() => (this.operatorAction = 'restart')}>
-                    ${t('operator.restart')}
-                  </button>
-                  <button type="button" class="small" @click=${() => (this.operatorAction = 'rebuild')}>
-                    ${t('operator.rebuild')}
-                  </button>
-                  ${
-                    versions != null && versions.available.length > 0
-                      ? html`<button
-                          type="button"
-                          class="small ${versions.needUpdate ? 'primary' : ''}"
-                          @click=${() => (this.operatorAction = 'update')}
-                        >
-                          ${t('operator.update')}
-                        </button>`
-                      : nothing
-                  }
+                <div class="built">
+                  <p class="sub">${t('operator.builtOn')}</p>
+                  <ul class="plain">
+                    ${this.renderBuiltOn(operator)}
+                  </ul>
                 </div>
-                <p class="muted small">${flagBefore}<code>clever features enable operators</code>${flagAfter}</p>`
+                <ul class="notes muted small">
+                  <li>${flagBefore}<code>clever features enable operators</code>${flagAfter}</li>
+                  <li>${t('operator.credentials')}</li>
+                </ul>`
         }
       </section>
       ${
@@ -265,11 +279,16 @@ export class CvcAddonOverview extends CvcElement {
     this.dispatchEvent(new CustomEvent('cvc-operator-changed', { bubbles: true, composed: true }));
   }
 
+  /** A link out, drawn as a small pill. */
   private externalLink(url: string, label: string) {
     if (url === '') {
       return nothing;
     }
-    return html`<a href=${/^https?:\/\//.test(url) ? url : `https://${url}`} target="_blank" rel="noopener noreferrer"
+    return html`<a
+      class="pill"
+      href=${/^https?:\/\//.test(url) ? url : `https://${url}`}
+      target="_blank"
+      rel="noopener noreferrer"
       >${label} ↗</a
     >`;
   }
@@ -282,21 +301,33 @@ export class CvcAddonOverview extends CvcElement {
       : html`<a href=${this.appHref(app.id)} title=${t('operator.instancesTitle')}>${app.name}</a>`;
   }
 
-  /** The entrypoint application and the add-ons underneath, each opening its page. */
+  /** The entrypoint application and the add-ons underneath, one per line, each opening its page. */
   private renderBuiltOn(operator: OperatorDetails) {
     const app = this.applications.find((candidate) => candidate.id === operator.entrypoint);
     const status = app == null ? null : appStatus(app.state, null);
     return html`${
-      app == null || status == null
+      app == null
         ? nothing
-        : html`<a href=${this.appHref(app.id)}>${app.name}</a>
-            <span class="status" title=${statusMessage(status)}>${statusIcon(status)}</span>`
+        : html`<li>
+            <img src=${app.variantLogoUrl} alt="" width="20" height="20" loading="lazy" />
+            <a href=${this.appHref(app.id)}>${app.name}</a>
+            <span class="muted small">${t('operator.application')}</span>
+            ${
+              status == null
+                ? nothing
+                : html`<span class="status" title=${statusMessage(status)}>${statusIcon(status)}</span>`
+            }
+          </li>`
     }
     ${operator.resources.map((realId) => {
       const addon = this.addons.find((candidate) => candidate.realId === realId);
       return addon == null
-        ? html`<span class="muted small mono">${realId}</span>`
-        : html`<a href=${this.addonHref(addon.id)}>${addon.name}</a>`;
+        ? html`<li><span class="muted small mono">${realId}</span></li>`
+        : html`<li>
+            <img src=${addon.logoUrl} alt="" width="20" height="20" loading="lazy" />
+            <a href=${this.addonHref(addon.id)}>${addon.name}</a>
+            <span class="muted small">${databaseProduct(addon.providerId)}</span>
+          </li>`;
     })}`;
   }
 
@@ -648,13 +679,72 @@ export class CvcAddonOverview extends CvcElement {
       .more {
         margin: 0.6rem 0 0;
       }
-      .operator-actions {
-        gap: 0.5rem;
-        margin-top: 0.75rem;
+      .operator h3 {
+        justify-content: space-between;
+        flex-wrap: wrap;
       }
-      .operator-actions button.small {
-        padding: 0.3rem 0.7rem;
+      .head-actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        font-weight: 400;
+      }
+      .head-actions button.small {
+        padding: 0.2rem 0.6rem;
+        font-size: 0.82rem;
+      }
+      .card-cli {
+        display: flex;
+        margin-bottom: 0.6rem;
+      }
+      dd.links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      a.pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.1rem 0.6rem;
         font-size: 0.85rem;
+        text-decoration: none;
+        border: 1px solid var(--cvc-border);
+        border-radius: 999px;
+      }
+      a.pill:hover {
+        border-color: var(--cvc-accent);
+        color: var(--cvc-accent);
+      }
+      .built {
+        margin-top: 0.9rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--cvc-border);
+      }
+      .built .sub {
+        margin: 0 0 0.4rem;
+        font-family: var(--cvc-label-font);
+        font-size: 0.85rem;
+        color: var(--cvc-muted);
+      }
+      .built li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.2rem 0;
+      }
+      .built img {
+        border-radius: 4px;
+      }
+      .built .status {
+        display: inline-flex;
+      }
+      .notes {
+        margin: 0.9rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
       }
       dd.companion {
         display: flex;

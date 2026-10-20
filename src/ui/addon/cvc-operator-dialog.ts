@@ -1,7 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { operatorCommand, type OperatorAction } from '../../core/addons/operator.js';
+import { displayVersion, operatorCommand, type OperatorAction } from '../../core/addons/operator.js';
 import { describeError } from '../../core/clever-client.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import {
@@ -102,7 +102,7 @@ export class CvcOperatorDialog extends CvcElement {
       }
       this.dispatchEvent(
         new CustomEvent<OperatorDoneDetail>('cvc-operator-done', {
-          detail: { message: t(TEXTS[this.action].done, { name: this.name, version: this.target }) },
+          detail: { message: t(TEXTS[this.action].done, { name: this.name, version: displayVersion(this.target) }) },
           bubbles: true,
           composed: true,
         }),
@@ -138,7 +138,11 @@ export class CvcOperatorDialog extends CvcElement {
                   ${available.map(
                     (version) =>
                       html`<option value=${version} ?selected=${version === this.target}>
-                        ${version === this.versions?.latest ? t('operatorDialog.latest', { version }) : version}
+                        ${
+                          version === this.versions?.latest
+                            ? t('operatorDialog.latest', { version: displayVersion(version) })
+                            : displayVersion(version)
+                        }
                       </option>`,
                   )}
                 </select>

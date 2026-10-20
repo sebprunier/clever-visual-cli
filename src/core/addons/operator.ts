@@ -19,6 +19,11 @@ export function operatorProduct(kind: OperatorKind): string {
   return PRODUCTS[kind];
 }
 
+/** "v17.17.0_1784304500" → "v17.17.0": Otoroshi versions carry a build timestamp the reader does not need. */
+export function displayVersion(version: string): string {
+  return version.replace(/_\d{9,}$/, '');
+}
+
 /**
  * An operator has no add-on instance of its own: it runs as its entrypoint
  * application, dedicated, so its state is that application's.

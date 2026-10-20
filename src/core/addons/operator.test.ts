@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AddonSummary } from '../../data/api.js';
-import { operatorCommand, operatorKind, operatorState, operatorWatchList } from './operator.js';
+import { displayVersion, operatorCommand, operatorKind, operatorState, operatorWatchList } from './operator.js';
 
 describe('operators', () => {
   it('knows Keycloak and Otoroshi only', () => {
@@ -14,6 +14,11 @@ describe('operators', () => {
     expect(operatorState('WANTS_TO_BE_UP')).toBe('starting');
     expect(operatorState('SHOULD_BE_DOWN')).toBe('down');
     expect(operatorState('MODERATED')).toBe('down');
+  });
+
+  it('shows Otoroshi versions without their build timestamp', () => {
+    expect(displayVersion('v17.17.0_1784304500')).toBe('v17.17.0');
+    expect(displayVersion('26.8.0')).toBe('26.8.0');
   });
 
   it('gives the clever-tools commands', () => {
