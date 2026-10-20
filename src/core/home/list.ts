@@ -5,6 +5,7 @@
  */
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import { watchList, type AppActivity, type WatchItem } from './activity.js';
+import type { AddonState } from './addon-state.js';
 import type { CostTable } from './costs.js';
 import { matchesFilter, parseFilter, type ParsedFilter } from './filter.js';
 import {
@@ -31,6 +32,9 @@ export interface HomeListInput {
   /** The cost table of the selected source, for a sort by cost. */
   costs: CostTable | null;
   stateLabel: GroupingContext['stateLabel'];
+  /** The state of an add-on, null while unknown, and its words. */
+  addonState?: (addon: AddonSummary) => AddonState | null;
+  addonStateLabel?: (state: AddonState) => string;
 }
 
 export interface HomeList {
@@ -47,7 +51,17 @@ export interface HomeList {
 
 export function buildHomeList(input: HomeListInput): HomeList {
   const { apps, addons, activity } = input;
-  const context: GroupingContext = { apps, addons, links: input.links, stateLabel: input.stateLabel };
+  const addonLabel = (addon: AddonSummary): string | null => {
+    const state = input.addonState?.(addon) ?? null;
+    return state == null || input.addonStateLabel == null ? null : input.addonStateLabel(state);
+  };
+  const context: GroupingContext = {
+    apps,
+    addons,
+    links: input.links,
+    stateLabel: input.stateLabel,
+    addonStateLabel: addonLabel,
+  };
   const filter = parseFilter(input.filterText);
   const watch = watchList(apps, activity);
   const watchIds = new Set(watch.map((item) => item.app.id));
@@ -70,8 +84,10 @@ export function buildHomeList(input: HomeListInput): HomeList {
           name: addon.name,
           slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
           runtime: addon.providerId,
+          state: addonLabel(addon) ?? undefined,
           tags: addon.customerTags,
           extra: [addon.id, addon.realId],
+          flags: input.addonState?.(addon) === 'shared' ? ['shared'] : [],
         }),
       )
     : [];
@@ -80,6 +96,7 @@ export function buildHomeList(input: HomeListInput): HomeList {
     activity,
     grouping: context,
     costs: input.costs,
+    addonState: input.addonState,
   });
   return { context, filter, grouping, watch, visibleApps, visibleAddons, tree };
 }

@@ -60,6 +60,22 @@ describe('buildHomeList', () => {
   });
 });
 
+describe('add-on states', () => {
+  const states = input({
+    addonState: (addon) => (addon.id === 'shop-db' ? 'shared' : null),
+    addonStateLabel: (state) => (state === 'shared' ? 'mutualisé' : state),
+  });
+
+  it('filter with is:shared and state:, and group by state', () => {
+    expect(buildHomeList({ ...states, filterText: 'is:shared' }).visibleAddons.map((addon) => addon.id)).toEqual([
+      'shop-db',
+    ]);
+    expect(buildHomeList({ ...states, filterText: 'state:mutualise' }).visibleAddons).toHaveLength(1);
+    const { tree } = buildHomeList({ ...states, groupingText: 'state' });
+    expect(tree.find((node) => node.label === 'mutualisé')?.addons.map((addon) => addon.id)).toEqual(['shop-db']);
+  });
+});
+
 describe('displayOrder', () => {
   it('lists applications then add-ons of each group, leaving collapsed groups out', () => {
     const { tree } = buildHomeList(input({ groupingText: 'project' }));

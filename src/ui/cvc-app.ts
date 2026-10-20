@@ -12,6 +12,7 @@ import {
 import { clearClientCaches } from '../core/clever-client.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
+import { AddonStore, clearAddonStorage } from '../core/home/addon-store.js';
 import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
@@ -60,6 +61,7 @@ export class CvcApp extends CvcElement {
 
   private readonly homeStore = new HomeStore();
   private readonly costStore = new CostStore();
+  private readonly addonStore = new AddonStore();
   private unwatchRoute?: () => void;
   private readonly onChange = () => this.requestUpdate();
   private readonly onKeyDown = (event: KeyboardEvent) => {
@@ -177,6 +179,7 @@ export class CvcApp extends CvcElement {
       this.currentApp = null;
       this.homeStore.forget();
       this.costStore.forget();
+      this.addonStore.forget();
       await session.activate(active);
     }
   }
@@ -220,7 +223,9 @@ export class CvcApp extends CvcElement {
     clearClientCaches();
     clearHomeStorage();
     clearCostStorage();
+    clearAddonStorage();
     this.costStore.forget();
+    this.addonStore.forget();
     void this.syncPhase();
   }
 
@@ -556,6 +561,7 @@ export class CvcApp extends CvcElement {
           .client=${client}
           .store=${this.homeStore}
           .costStore=${this.costStore}
+          .addonStore=${this.addonStore}
           userId=${session.profile?.userId ?? ''}
           .revision=${this.revision}
         ></cvc-orga-page>`;

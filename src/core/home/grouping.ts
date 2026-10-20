@@ -59,6 +59,8 @@ export interface GroupingContext {
   /** Links per application id; may be incomplete while they load. */
   links: LinksIndex;
   stateLabel: (state: ApplicationSummary['state']) => string;
+  /** The state of an add-on in words, once its instances are known; the grouping falls back to "add-on". */
+  addonStateLabel?: (addon: AddonSummary) => string | null;
 }
 
 export interface GroupNode {
@@ -346,7 +348,11 @@ function valuesOf(item: Item, key: string, context: GroupingContext): Values {
       }
       return { values, inferred: false };
     case 'state':
-      put(item.kind === 'app' ? context.stateLabel(item.app.state) : t('grouping.addonState'));
+      put(
+        item.kind === 'app'
+          ? context.stateLabel(item.app.state)
+          : (context.addonStateLabel?.(item.addon) ?? t('grouping.addonState')),
+      );
       return { values, inferred: false };
     default: {
       const tags = item.kind === 'app' ? item.app.customerTags : item.addon.customerTags;

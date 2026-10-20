@@ -10,6 +10,7 @@
  */
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
 import type { AppActivity } from './activity.js';
+import { ADDON_STATE_RANK, type AddonState } from './addon-state.js';
 import { nodeCost, shownCost, type CostTable } from './costs.js';
 import { linkedAddons, linkedApps, type GroupNode, type GroupingContext } from './grouping.js';
 
@@ -25,6 +26,8 @@ export const SORT_COLUMNS: readonly SortColumn[] = ['name', 'type', 'state', 'ac
 
 export interface SortContext {
   activity: ReadonlyMap<string, AppActivity>;
+  /** The state of an add-on, null while unknown. */
+  addonState?: (addon: AddonSummary) => AddonState | null;
   grouping: Pick<GroupingContext, 'apps' | 'addons' | 'links'>;
   costs: CostTable | null;
 }
@@ -118,7 +121,10 @@ function addonKey(addon: AddonSummary, column: SortColumn, context: SortContext)
       return addon.name;
     case 'type':
       return addon.providerId;
-    case 'state':
+    case 'state': {
+      const state = context.addonState?.(addon) ?? null;
+      return state == null ? null : ADDON_STATE_RANK[state];
+    }
     case 'activity':
       return null;
     case 'links':

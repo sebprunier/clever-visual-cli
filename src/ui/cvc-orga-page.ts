@@ -40,6 +40,8 @@ import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { buildHomeList, displayOrder } from '../core/home/list.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
 import { listRecents } from '../core/home/recents.js';
+import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
+import type { AddonStore } from '../core/home/addon-store.js';
 import { appStatus } from '../core/home/status.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
@@ -56,6 +58,7 @@ import './cvc-bulk-dialog.js';
 import type { BulkDoneDetail } from './cvc-bulk-dialog.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
 import {
+  addonStateLabel,
   APP_STATE_LABELS,
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
@@ -134,6 +137,7 @@ export class CvcOrgaPage extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property({ attribute: false }) store!: HomeStore;
   @property({ attribute: false }) costStore!: CostStore;
+  @property({ attribute: false }) addonStore: AddonStore | null = null;
   /** Id of the signed-in user, to say "toi" in the activity column. */
   @property() userId = '';
   /** Bumped by the shell after an action so the activity reloads. */
@@ -200,6 +204,7 @@ export class CvcOrgaPage extends CvcElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.store?.removeEventListener('change', this.onStoreChange);
     this.costStore?.removeEventListener('change', this.onStoreChange);
+    this.addonStore?.removeEventListener('change', this.onStoreChange);
     this.#sideObserver?.disconnect();
     this.#sideObserver = null;
     super.disconnectedCallback();
@@ -227,6 +232,10 @@ export class CvcOrgaPage extends CvcElement {
     if (changed.has('costStore')) {
       (changed.get('costStore') as CostStore | undefined)?.removeEventListener('change', this.onStoreChange);
       this.costStore?.addEventListener('change', this.onStoreChange);
+    }
+    if (changed.has('addonStore')) {
+      (changed.get('addonStore') as AddonStore | null | undefined)?.removeEventListener('change', this.onStoreChange);
+      this.addonStore?.addEventListener('change', this.onStoreChange);
     }
     if (changed.has('orga')) {
       const previous = changed.get('orga') as OrganisationSummary | undefined;
@@ -258,6 +267,12 @@ export class CvcOrgaPage extends CvcElement {
     if (this.prefs.costs) {
       void this.costStore?.refresh(this.client, this.orga.id, { force: options.force });
     }
+    void this.addonStore?.refresh(
+      this.client,
+      this.orga.id,
+      this.orga.addons.map((addon) => addon.id),
+      { force: options.force },
+    );
   }
 
   private toggleCosts(on: boolean): void {
@@ -454,6 +469,8 @@ export class CvcOrgaPage extends CvcElement {
       sort: this.prefs.sort,
       costs,
       stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
+      addonState: (addon) => this.addonStore?.state(this.orga.id, addon.id) ?? null,
+      addonStateLabel,
     });
     this.#order = displayOrder(tree, this.prefs.collapsed);
     const appById = new Map(apps.map((app) => [app.id, app]));
@@ -1269,7 +1286,7 @@ export class CvcOrgaPage extends CvcElement {
       </td>
       <td class="kind small">${t('home.kind.addon')}</td>
       <td class="type muted small">${addon.providerId}</td>
-      <td class="state muted small" title=${t('home.addonNoState')}>—</td>
+      ${this.renderAddonState(addon)}
       <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
         ${apps.length === 0 ? t('home.notLinked') : apps.length === 1 ? apps[0].name : t('home.linkedApps', { count: apps.length })}
       </td>
@@ -1280,6 +1297,23 @@ export class CvcOrgaPage extends CvcElement {
       </td>
       ${this.renderCost(costs, addon)}
     </tr>`;
+  }
+
+  /** The state of an add-on from its instances, "shared" without any, a spinner while unknown. */
+  private renderAddonState(addon: AddonSummary) {
+    const state = this.addonStore?.state(this.orga.id, addon.id) ?? null;
+    if (state == null) {
+      return html`<td class="state muted small">
+        ${this.addonStore?.loading(this.orga.id) ? html`<span class="spinner"></span>` : '—'}
+      </td>`;
+    }
+    const status = ADDON_STATE_STATUS[state];
+    if (status == null) {
+      return html`<td class="state muted small" title=${t('addonState.sharedTitle')}>${addonStateLabel(state)}</td>`;
+    }
+    return html`<td class="state small">
+      <span class="status" title=${statusMessage(status)}>${statusIcon(status)} ${addonStateLabel(state)}</span>
+    </td>`;
   }
 
   private renderTags(tags: string[]) {

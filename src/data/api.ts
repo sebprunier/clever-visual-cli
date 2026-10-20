@@ -7,6 +7,8 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
+import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
+import type { AddonInstance } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.types.js';
 import type { Application } from '@clevercloud/client/cc-api-commands/application/application.types.js';
 import { ListApplicationCommand } from '@clevercloud/client/cc-api-commands/application/list-application-command.js';
 import { DeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/deploy-application-command.js';
@@ -64,6 +66,7 @@ import type { EnvironmentVariable, EnvVarParsingError } from '@clevercloud/clien
 
 export type {
   Addon,
+  AddonInstance,
   AddonSummary,
   Application,
   ApplicationAccessLog,
@@ -140,6 +143,11 @@ export function openRuntimeLogs(
       instanceId: options.instanceId,
     }),
   );
+}
+
+/** The instances of an add-on: only dedicated plans have some; a shared plan answers an empty list. */
+export function fetchAddonInstances(client: CcApiClient, ownerId: string, addonId: string): Promise<AddonInstance[]> {
+  return client.send(new ListAddonInstanceCommand({ ownerId, addonId }));
 }
 
 /** `clever accesslogs`: one entry per HTTP request the application answered. */
