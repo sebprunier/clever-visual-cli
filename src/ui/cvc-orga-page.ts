@@ -1353,10 +1353,9 @@ export class CvcOrgaPage extends CvcElement {
   ) {
     const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
     const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
-    return html`<div class="row card-head">
+    return html`<div class="menu-head">
         <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
-        <span class="grow"></span>
-        <button type="button" class="link text" @click=${() => this.toggleCosts(false)}>${t('costs.hide')}</button>
+        <button type="button" class="link" @click=${() => this.toggleCosts(false)}>${t('costs.hide')}</button>
       </div>
       <div class="sources" role="radiogroup" aria-label=${t('costs.sourceAria')}>
         ${COST_SOURCES.map((source) => this.renderSource(source, data, currency))}
@@ -2057,17 +2056,13 @@ export class CvcOrgaPage extends CvcElement {
       .costs p {
         margin: 0;
       }
-      .costs .card-head h2 {
-        margin: 0;
+      .costs .menu-head h2 {
         font-size: 0.95rem;
       }
       .costs .show {
         align-self: flex-start;
         padding: 0.3rem 0.8rem;
         font-size: 0.85rem;
-      }
-      .card-head .link.text {
-        font-family: inherit;
       }
       .sources {
         display: flex;

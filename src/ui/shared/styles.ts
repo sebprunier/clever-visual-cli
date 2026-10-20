@@ -130,6 +130,25 @@ export const sharedStyles = css`
     color: var(--cvc-accent);
     text-decoration: underline;
   }
+  /* The first line of a menu panel: what it is about, and on the right the action that leaves
+     that state (leave a view, hide the costs), the same in every menu. */
+  .menu-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+  .menu-head > :first-child {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .menu-head button.link {
+    flex: none;
+    font-size: 0.85rem;
+  }
   button:disabled {
     opacity: 0.5;
     cursor: default;

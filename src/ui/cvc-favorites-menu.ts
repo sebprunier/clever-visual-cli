@@ -212,9 +212,9 @@ export class CvcFavoritesMenu extends CvcElement {
       >
         ${
           active != null
-            ? html`<div class="current">
+            ? html`<div class="menu-head">
                 <p class="muted small">${t('fav.current', { name: active.name })}</p>
-                <button type="button" class="link small" title=${t('fav.leaveTitle')} @click=${this.leave}>
+                <button type="button" class="link" title=${t('fav.leaveTitle')} @click=${this.leave}>
                   ${t('fav.leave')}
                 </button>
               </div>`
@@ -409,22 +409,6 @@ export class CvcFavoritesMenu extends CvcElement {
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
-      }
-      .current {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 0.6rem;
-      }
-      .current p {
-        margin: 0;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .current button.link {
-        flex: none;
       }
       hr {
         width: 100%;
