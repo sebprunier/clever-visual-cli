@@ -16,7 +16,7 @@ import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
-import { navigate, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
+import { navigate, routeOwner, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
 import { Session } from '../core/session.js';
 import { Vault, type StoredProfile } from '../core/vault/vault.js';
 import type { Application } from '../data/api.js';
@@ -26,6 +26,7 @@ import { APP_TAB_LABELS } from './cvc-app-page.js';
 import './cvc-command-palette.js';
 import type { CvcCommandPalette } from './cvc-command-palette.js';
 import './cvc-login.js';
+import './cvc-logs-page.js';
 import './cvc-orga-page.js';
 import './cvc-toaster.js';
 import type { CvcToaster, Toast } from './cvc-toaster.js';
@@ -101,8 +102,9 @@ export class CvcApp extends CvcElement {
     window.addEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
-      if (route.kind === 'orga' || route.kind === 'app') {
-        rememberOwner(route.ownerId);
+      const owner = routeOwner(route);
+      if (owner != null) {
+        rememberOwner(owner);
       }
       if (route.kind === 'app') {
         recordVisit(route.ownerId, route.appId);
@@ -423,7 +425,7 @@ export class CvcApp extends CvcElement {
 
   private renderWorkspace(session: Session) {
     const profile = session.profile;
-    const currentOwnerId = this.route.kind === 'orga' || this.route.kind === 'app' ? this.route.ownerId : '';
+    const currentOwnerId = routeOwner(this.route) ?? '';
     const actionContext = this.pendingAction != null ? this.actionContext() : null;
     return html`
       <header class="topbar">
@@ -557,6 +559,14 @@ export class CvcApp extends CvcElement {
           userId=${session.profile?.userId ?? ''}
           .revision=${this.revision}
         ></cvc-orga-page>`;
+      }
+      case 'logs': {
+        const orga = session.findOrganisation(this.route.ownerId);
+        const client = session.client;
+        if (orga == null || client == null) {
+          return html`<p class="empty">${t('shell.unknownOrga')}</p>`;
+        }
+        return html`<cvc-logs-page .orga=${orga} .client=${client} .store=${this.homeStore}></cvc-logs-page>`;
       }
       case 'app': {
         const client = session.client;

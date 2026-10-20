@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keepListView, parseRoute, readListView, routeToHash, withListView, type Route } from './router.js';
+import { keepListView, parseRoute, readListView, routeOwner, routeToHash, withListView, type Route } from './router.js';
 
 describe('router', () => {
   it('parses the home route from empty or root hashes', () => {
@@ -76,5 +76,20 @@ describe('list view', () => {
       '#/orga/o2/app/a2/logs',
     );
     expect(keepListView('#/account', { kind: 'account' }, '#/orga/o1?q=x')).toBe('#/account');
+  });
+});
+
+describe('logs of several applications', () => {
+  it('has a route of its own, the applications in the query', () => {
+    expect(parseRoute('#/orga/o1/logs?apps=a1,a2')).toEqual({ kind: 'logs', ownerId: 'o1' });
+    expect(routeToHash({ kind: 'logs', ownerId: 'o1' })).toBe('#/orga/o1/logs');
+    expect(routeOwner({ kind: 'logs', ownerId: 'o1' })).toBe('o1');
+    expect(routeOwner({ kind: 'account' })).toBeNull();
+  });
+
+  it('keeps the list of the organisation on the way to and from it', () => {
+    expect(keepListView('#/orga/o1', { kind: 'orga', ownerId: 'o1' }, '#/orga/o1/logs?apps=a1&q=env%3Aprod')).toBe(
+      '#/orga/o1?q=env%3Aprod',
+    );
   });
 });

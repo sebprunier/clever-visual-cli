@@ -20,6 +20,12 @@ export const ICON_REFRESH = html`<svg class="icon" viewBox="0 0 24 24" width="14
   <path d="M4 21v-5h5" style=${ATTRS} />
 </svg>`;
 
+/** A prompt and a cursor: logs. */
+export const ICON_LOGS = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+  <path d="M5 7l5 5-5 5" style=${ATTRS} />
+  <path d="M12 17h7" style=${ATTRS} />
+</svg>`;
+
 export const ICON_START = html`<svg class="icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
   <path
     d="M7 4.5v15l12-7.5z"

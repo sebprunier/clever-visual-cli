@@ -44,7 +44,7 @@ import { appStatus } from '../core/home/status.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
-import { readHashParams, routeToHash, withListView, writeHashParams } from '../core/router.js';
+import { readHashParams, routeToHash, withHashParams, withListView, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
@@ -67,7 +67,7 @@ import {
   stateLabel,
 } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
-import { ICON_REFRESH, ICON_RESTART, ICON_STOP } from './shared/icons.js';
+import { ICON_LOGS, ICON_REFRESH, ICON_RESTART, ICON_STOP } from './shared/icons.js';
 import { sharedStyles } from './shared/styles.js';
 
 /** An application opened in this browser, with the time of the last visit. */
@@ -348,6 +348,16 @@ export class CvcOrgaPage extends CvcElement {
   private clearSelection(): void {
     this.selected = new Set();
     this.#lastClicked = null;
+  }
+
+  /** The logs page of the selected applications, keeping this list for the way back. */
+  private openLogs(): void {
+    const apps = this.selectedApps.map((app) => app.id);
+    window.location.hash = withHashParams(routeToHash({ kind: 'logs', ownerId: this.orga.id }), {
+      apps: apps.join(','),
+      q: this.filterText.trim(),
+      g: this.groupingText.trim(),
+    });
   }
 
   /** The applications of the selection, for a restart or a stop; add-ons are only counted. */
@@ -686,11 +696,17 @@ export class CvcOrgaPage extends CvcElement {
                 title=${apps === 0 ? t('home.menu.appsNone') : nothing}
                 ?disabled=${apps === 0}
                 .items=${[
+                  {
+                    id: 'logs',
+                    label: t('home.viewLogs'),
+                    icon: ICON_LOGS,
+                    title: this.selectedAddonCount > 0 ? t('home.viewLogsAddons') : undefined,
+                  },
                   { id: 'restart', label: t('home.restart'), icon: ICON_RESTART },
                   { id: 'stop', label: t('home.stop'), danger: true, icon: ICON_STOP },
                 ]}
                 @cvc-menu-select=${(event: CustomEvent<MenuSelectDetail>) =>
-                  (this.bulkDialog = event.detail.id as BulkKind)}
+                  event.detail.id === 'logs' ? this.openLogs() : (this.bulkDialog = event.detail.id as BulkKind)}
               ></cvc-menu-button>`
       }
     </div>`;

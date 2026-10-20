@@ -33,7 +33,7 @@ A dense list of every application and add-on, with the last deployment of each a
 - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (the applications of the "To watch" card), `has:project`, any `key:value` tag (`project:shop`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-`, parentheses and quotes. Clickable examples under the field say what each token does.
 - **Group** by expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels, with an optional order of values (`project > env(prod,dev)`). An add-on without a tag inherits those of its linked applications. Filter and grouping live in the URL, so a view can be bookmarked and shared.
 - **Sort** by any column from the header row: name, type, state, activity, links, cost. The order applies inside each group; sorting by cost also orders the groups by their total.
-- **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection, actions grouped in menus: "Tags" to add, remove or rename a tag, "Applications" to restart or stop them. Each action shows the exact list and the `clever` commands before confirming, ready to copy as a script (tags go through `clever curl`, clever-tools having no tag command), then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
+- **Select and act**: checkboxes on rows, on every group and sub-group, and "select all" in the header, with shift+click for a range. On the selection, actions grouped in menus: "Tags" to add, remove or rename a tag, "Applications" to view their logs together, restart or stop them. Each action shows the exact list and the `clever` commands before confirming, ready to copy as a script (tags go through `clever curl`, clever-tools having no tag command), then a progress counter; tag changes can be undone from the notification. Clever Cloud imposes no tag convention; `project:<name>` and `env:<env>` are the author's.
 - **Costs**, on demand: yesterday, the last 30 days, the latest invoice, and what the current configuration costs for a month where nothing changes. The selected source feeds a cost column, a total per group and sub-group (so `project > env` answers "what does the production of this project cost") and the total of the filtered list. Daily figures are the consumptions the billing system computes, the ones behind the Console's consumption page; the estimate prices started applications at their minimum instances for 720 hours, stopped ones at zero, plus add-on plans. Tax excluded, billing rights required.
 - **Side column**: the Clever Cloud platform status from the public status page, the applications to watch (failed deployment, stuck start, moderation, payment), the ones opened recently.
 
@@ -46,6 +46,10 @@ A dense list of every application and add-on, with the last deployment of each a
 - Exposed configuration, TCP redirections, metrics and network groups stay with the Console.
 
 Beside it, the list you came from, names only, with the same filter, grouping, order and collapsed groups as the home page, both editable in place. Another application opens on the same tab (from the logs of one to the logs of the next), and `Alt+↑` / `Alt+↓` move through the list. The column folds to a thin strip.
+
+### Logs of several applications
+
+From the selection of the home page ("Applications" › "View logs"), the live logs of up to twelve applications on one page, addressed by its URL: side by side in one to three columns, each panel with its own pause, filter and close, or merged into one feed interleaved by date, each application's name in its own colour (a click on it hides or shows it). The replay window, a filter and the pause apply to all of them; the `clever logs` commands copy together.
 
 ### Actions
 
@@ -60,7 +64,6 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
 
 - [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views, export/import, and sync through a personal configuration provider, so favourites follow you from one machine to another without a backend.
-- [#3](https://github.com/sebprunier/clever-visual-cli/issues/3) Logs of a set of applications: a grid, or one merged feed.
 - [#5](https://github.com/sebprunier/clever-visual-cli/issues/5) Add-ons: their state in the list, a page per add-on, then what each family offers (backups, buckets, operator versions…).
 
 Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.

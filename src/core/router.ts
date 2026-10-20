@@ -1,5 +1,6 @@
 /**
- * Hash-based router: `#/orga/<ownerId>/app/<appId>/<tab>`.
+ * Hash-based router: `#/orga/<ownerId>/app/<appId>/<tab>`, and
+ * `#/orga/<ownerId>/logs?apps=…` for the logs of several applications.
  *
  * Hash routing needs no server-side rewrite, so the build runs unchanged on
  * any static host (Clever Cloud static, GitHub Pages, a local `file://`).
@@ -12,6 +13,8 @@ export type Route =
   | { kind: 'home' }
   | { kind: 'orga'; ownerId: string }
   | { kind: 'app'; ownerId: string; appId: string; tab: AppTab }
+  /** The logs of several applications, listed in `?apps=`. */
+  | { kind: 'logs'; ownerId: string }
   | { kind: 'account' };
 
 export function parseRoute(hash: string): Route {
@@ -33,6 +36,9 @@ export function parseRoute(hash: string): Route {
       const tab = isAppTab(segments[4]) ? segments[4] : 'overview';
       return { kind: 'app', ownerId, appId: segments[3], tab };
     }
+    if (segments[2] === 'logs') {
+      return { kind: 'logs', ownerId };
+    }
     return { kind: 'orga', ownerId };
   }
   return { kind: 'home' };
@@ -50,7 +56,14 @@ export function routeToHash(route: Route): string {
       const base = `#/orga/${encodeURIComponent(route.ownerId)}/app/${encodeURIComponent(route.appId)}`;
       return route.tab === 'overview' ? base : `${base}/${route.tab}`;
     }
+    case 'logs':
+      return `#/orga/${encodeURIComponent(route.ownerId)}/logs`;
   }
+}
+
+/** Pages of one organisation: they carry its list and keep it selected in the top bar. */
+export function routeOwner(route: Route): string | null {
+  return route.kind === 'orga' || route.kind === 'app' || route.kind === 'logs' ? route.ownerId : null;
 }
 
 /** Navigates; within one organisation, the list the user comes from (`?q=&g=`) follows along. */
@@ -130,12 +143,8 @@ export function withListView(hash: string, view: ListView): string {
 
 /** The target hash with the list of the current one when both are pages of the same organisation. */
 export function keepListView(target: string, route: Route, currentHash: string): string {
-  const current = parseRoute(currentHash);
-  if (
-    (route.kind !== 'orga' && route.kind !== 'app') ||
-    (current.kind !== 'orga' && current.kind !== 'app') ||
-    current.ownerId !== route.ownerId
-  ) {
+  const owner = routeOwner(route);
+  if (owner == null || routeOwner(parseRoute(currentHash)) !== owner) {
     return target;
   }
   const { filter, grouping } = readListView(currentHash);
