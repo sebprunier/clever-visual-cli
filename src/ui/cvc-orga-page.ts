@@ -4,7 +4,6 @@ import { t, type MessageKey } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
 import { databaseProduct, type AddonWatchItem } from '../core/addons/database.js';
 import {
@@ -46,7 +45,7 @@ import type { AddonStore } from '../core/home/addon-store.js';
 import { appStatus } from '../core/home/status.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
-import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
+import type { TagResource } from '../core/home/tagging.js';
 import { readHashParams, routeToHash, withHashParams, withListView, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
@@ -58,6 +57,7 @@ import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './cvc-bulk-dialog.js';
 import type { BulkDoneDetail } from './cvc-bulk-dialog.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
+import { announceTagResult } from './shared/tag-result.js';
 import {
   addonStateLabel,
   APP_STATE_LABELS,
@@ -399,20 +399,8 @@ export class CvcOrgaPage extends CvcElement {
   }
 
   private onTagsApplied(event: CustomEvent<TagsAppliedDetail>): void {
-    const { result } = event.detail;
     this.tagDialog = null;
-    const done = result.done.length;
-    const failed = result.failed.length;
-    const message =
-      failed === 0
-        ? t('tags.applied', { count: done })
-        : t('tags.partial', { done, failed, error: result.failed[0].error });
-    pushToast(this, {
-      kind: failed === 0 ? 'success' : 'error',
-      message,
-      action: done > 0 ? { label: t('tags.undo'), run: () => void this.undo(result.done) } : undefined,
-    });
-    requestSummaryRefresh(this);
+    announceTagResult(this, this.client, this.orga.id, event.detail.result);
   }
 
   private onBulkDone(event: CustomEvent<BulkDoneDetail>): void {
@@ -430,22 +418,6 @@ export class CvcOrgaPage extends CvcElement {
     this.selected = new Set();
     requestSummaryRefresh(this);
     this.refresh({ force: true });
-  }
-
-  private async undo(steps: TagStep[]): Promise<void> {
-    const result = await runSteps(invertSteps(steps), apiExecutor(this.client, this.orga.id), {
-      describe: describeError,
-    });
-    pushToast(
-      this,
-      result.failed.length === 0
-        ? {
-            kind: 'info',
-            message: t('tags.undone', { count: result.done.length }),
-          }
-        : { kind: 'error', message: t('tags.undoFailed', { error: result.failed[0].error }) },
-    );
-    requestSummaryRefresh(this);
   }
 
   // --- rendering ---------------------------------------------------------
