@@ -188,6 +188,29 @@ export function shortId(id: string, keep = 8): string {
   return index === -1 ? id.slice(0, keep) : `${id.slice(0, index + 1)}${id.slice(index + 1, index + 1 + keep)}`;
 }
 
+/** "1 564" / "1,564". */
+export function formatCount(count: number): string {
+  return new Intl.NumberFormat(getLocale()).format(count);
+}
+
+const BYTE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
+
+/** "105 GB" / "105 Go": decimal units, one decimal below 10. */
+export function formatBytes(bytes: number): string {
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1000 && unit < BYTE_UNITS.length - 1) {
+    value /= 1000;
+    unit += 1;
+  }
+  return new Intl.NumberFormat(getLocale(), {
+    style: 'unit',
+    unit: BYTE_UNITS[unit],
+    unitDisplay: 'short',
+    maximumFractionDigits: unit > 0 && value < 10 ? 1 : 0,
+  }).format(value);
+}
+
 /** "13 to 18", or "8.10.2" when Clever Cloud offers a single version; the list sorted oldest first. */
 export function formatVersionRange(offered: readonly string[]): string {
   const from = offered[0] ?? '';

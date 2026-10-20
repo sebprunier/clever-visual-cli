@@ -8,6 +8,8 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
+import type { CellarInfo } from '@clevercloud/client/cc-api-commands/cellar/cellar.types.js';
+import { GetCellarInfoCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-info-command.js';
 import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
 import { UpdateConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/update-config-provider-command.js';
 import { ListAddonInstanceCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-instance-command.js';
@@ -78,6 +80,7 @@ export type {
   Addon,
   AddonInstance,
   Backup,
+  CellarInfo,
   AddonRuntimeLog,
   AddonSummary,
   Application,
@@ -272,6 +275,16 @@ export function replaceConfigProviderEnvironment(
   environment: EnvironmentVariable[],
 ): Promise<EnvironmentVariable[]> {
   return client.send(new UpdateConfigProviderCommand({ addonId: realId, environment }));
+}
+
+/*
+ * Cellar, read through the platform's own API rather than S3: no credentials needed. The real id
+ * (`cellar_…`) spares the client a lookup. clever-tools has no Cellar command.
+ */
+
+/** Buckets, objects, total size and the traffic of the billing period. */
+export function fetchCellarInfo(client: CcApiClient, ownerId: string, realId: string): Promise<CellarInfo> {
+  return client.send(new GetCellarInfoCommand({ ownerId, addonId: realId }));
 }
 
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */

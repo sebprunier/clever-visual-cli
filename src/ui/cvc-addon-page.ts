@@ -21,8 +21,10 @@ import {
 } from '../core/router.js';
 import {
   fetchAddon,
+  fetchCellarInfo,
   fetchDatabaseDetails,
   type Addon,
+  type CellarInfo,
   type DatabaseDetails,
   type OrganisationSummary,
 } from '../data/api.js';
@@ -36,6 +38,8 @@ import { CvcElement } from './shared/cvc-element.js';
 import { addonStateLabel } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
+
+const CELLAR_PROVIDER = 'cellar-addon';
 
 const TABS: ReadonlyArray<{ tab: AddonTab; label: MessageKey }> = [
   { tab: 'overview', label: 'tab.overview' },
@@ -65,6 +69,9 @@ export class CvcAddonPage extends CvcElement {
   /** What the provider says about a database: version, host, options. */
   @state() private details: DatabaseDetails | null = null;
   @state() private detailsError: string | null = null;
+  /** What a Cellar add-on holds: buckets, objects, size, traffic. */
+  @state() private cellar: CellarInfo | null = null;
+  @state() private cellarError: string | null = null;
   @state() private error: string | null = null;
   @state() private filterText = '';
   @state() private groupingText = '';
@@ -93,6 +100,8 @@ export class CvcAddonPage extends CvcElement {
       this.addon = null;
       this.details = null;
       this.detailsError = null;
+      this.cellar = null;
+      this.cellarError = null;
       void this.load();
     } else if (changed.has('revision')) {
       void this.load();
@@ -117,9 +126,13 @@ export class CvcAddonPage extends CvcElement {
     const ownerId = this.orga.id;
     this.error = null;
     void this.addonStore?.refreshOne(client, ownerId, addonId);
-    const providerId = this.orga.addons.find((addon) => addon.id === addonId)?.providerId ?? '';
+    const summary = this.orga.addons.find((addon) => addon.id === addonId);
+    const providerId = summary?.providerId ?? '';
     if (VERSIONED_PROVIDERS.includes(providerId) || BACKUP_PROVIDERS.includes(providerId)) {
       void this.loadDetails(client, ownerId, providerId, addonId);
+    }
+    if (providerId === CELLAR_PROVIDER && summary != null) {
+      void this.loadCellar(client, ownerId, addonId, summary.realId);
     }
     try {
       const addon = await fetchAddon(client, ownerId, addonId);
@@ -143,6 +156,18 @@ export class CvcAddonPage extends CvcElement {
       }
     } catch (error) {
       this.detailsError = describeError(error);
+    }
+  }
+
+  private async loadCellar(client: CcApiClient, ownerId: string, addonId: string, realId: string) {
+    this.cellarError = null;
+    try {
+      const cellar = await fetchCellarInfo(client, ownerId, realId);
+      if (this.addonId === addonId) {
+        this.cellar = cellar;
+      }
+    } catch (error) {
+      this.cellarError = describeError(error);
     }
   }
 
@@ -278,6 +303,8 @@ export class CvcAddonPage extends CvcElement {
                     .details=${this.details}
                     .detailsError=${this.detailsError}
                     .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
+                    .cellar=${this.cellar}
+                    .cellarError=${this.cellarError}
                   ></cvc-addon-overview>`
         }
       </section>

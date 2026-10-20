@@ -13,6 +13,7 @@ import type {
   AddonInstance,
   AddonSummary,
   ApplicationSummary,
+  CellarInfo,
   Companion,
   DatabaseDetails,
 } from '../../data/api.js';
@@ -21,6 +22,8 @@ import { renderCostValue } from '../shared/cost-fact.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import {
   addonStateLabel,
+  formatBytes,
+  formatCount,
   formatDateTime,
   formatRelative,
   formatVersionRange,
@@ -65,6 +68,9 @@ export class CvcAddonOverview extends CvcElement {
   @property({ attribute: false }) detailsError: string | null = null;
   /** The versions Clever Cloud offers for a new database of this provider. */
   @property({ attribute: false }) offered: readonly string[] | null = null;
+  /** For Cellar: what it holds and its traffic, or why it could not be read. */
+  @property({ attribute: false }) cellar: CellarInfo | null = null;
+  @property({ attribute: false }) cellarError: string | null = null;
 
   private appHref(appId: string): string {
     const route: Route = { kind: 'app', ownerId: this.ownerId, appId, tab: 'overview' };
@@ -75,7 +81,9 @@ export class CvcAddonOverview extends CvcElement {
     return html`
       ${this.renderBand()}
       <div class="columns">
-        <div class="main">${this.renderDatabase()} ${this.renderInstances()} ${this.renderLinkedApps()}</div>
+        <div class="main">
+          ${this.renderDatabase()} ${this.renderCellar()} ${this.renderInstances()} ${this.renderLinkedApps()}
+        </div>
         <aside class="side">${this.renderFacts()} ${this.renderIdentifiers()}</aside>
       </div>
     `;
@@ -130,6 +138,38 @@ export class CvcAddonOverview extends CvcElement {
         <span class="label">${t('addon.linkedApps')}</span>
         <span class="value">${this.linkedApps.length}</span>
       </div>
+    </section>`;
+  }
+
+  /** Buckets, objects, size and the traffic of the billing period. */
+  private renderCellar() {
+    if (this.summary.providerId !== 'cellar-addon') {
+      return nothing;
+    }
+    const cellar = this.cellar;
+    return html`<section class="card">
+      <h3>${this.addon?.provider.name ?? 'Cellar'}</h3>
+      ${
+        cellar == null
+          ? this.cellarError != null
+            ? html`<p class="error small" role="alert">${this.cellarError}</p>`
+            : html`<p class="muted small">${t('common.loading')}</p>`
+          : html`<dl>
+              <dt>${t('cellar.buckets')}</dt>
+              <dd>${formatCount(cellar.buckets.count)}</dd>
+              <dt>${t('cellar.objects')}</dt>
+              <dd>${formatCount(cellar.buckets.objects)}</dd>
+              <dt>${t('cellar.size')}</dt>
+              <dd>${formatBytes(cellar.buckets.size)}</dd>
+              <dt>${t('cellar.traffic')}</dt>
+              <dd>
+                ${t('cellar.trafficValue', {
+                  inbound: formatBytes(cellar.traffic.inbound),
+                  outbound: formatBytes(cellar.traffic.outbound),
+                })}
+              </dd>
+            </dl>`
+      }
     </section>`;
   }
 
