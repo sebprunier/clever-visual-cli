@@ -434,13 +434,24 @@ export class CvcApp extends CvcElement {
           <kbd>${IS_MAC ? '⌘K' : 'Ctrl+K'}</kbd>
         </button>
         <details class="menu">
-          <summary>${profile?.name ?? profile?.email ?? t('shell.account')}</summary>
+          <summary title=${profile?.email ?? ''}>
+            <span class="identity">
+              <span class="who">${profile?.name ?? profile?.email ?? t('shell.account')}</span>
+              ${profile?.name != null && profile.email ? html`<span class="email">${profile.email}</span>` : nothing}
+            </span>
+            <svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+              <path
+                d="M2.5 4.5 6 8l3.5-3.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </summary>
           <div class="menu-items">
-            <span class="muted small">${profile?.email}</span>
-            <a href=${routeToHash({ kind: 'account' })} @click=${() => this.closeMenu(false)}
-              >${t('account.accountsInBrowser')}</a
-            >
-            <label class="row small lang">
+            <label class="lang">
               ${t('common.language')}
               <select
                 aria-label=${t('common.language')}
@@ -453,14 +464,17 @@ export class CvcApp extends CvcElement {
               </select>
             </label>
             <hr />
+            <a class="item" href=${routeToHash({ kind: 'account' })} @click=${() => this.closeMenu(false)}
+              >${t('account.accountsInBrowser')}</a
+            >
             ${
               session.vault.mode === 'encrypted'
-                ? html`<button type="button" class="link" @click=${this.lock}>${t('shell.lock')}</button>`
+                ? html`<button type="button" class="item" @click=${this.lock}>${t('shell.lock')}</button>`
                 : nothing
             }
             <button
               type="button"
-              class="link"
+              class="item"
               @click=${() => {
                 this.closeMenu(false);
                 void this.forgetActiveAccount();
@@ -642,15 +656,49 @@ export class CvcApp extends CvcElement {
         margin-left: auto;
         position: relative;
       }
+      /* A menu button like the selection menus of the home page: name and e-mail (two accounts
+         of one person often share the name), then a caret that turns when the menu is open. */
       .menu summary {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        max-width: 280px;
         cursor: pointer;
         list-style: none;
-        padding: 0.45rem 0.7rem;
+        padding: 0.25rem 0.6rem 0.25rem 0.7rem;
+        line-height: 1.25;
         border: 1px solid var(--cvc-border);
         border-radius: var(--cvc-radius);
       }
+      .menu summary:hover,
+      .menu[open] summary {
+        border-color: var(--cvc-accent);
+      }
       .menu summary::-webkit-details-marker {
         display: none;
+      }
+      .menu .identity {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .menu .who,
+      .menu .email {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .menu .email {
+        font-size: 0.75rem;
+        color: var(--cvc-muted);
+      }
+      .menu .caret {
+        flex: none;
+        opacity: 0.7;
+        transition: transform 0.15s;
+      }
+      .menu[open] .caret {
+        transform: rotate(180deg);
       }
       .menu-items {
         position: absolute;
@@ -659,23 +707,44 @@ export class CvcApp extends CvcElement {
         min-width: 220px;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        padding: 0.75rem 0.9rem;
+        gap: 0.1rem;
+        padding: 0.3rem;
         background: var(--cvc-surface);
         border: 1px solid var(--cvc-border);
         border-radius: var(--cvc-radius);
-        box-shadow: 0 10px 30px rgb(0 0 0 / 20%);
+        box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
         z-index: 10;
       }
-      .menu-items a,
-      .menu-items button.link {
+      .menu-items .item {
+        display: block;
+        padding: 0.35rem 0.6rem;
+        font: inherit;
+        font-size: 0.88rem;
         text-align: left;
         text-decoration: none;
         color: var(--cvc-text);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .menu-items .item:hover,
+      .menu-items .item:focus-visible {
+        outline: none;
+        background: color-mix(in srgb, var(--cvc-accent) 10%, transparent);
+      }
+      .menu-items .lang {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+        font-size: 0.88rem;
+        color: var(--cvc-muted);
       }
       .menu-items hr {
         width: 100%;
-        margin: 0.1rem 0;
+        margin: 0.2rem 0;
         border: none;
         border-top: 1px solid var(--cvc-border);
       }
