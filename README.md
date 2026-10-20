@@ -48,8 +48,9 @@ With an API token, through the Console (the `clever login` flow in a popup), or 
 
 ### Organisation home
 
-A dense list of every application and add-on, with the last deployment of each application and human activity told apart from platform maintenance, and the state of each add-on, read from its instances (a shared plan has none: it shows as "shared"). The header gives the organisation's name with the "Views", "Costs" and "Refresh" buttons, then the counts and the `clever applications list` command.
+A dense list of every application and add-on, with the date of the last deployment of each application (who or what deployed in its tooltip, the platform's own maintenance muted), and the state of each add-on, read from its instances (a shared plan has none: it shows as "shared"). The header gives the organisation's name with the "Views", "Costs" and "Refresh" buttons, then the counts and the `clever applications list` command.
 
+- **Tags** beside each name, each a click away from filtering on it; the name's tooltip lists them all when the row cuts some.
 - **Links**: the same on every row, what the resource is linked to: the logos of an application's add-ons, of an add-on's applications, each opening its page (an add-on linked to nothing says so).
 - **Filter** by expression: free text, `is:app`, `is:addon`, `is:node`, `is:postgresql` (the Console's slugs), `is:watch` (what the "To watch" card lists), `is:shared` (add-ons on a shared plan), `has:project`, any `key:value` tag (`project:shop`, `env:prod`), `tag:`, `runtime:`, `state:`, `name:`, combined with `AND` (implicit), `OR`, `NOT` or `-` (`-is:addon` lists the applications alone), parentheses and quotes. Clickable examples under the field say what each token does.
 - **Group** by expression: a tag key (`project`, `env`…) or `type`, `runtime`, `provider`, `state`, up to three levels, with an optional order of values (`project > env(prod,dev)`). An add-on without a tag inherits those of its linked applications. Filter and grouping live in the URL, so a view can be bookmarked and shared.

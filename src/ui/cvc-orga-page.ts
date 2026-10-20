@@ -1436,7 +1436,7 @@ export class CvcOrgaPage extends CvcElement {
     return html`<tr class="app ${this.selected.has(app.id) ? 'selected' : ''}">
       ${this.renderCheck(app.id, app.name)}
       <td class="logo"><img src=${app.variantLogoUrl} alt="" width="20" height="20" loading="lazy" /></td>
-      <td class="name">
+      <td class="name" title=${this.tagsTitle(app.customerTags)}>
         <a href=${this.appHash(app.id)}>${app.name}</a>
         ${this.renderTags(app.customerTags)}
       </td>
@@ -1486,8 +1486,10 @@ export class CvcOrgaPage extends CvcElement {
     const human = isHumanDeployment(last);
     const tone = last.state === 'FAILED' ? 'failed' : isInProgress(last) ? 'wip' : human ? '' : 'platform';
     const action = deploymentActionLabel(last.action) || t('deploymentAction.DEPLOY');
+    // The date only, for the room it leaves the tags; who deployed is in the title, the platform's own
+    // deployments muted.
     const title = [
-      `${action} ${stateLabel(DEPLOYMENT_STATE_LABELS, last.state).label} · ${formatDateTime(last.date)}`,
+      `${action} ${stateLabel(DEPLOYMENT_STATE_LABELS, last.state).label} · ${formatDateTime(last.date)} · ${describeOrigin(last, this.userId)}`,
       last.cause ? t('activity.cause', { cause: last.cause }) : '',
       activity.lastHuman != null && activity.lastHuman !== last
         ? t('activity.lastHuman', {
@@ -1499,8 +1501,7 @@ export class CvcOrgaPage extends CvcElement {
       .filter((part) => part !== '')
       .join('\n');
     return html`<td class="activity small ${tone}" title=${title}>
-      ${last.state === 'FAILED' ? '✕ ' : isInProgress(last) ? '● ' : ''}${formatRelative(last.date)},
-      ${describeOrigin(last, this.userId)}
+      ${last.state === 'FAILED' ? '✕ ' : isInProgress(last) ? '● ' : ''}${formatRelative(last.date)}
     </td>`;
   }
 
@@ -1515,7 +1516,7 @@ export class CvcOrgaPage extends CvcElement {
     return html`<tr class="addon ${this.selected.has(addon.id) ? 'selected' : ''}">
       ${this.renderCheck(addon.id, addon.name)}
       <td class="logo"><img src=${addon.logoUrl} alt="" width="20" height="20" loading="lazy" /></td>
-      <td class="name">
+      <td class="name" title=${this.tagsTitle(addon.customerTags)}>
         <a href=${this.addonHash(addon.id)}>${addon.name}</a>
         ${this.renderTags(addon.customerTags)}
         ${inferred ? html`<span class="tag inferred" title=${t('home.inferredTitle')}>${t('home.inferred')}</span>` : nothing}
@@ -1560,6 +1561,11 @@ export class CvcOrgaPage extends CvcElement {
     return html`<td class="state small">
       <span class="status" title=${statusMessage(status)}>${statusIcon(status)} ${addonStateLabel(state)}</span>
     </td>`;
+  }
+
+  /** Every tag of a row, for the ones its cell cuts. */
+  private tagsTitle(tags: string[]): string {
+    return tags.length === 0 ? '' : t('home.tagsTitle', { tags: tags.join(', ') });
   }
 
   private renderTags(tags: string[]) {
@@ -2016,7 +2022,7 @@ export class CvcOrgaPage extends CvcElement {
         width: 8rem;
       }
       col.activity {
-        width: 15rem;
+        width: 8.5rem;
       }
       col.links {
         width: 11rem;
@@ -2298,7 +2304,7 @@ export class CvcOrgaPage extends CvcElement {
           width: 0;
         }
         col.activity {
-          width: 11rem;
+          width: 8.5rem;
         }
       }
     `,

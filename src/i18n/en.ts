@@ -765,6 +765,7 @@ export const en = {
   'origin.platform': 'platform',
   'activity.lastHuman': 'last human deployment: {when} ({who})',
   'activity.cause': 'cause: {cause}',
+  'home.tagsTitle': 'Tags: {tags}',
   'grouping.missing': 'no {key}',
   'grouping.applications': 'Applications',
   'grouping.addons': 'Add-ons',

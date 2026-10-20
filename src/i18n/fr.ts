@@ -765,6 +765,7 @@ export const fr: Record<MessageKey, string> = {
   'origin.platform': 'plateforme',
   'activity.lastHuman': 'dernier déploiement humain : {when} ({who})',
   'activity.cause': 'cause : {cause}',
+  'home.tagsTitle': 'Tags : {tags}',
   'grouping.missing': 'sans {key}',
   'grouping.applications': 'Applications',
   'grouping.addons': 'Add-ons',
