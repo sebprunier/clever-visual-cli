@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
+import { setLocale } from '../i18n.js';
 import { buildHomeList, displayOrder, type HomeListInput } from './list.js';
 import { DEFAULT_PREFS, toggleCollapsed } from './prefs.js';
+
+// The "missing" group label is translated: pin the language, whatever the machine's.
+beforeAll(() => setLocale('fr', false));
 
 const app = (id: string, tags: string[] = [], state = 'SHOULD_BE_UP') =>
   ({
