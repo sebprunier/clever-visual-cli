@@ -1,0 +1,52 @@
+name: clever-tools release
+
+# Every Monday, compares CLI_VERSION (the clever-tools release the commands on
+# screen are checked against) with the latest one on npm, and opens an issue
+# when a newer release is out. An issue already open for that release is kept.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare CLI_VERSION with the latest clever-tools release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(sed -n "s/^export const CLI_VERSION = '\(.*\)';$/\1/p" src/core/constants.ts)
+          latest=$(curl -fsS https://registry.npmjs.org/clever-tools/latest | jq -r .version)
+          echo "CLI_VERSION: $current, latest on npm: $latest"
+          if [ -z "$current" ] || [ -z "$latest" ]; then
+            echo "::error::Could not read one of the versions"
+            exit 1
+          fi
+          newest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n 1)
+          if [ "$latest" = "$current" ] || [ "$newest" != "$latest" ]; then
+            echo "Up to date"
+            exit 0
+          fi
+          title="clever-tools $latest is out (commands checked against $current)"
+          if [ -n "$(gh issue list --state open --search "in:title \"clever-tools $latest is out\"" --json number --jq '.[].number')" ]; then
+            echo "An issue is already open for $latest"
+            exit 0
+          fi
+          gh issue create --title "$title" --body "$(cat <<BODY
+          clever-tools [$latest](https://github.com/CleverCloud/clever-tools/releases/tag/$latest) is on npm; the commands on screen are checked against $current (\`CLI_VERSION\` in \`src/core/constants.ts\`, also sent by the Console sign-in as \`clever login\` does).
+
+          To do:
+
+          - read the release notes and check the commands the pages show (options added, changed or removed);
+          - check them against a scratch install: \`npm install clever-tools@$latest\`;
+          - bump \`CLI_VERSION\` and the version named in the README.
+
+          Opened by the weekly \`clever-tools release\` workflow.
+          BODY
+          )"
