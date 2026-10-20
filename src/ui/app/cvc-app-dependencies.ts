@@ -2,7 +2,6 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../../core/clever-client.js';
-import { CONSOLE_URL } from '../../core/constants.js';
 import { indexActivity, type AppActivity } from '../../core/home/activity.js';
 import type { HomeStore } from '../../core/home/home-store.js';
 import { appStatus } from '../../core/home/status.js';
@@ -97,6 +96,12 @@ export class CvcAppDependencies extends CvcElement {
     return keepListView(routeToHash(route), route, window.location.hash);
   }
 
+  /** The page of a linked add-on, carrying the list view as the application links do. */
+  private addonHref(addonId: string): string {
+    const route: Route = { kind: 'addon', ownerId: this.ownerId, addonId, tab: 'overview' };
+    return keepListView(routeToHash(route), route, window.location.hash);
+  }
+
   /** The applications whose known links point to this one. */
   private get dependents(): ApplicationSummary[] {
     if (this.orga == null || this.store == null) {
@@ -141,14 +146,7 @@ export class CvcAppDependencies extends CvcElement {
                       (addon) =>
                         html`<li>
                           <img src=${addon.provider.logoUrl} alt="" width="20" height="20" loading="lazy" />
-                          <a
-                            class="name"
-                            href="${CONSOLE_URL}/goto/${addon.id}"
-                            target="_blank"
-                            rel="noopener"
-                            title=${t('common.openInConsole')}
-                            >${addon.name} ↗</a
-                          >
+                          <a class="name" href=${this.addonHref(addon.id)}>${addon.name}</a>
                           <span class="muted small">${addon.provider.name} · ${addon.plan.name}</span>
                           <button
                             type="button"
