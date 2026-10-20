@@ -118,9 +118,10 @@ export class CvcCli extends CvcElement {
     :host([block]) {
       display: block;
     }
+    /* A pointer, not the copy cursor: on macOS that one is the drag-and-drop "+" and reads as "drop a copy here". */
     code {
       font: inherit;
-      cursor: copy;
+      cursor: pointer;
     }
     button.copy {
       font: inherit;
@@ -168,7 +169,9 @@ export class CvcCli extends CvcElement {
       padding: 0.2rem;
       border-radius: 4px;
     }
-    .chip button.copy:hover {
+    /* Hovering the command lights its copy control; :where() keeps the weight of a plain hover so "copied" still wins. */
+    .chip button.copy:hover,
+    .chip code:where(:hover) + button.copy {
       color: var(--cvc-accent);
       background: color-mix(in srgb, var(--cvc-accent) 10%, transparent);
     }
@@ -204,7 +207,8 @@ export class CvcCli extends CvcElement {
       border: 1px solid var(--cvc-border);
       border-radius: 6px;
     }
-    .block button.copy:hover {
+    .block button.copy:hover,
+    .block code:where(:hover) + button.copy {
       color: var(--cvc-accent);
       border-color: var(--cvc-accent);
     }
