@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -48,37 +49,55 @@ function devCliProfile(): Plugin {
 
 /**
  * Content Security Policy for the production build, as a meta tag because
- * static hosts such as GitHub Pages send no custom headers. Scripts and
- * styles only from the site itself (Lit uses constructable stylesheets, so no
- * inline style is needed), network only to the Clever Cloud APIs, the status
- * page and the npm registry (the latest clever-tools release), logos from any
- * https origin. The dev server stays unrestricted because Vite's HMR
- * injects inline styles.
+ * static hosts such as GitHub Pages send no custom headers. Scripts only from
+ * the site itself, plus the inline scripts of `index.html` by their hash (the
+ * theme set before the first paint). Styles only from the site itself: Lit's
+ * constructable stylesheets pass, a `style` attribute does not, so templates
+ * never write one (see `src/ui/shared/inline-style.ts`). Network only to the
+ * Clever Cloud APIs, the status page and the npm registry (the latest
+ * clever-tools release), logos from any https origin. The dev server stays
+ * unrestricted because Vite's HMR injects inline styles.
  */
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' https: data:",
-  "font-src 'self'",
-  "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com https://www.clevercloudstatus.com https://registry.npmjs.org",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
+function contentSecurityPolicy(scriptHashes: string[]): string {
+  return [
+    "default-src 'self'",
+    ["script-src 'self'", ...scriptHashes.map((hash) => `'${hash}'`)].join(' '),
+    "style-src 'self'",
+    "img-src 'self' https: data:",
+    "font-src 'self'",
+    "connect-src 'self' https://api.clever-cloud.com https://api-bridge.clever-cloud.com https://www.clevercloudstatus.com https://registry.npmjs.org",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; ');
+}
+
+/** The `sha256-…` source of each inline script of a page, as the browser hashes its text. */
+function inlineScriptHashes(page: string): string[] {
+  return [...page.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(
+    ([, text]) => `sha256-${createHash('sha256').update(text, 'utf8').digest('base64')}`,
+  );
+}
 
 function productionCsp(): Plugin {
   return {
     name: 'cvc-production-csp',
     apply: 'build',
-    transformIndexHtml() {
-      return [
-        {
-          tag: 'meta',
-          attrs: { 'http-equiv': 'Content-Security-Policy', content: CONTENT_SECURITY_POLICY },
-          injectTo: 'head-prepend',
-        },
-      ];
+    transformIndexHtml: {
+      // After the other transforms, so the hashes are those of the page as published.
+      order: 'post',
+      handler(page) {
+        return [
+          {
+            tag: 'meta',
+            attrs: {
+              'http-equiv': 'Content-Security-Policy',
+              content: contentSecurityPolicy(inlineScriptHashes(page)),
+            },
+            injectTo: 'head-prepend',
+          },
+        ];
+      },
     },
   };
 }
