@@ -5,9 +5,11 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { CONSOLE_URL } from '../core/constants.js';
+import { indexActivity, type AppActivity } from '../core/home/activity.js';
 import type { CostStore } from '../core/home/cost-store.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { readPrefs } from '../core/home/prefs.js';
+import { appStatus } from '../core/home/status.js';
 import {
   readListView,
   routeToHash,
@@ -16,7 +18,13 @@ import {
   type AppTab,
   type ListView,
 } from '../core/router.js';
-import { fetchApplication, type Application, type ApplicationSummary, type OrganisationSummary } from '../data/api.js';
+import {
+  fetchApplication,
+  type Application,
+  type ApplicationSummary,
+  type Deployment,
+  type OrganisationSummary,
+} from '../data/api.js';
 import './app/cvc-app-nav.js';
 import './app/cvc-app-deployments.js';
 import './app/cvc-app-env.js';
@@ -25,6 +33,7 @@ import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
 import { openAction } from './shared/events.js';
 import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
+import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
 export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> = {
@@ -59,7 +68,21 @@ export class CvcAppPage extends CvcElement {
   @state() private filterText = '';
   @state() private groupingText = '';
 
+  #activitySource: readonly Deployment[] | null = null;
+  #activity: Map<string, AppActivity> = new Map();
+
+  private readonly onStoreChange = () => this.requestUpdate();
+
+  override disconnectedCallback(): void {
+    this.store?.removeEventListener('change', this.onStoreChange);
+    super.disconnectedCallback();
+  }
+
   override willUpdate(changed: PropertyValues<this>): void {
+    if (changed.has('store')) {
+      (changed.get('store') as HomeStore | null | undefined)?.removeEventListener('change', this.onStoreChange);
+      this.store?.addEventListener('change', this.onStoreChange);
+    }
     if (changed.has('ownerId') || changed.has('appId')) {
       const view = readListView();
       this.filterText = view.filter ?? '';
@@ -70,7 +93,22 @@ export class CvcAppPage extends CvcElement {
       void this.load();
     } else if (changed.has('revision')) {
       void this.load();
+      // The deployment an action started changes the status icon of the header and of the column.
+      if (this.store != null && this.orga != null) {
+        const appIds = this.orga.applications.filter((app) => !app.isArchived).map((app) => app.id);
+        void this.store.refresh(this.client, this.ownerId, appIds, { force: true });
+      }
     }
+  }
+
+  /** The last deployment of the application, from the organisation-wide list the home store keeps. */
+  private lastDeployment(): Deployment | null {
+    const deployments = this.store?.get(this.ownerId).deployments ?? null;
+    if (deployments !== this.#activitySource) {
+      this.#activitySource = deployments;
+      this.#activity = indexActivity(deployments ?? []);
+    }
+    return this.#activity.get(this.appId)?.last ?? null;
   }
 
   override updated(changed: PropertyValues<this>): void {
@@ -134,7 +172,7 @@ export class CvcAppPage extends CvcElement {
   private renderPage() {
     const name = this.app?.name ?? this.summaryApp?.name ?? this.appId;
     const state = this.app?.state ?? this.summaryApp?.state;
-    const status = state ? stateLabel(APP_STATE_LABELS, state) : null;
+    const status = state ? appStatus(state, this.lastDeployment()) : null;
     const logo = this.app?.instance.variant.logoUrl ?? this.summaryApp?.variantLogoUrl;
     const variant = this.app?.instance.variant.name ?? this.summaryApp?.variantName;
     const canStop = state != null && state !== 'SHOULD_BE_DOWN';
@@ -144,7 +182,13 @@ export class CvcAppPage extends CvcElement {
         <div class="row title">
           ${logo ? html`<img src=${logo} alt="" width="36" height="36" />` : nothing}
           <h1>${name}</h1>
-          ${status ? html`<span class="badge ${status.tone}">${status.label}</span>` : nothing}
+          ${
+            state != null && status != null
+              ? html`<span class="status" title=${statusMessage(status)}
+                  >${statusIcon(status, 16)} ${stateLabel(APP_STATE_LABELS, state).label}</span
+                >`
+              : nothing
+          }
           <span class="muted small">${variant ?? ''}${this.app ? ` · ${this.app.zone}` : ''}</span>
           <span class="grow"></span>
           <button type="button" @click=${() => openAction(this, 'restart')}>${t('app.restart')}</button>
@@ -228,6 +272,12 @@ export class CvcAppPage extends CvcElement {
       }
       .title img {
         border-radius: 8px;
+      }
+      .title .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--cvc-muted);
       }
       .grow {
         flex: 1;

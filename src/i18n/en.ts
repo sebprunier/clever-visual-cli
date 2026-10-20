@@ -223,6 +223,13 @@ export const en = {
   'deployments.cancel': 'Cancel',
 
   // --- states
+  'appStatus.running': 'Running',
+  'appStatus.restarting': 'Running, a deployment is in progress',
+  'appStatus.restartFailed': 'Running, the last deployment failed',
+  'appStatus.starting': 'Starting',
+  'appStatus.startFailed': 'Stopped, the last deployment failed',
+  'appStatus.stopped': 'Stopped',
+  'appStatus.blocked': 'Stopped by Clever Cloud (moderation or payment default)',
   'state.app.SHOULD_BE_UP': 'running',
   'state.app.WANTS_TO_BE_UP': 'starting',
   'state.app.SHOULD_BE_DOWN': 'stopped',

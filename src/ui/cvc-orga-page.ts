@@ -40,6 +40,7 @@ import { loadPlatformStatus } from '../core/home/platform-status.js';
 import { buildHomeList, displayOrder } from '../core/home/list.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../core/home/prefs.js';
 import { listRecents } from '../core/home/recents.js';
+import { appStatus } from '../core/home/status.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
 import { apiExecutor, invertSteps, runSteps, type TagResource, type TagStep } from '../core/home/tagging.js';
@@ -65,6 +66,7 @@ import {
   formatRelative,
   stateLabel,
 } from './shared/format.js';
+import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
 /** An application opened in this browser, with the time of the last visit. */
@@ -1173,7 +1175,8 @@ export class CvcOrgaPage extends CvcElement {
     linksLoading: boolean,
     costs: CostTable | null,
   ) {
-    const status = stateLabel(APP_STATE_LABELS, app.state);
+    const label = stateLabel(APP_STATE_LABELS, app.state).label;
+    const status = appStatus(app.state, activity?.last ?? null);
     const addons = linkedAddons(app.id, context);
     return html`<tr class="app ${this.selected.has(app.id) ? 'selected' : ''}">
       ${this.renderCheck(app.id, app.name)}
@@ -1184,7 +1187,9 @@ export class CvcOrgaPage extends CvcElement {
       </td>
       <td class="kind small">${t('home.kind.app')}</td>
       <td class="type muted small">${app.variantName}</td>
-      <td class="state"><span class="badge ${status.tone}">${status.label}</span></td>
+      <td class="state small">
+        <span class="status" title=${statusMessage(status)}>${statusIcon(status)} ${label}</span>
+      </td>
       ${this.renderActivity(activity)}
       <td class="links">
         ${addons
@@ -1631,6 +1636,12 @@ export class CvcOrgaPage extends CvcElement {
       }
       col.kind {
         width: 6rem;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        white-space: nowrap;
       }
       col.type {
         width: 8.5rem;

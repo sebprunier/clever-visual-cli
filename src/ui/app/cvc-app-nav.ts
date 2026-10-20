@@ -7,12 +7,14 @@ import type { CostStore } from '../../core/home/cost-store.js';
 import type { GroupNode } from '../../core/home/grouping.js';
 import type { HomeStore } from '../../core/home/home-store.js';
 import { buildHomeList, displayOrder } from '../../core/home/list.js';
+import { appStatus } from '../../core/home/status.js';
 import { DEFAULT_PREFS, readPrefs, toggleCollapsed, writePrefs, type HomePrefs } from '../../core/home/prefs.js';
 import { t } from '../../core/i18n.js';
 import { routeToHash, withListView, type AppTab, type ListView } from '../../core/router.js';
 import type { Deployment, OrganisationSummary } from '../../data/api.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { APP_STATE_LABELS, stateLabel } from '../shared/format.js';
+import { statusIcon, statusMessage } from '../shared/status.js';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const FOLDED_KEY = 'cvc.appNav';
@@ -311,15 +313,18 @@ export class CvcAppNav extends CvcElement {
     return html`<ul class="items">
       ${node.apps.map((app) => {
         const current = app.id === this.appId;
+        const status = appStatus(app.state, this.#activity.get(app.id)?.last ?? null);
         return html`<li>
           <a
             class="item ${current ? 'current' : ''}"
             href=${this.appHref(app.id)}
             aria-current=${current ? 'page' : nothing}
-            title="${app.name} · ${app.variantName}"
+            title="${app.name} · ${app.variantName} · ${statusMessage(status)}"
           >
             <img src=${app.variantLogoUrl} alt="" width="16" height="16" loading="lazy" />
             <span class="name">${app.name}</span>
+            ${statusIcon(status)}
+            <span class="sr-only">${statusMessage(status)}</span>
           </a>
         </li>`;
       })}
@@ -525,6 +530,14 @@ export class CvcAppNav extends CvcElement {
     .external {
       flex: none;
       font-size: 0.75em;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
     .item:hover {
       background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);

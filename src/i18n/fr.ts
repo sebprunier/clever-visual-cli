@@ -215,6 +215,13 @@ export const fr: Record<MessageKey, string> = {
   'deployments.instances': 'Inst.',
   'deployments.cancel': 'Annuler',
 
+  'appStatus.running': 'Démarrée',
+  'appStatus.restarting': 'Démarrée, un déploiement est en cours',
+  'appStatus.restartFailed': 'Démarrée, le dernier déploiement a échoué',
+  'appStatus.starting': 'Démarrage en cours',
+  'appStatus.startFailed': 'Arrêtée, le dernier déploiement a échoué',
+  'appStatus.stopped': 'Arrêtée',
+  'appStatus.blocked': 'Arrêtée par Clever Cloud (modération ou défaut de paiement)',
   'state.app.SHOULD_BE_UP': 'démarrée',
   'state.app.WANTS_TO_BE_UP': 'démarrage',
   'state.app.SHOULD_BE_DOWN': 'arrêtée',
