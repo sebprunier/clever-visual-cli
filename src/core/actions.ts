@@ -204,10 +204,23 @@ export const ACTIONS: ActionDefinition[] = [
           options: flavors,
           default: instance?.maxFlavor.name,
         },
+        {
+          name: 'buildFlavor',
+          label: t('action.scale.buildFlavor'),
+          type: 'select',
+          required: true,
+          options: [{ value: BUILD_DISABLED, label: t('action.scale.buildDisabled') }, ...flavors],
+          default: currentBuildFlavor(ctx),
+          help: t('action.scale.buildHelp'),
+        },
       ];
     },
     cli: (ctx, v) =>
-      `clever scale ${appFlag(ctx)} --min-instances ${num(v.minInstances)} --max-instances ${num(v.maxInstances)} --min-flavor ${str(v.minFlavor)} --max-flavor ${str(v.maxFlavor)}`,
+      `clever scale ${appFlag(ctx)} --min-instances ${num(v.minInstances)} --max-instances ${num(v.maxInstances)} --min-flavor ${str(v.minFlavor)} --max-flavor ${str(v.maxFlavor)}${
+        str(v.buildFlavor) !== '' && str(v.buildFlavor) !== currentBuildFlavor(ctx)
+          ? ` --build-flavor ${str(v.buildFlavor)}`
+          : ''
+      }`,
     run: async (ctx, v) => {
       const minInstances = num(v.minInstances);
       const maxInstances = num(v.maxInstances);
@@ -219,13 +232,55 @@ export const ACTIONS: ActionDefinition[] = [
       if (rank(str(v.minFlavor)) > rank(str(v.maxFlavor))) {
         throw new Error(t('action.scale.flavorOrder'));
       }
+      const buildFlavor = str(v.buildFlavor);
+      const buildPatch =
+        buildFlavor === '' || buildFlavor === currentBuildFlavor(ctx)
+          ? {}
+          : buildFlavor === BUILD_DISABLED
+            ? { hasSeparatedBuild: false }
+            : { hasSeparatedBuild: true, buildFlavor };
       await api.updateApplication(ctx.client, ctx.ownerId, ctx.appId, {
         minInstances,
         maxInstances,
         minFlavor: str(v.minFlavor),
         maxFlavor: str(v.maxFlavor),
+        ...buildPatch,
       });
       return { message: t('action.scale.done'), refresh: true };
+    },
+  },
+  {
+    id: 'config-update',
+    cliHint: 'clever config update',
+    title: 'action.config.title',
+    description: 'action.config.description',
+    submitLabel: 'common.apply',
+    keywords: ['config', 'options', 'sticky', 'https', 'zero downtime', 'cancel on push', 'sessions'],
+    fields: (ctx) =>
+      CONFIG_OPTIONS.map((option): ActionField => ({
+        name: option.field,
+        label: t(option.label),
+        type: 'checkbox',
+        default: ctx.app?.[option.field] ?? false,
+      })),
+    cli: (ctx, v) => {
+      const flags = changedOptions(ctx, v).map(
+        ({ option, enabled }) => ` --${enabled ? 'enable' : 'disable'}-${option.cli}`,
+      );
+      return `clever config update ${appFlag(ctx)}${flags.join('')}`;
+    },
+    run: async (ctx, v) => {
+      const changes = changedOptions(ctx, v);
+      if (changes.length === 0) {
+        throw new Error(t('action.config.nothing'));
+      }
+      await api.updateApplication(
+        ctx.client,
+        ctx.ownerId,
+        ctx.appId,
+        Object.fromEntries(changes.map(({ option, enabled }) => [option.field, enabled])),
+      );
+      return { message: t('action.config.done', { count: changes.length }), refresh: true };
     },
   },
   {
@@ -348,7 +403,7 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever domain add ${str(v.domain)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.addDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain).toLowerCase());
-      return { message: t('action.domainAdd.done', { domain: str(v.domain) }), navigateTo: 'overview', refresh: true };
+      return { message: t('action.domainAdd.done', { domain: str(v.domain) }), refresh: true };
     },
   },
   {
@@ -371,7 +426,7 @@ export const ACTIONS: ActionDefinition[] = [
     cli: (ctx, v) => `clever domain rm ${str(v.domain)} ${appFlag(ctx)}`,
     run: async (ctx, v) => {
       await api.removeDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain));
-      return { message: t('action.domainRm.done', { domain: str(v.domain) }), navigateTo: 'overview', refresh: true };
+      return { message: t('action.domainRm.done', { domain: str(v.domain) }), refresh: true };
     },
   },
   {
@@ -395,7 +450,6 @@ export const ACTIONS: ActionDefinition[] = [
       await api.setPrimaryDomain(ctx.client, ctx.ownerId, ctx.appId, str(v.domain));
       return {
         message: t('action.domainPrimary.done', { domain: str(v.domain) }),
-        navigateTo: 'overview',
         refresh: true,
       };
     },
@@ -404,6 +458,33 @@ export const ACTIONS: ActionDefinition[] = [
 
 export function findAction(id: string): ActionDefinition | null {
   return ACTIONS.find((action) => action.id === id) ?? null;
+}
+
+/** The value of the scale form's build field for the application as it is. */
+const BUILD_DISABLED = 'disabled';
+
+function currentBuildFlavor(ctx: ActionContext): string {
+  const app = ctx.app;
+  if (app == null) {
+    return '';
+  }
+  return app.hasSeparatedBuild && app.buildFlavor != null ? app.buildFlavor.name : BUILD_DISABLED;
+}
+
+/** The switches of `clever config update` the overview shows, with the application field each one sets. */
+export const CONFIG_OPTIONS = [
+  { cli: 'sticky-sessions', field: 'hasStickySessions', label: 'overview.stickySessions' },
+  { cli: 'zero-downtime', field: 'isZeroDowntimeDeploymentEnabled', label: 'overview.zeroDowntime' },
+  { cli: 'force-https', field: 'shouldForceHttps', label: 'overview.forceHttps' },
+  { cli: 'cancel-on-push', field: 'cancelOnPush', label: 'overview.cancelOnPush' },
+] as const satisfies ReadonlyArray<{ cli: string; field: keyof Application; label: MessageKey }>;
+
+type ConfigOption = (typeof CONFIG_OPTIONS)[number];
+
+function changedOptions(ctx: ActionContext, values: ActionValues): Array<{ option: ConfigOption; enabled: boolean }> {
+  return CONFIG_OPTIONS.filter((option) => values[option.field] !== undefined)
+    .map((option) => ({ option, enabled: values[option.field] === true }))
+    .filter(({ option, enabled }) => ctx.app == null || ctx.app[option.field] !== enabled);
 }
 
 function appFlag(ctx: ActionContext): string {

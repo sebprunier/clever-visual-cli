@@ -40,6 +40,38 @@ describe('actions', () => {
     );
   });
 
+  it('render only the options and the build that change', () => {
+    const app = {
+      hasStickySessions: false,
+      isZeroDowntimeDeploymentEnabled: true,
+      shouldForceHttps: false,
+      cancelOnPush: true,
+      hasSeparatedBuild: true,
+      buildFlavor: { name: 'S' },
+    } as unknown as NonNullable<ActionContext['app']>;
+    const withApp: ActionContext = { ...ctx, app };
+    const config = findAction('config-update')!;
+    expect(config.fields(withApp, {}).map((field) => [field.name, field.default])).toEqual([
+      ['hasStickySessions', false],
+      ['isZeroDowntimeDeploymentEnabled', true],
+      ['shouldForceHttps', false],
+      ['cancelOnPush', true],
+    ]);
+    expect(
+      config.cli(withApp, {
+        hasStickySessions: true,
+        isZeroDowntimeDeploymentEnabled: true,
+        shouldForceHttps: false,
+        cancelOnPush: false,
+      }),
+    ).toBe('clever config update --app app_1 --enable-sticky-sessions --disable-cancel-on-push');
+    const scale = { minInstances: 1, maxInstances: 1, minFlavor: 'S', maxFlavor: 'S' };
+    expect(findAction('scale')!.cli(withApp, { ...scale, buildFlavor: 'S' })).not.toContain('--build-flavor');
+    expect(findAction('scale')!.cli(withApp, { ...scale, buildFlavor: 'disabled' })).toContain(
+      '--build-flavor disabled',
+    );
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");

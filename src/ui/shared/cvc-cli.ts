@@ -1,4 +1,4 @@
-import { css, html } from 'lit';
+import { css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { t } from '../../core/i18n.js';
 import { copyToClipboard } from './clipboard.js';
@@ -46,6 +46,8 @@ export class CvcCli extends CvcElement {
   @property({ type: Number }) count = 1;
   /** A block, as in a dialog, rather than an inline chip. */
   @property({ type: Boolean, reflect: true }) block = false;
+  /** A value to copy (an id) rather than a command: no `$` in front. */
+  @property({ type: Boolean, attribute: 'no-prompt' }) noPrompt = false;
 
   @state() private copied = false;
 
@@ -91,7 +93,7 @@ export class CvcCli extends CvcElement {
         ${status}`;
     }
     return html`<span class="chip">
-        <span class="prompt" aria-hidden="true">$</span>
+        ${this.noPrompt ? nothing : html`<span class="prompt" aria-hidden="true">$</span>`}
         <code title="${this.command}&#10;${t('cli.clickToCopy')}" @click=${this.onCommandClick}>${this.command}</code>
         <button
           type="button"

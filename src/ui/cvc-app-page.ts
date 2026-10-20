@@ -27,6 +27,7 @@ import {
 } from '../data/api.js';
 import './app/cvc-app-nav.js';
 import './app/cvc-app-deployments.js';
+import './app/cvc-app-domains.js';
 import './app/cvc-app-env.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
@@ -35,11 +36,12 @@ import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
-/** The tabs, in display order; the Console keeps the rest. */
+/** The tabs, in display order. The instances live in the overview; the Console keeps the rest. */
 export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> = {
   overview: { label: 'tab.overview', cli: 'clever status' },
   logs: { label: 'tab.logs', cli: 'clever logs' },
   deployments: { label: 'tab.activity', cli: 'clever activity' },
+  domains: { label: 'tab.domains', cli: 'clever domain' },
   env: { label: 'tab.env', cli: 'clever env' },
 };
 
@@ -218,7 +220,13 @@ export class CvcAppPage extends CvcElement {
       case 'overview':
         return this.app == null
           ? html`<p class="empty">${t('common.loading')}</p>`
-          : html`<cvc-app-overview .app=${this.app}></cvc-app-overview>`;
+          : html`<cvc-app-overview
+              .app=${this.app}
+              .client=${this.client}
+              ownerId=${this.ownerId}
+              .revision=${this.revision}
+              .costStore=${this.costStore}
+            ></cvc-app-overview>`;
       case 'deployments':
         return html`<cvc-app-deployments
           .client=${this.client}
@@ -235,6 +243,10 @@ export class CvcAppPage extends CvcElement {
         ></cvc-app-env>`;
       case 'logs':
         return html`<cvc-app-logs .client=${this.client} ownerId=${this.ownerId} appId=${this.appId}></cvc-app-logs>`;
+      case 'domains':
+        return this.app == null
+          ? html`<p class="empty">${t('common.loading')}</p>`
+          : html`<cvc-app-domains .app=${this.app}></cvc-app-domains>`;
     }
   }
 
