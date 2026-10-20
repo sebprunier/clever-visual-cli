@@ -748,7 +748,6 @@ export const fr: Record<MessageKey, string> = {
   'home.inferred': 'déduit',
   'home.inferredTitle': 'Placé d’après les applications liées',
   'home.notLinked': 'non lié',
-  'home.linkedApps': '{count} applications',
   'home.nothing': 'Rien à afficher.',
   'home.noMatch': 'Rien ne correspond à « {query} ».',
   'origin.you': 'toi',

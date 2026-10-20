@@ -4,7 +4,6 @@ import { t, type MessageKey } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { CONSOLE_URL } from '../core/constants.js';
 import { databaseProduct, type AddonWatchItem } from '../core/addons/database.js';
 import { displayVersion, operatorKind, operatorProduct, type OperatorWatchItem } from '../core/addons/operator.js';
 import {
@@ -1160,7 +1159,7 @@ export class CvcOrgaPage extends CvcElement {
       ${repeat(
         node.addons,
         (addon) => addon.id,
-        (addon) => this.renderAddonRow(addon, context, node.inferred.has(addon.id), costs),
+        (addon) => this.renderAddonRow(addon, context, node.inferred.has(addon.id), linksLoading, costs),
       )}
     `;
   }
@@ -1420,25 +1419,35 @@ export class CvcOrgaPage extends CvcElement {
       </td>
       ${this.renderActivity(activity)}
       <td class="links">
-        ${addons
-          .slice(0, MAX_LINK_ICONS)
-          .map(
-            (addon) =>
-              html`<img
-                class=${isWeak(addon) ? 'weak' : ''}
-                src=${addon.logoUrl}
-                alt=${addon.name}
-                title="${addon.name} · ${addon.providerId}"
-                width="18"
-                height="18"
-                loading="lazy"
-              />`,
-          )}
-        ${addons.length > MAX_LINK_ICONS ? html`<span class="muted small">+${addons.length - MAX_LINK_ICONS}</span>` : nothing}
+        ${this.renderLinks(
+          addons.map((addon) => ({
+            href: this.addonHash(addon.id),
+            logo: addon.logoUrl,
+            name: addon.name,
+            title: `${addon.name} · ${addon.providerId}`,
+            weak: isWeak(addon),
+          })),
+        )}
         ${context.links[app.id] == null && linksLoading ? html`<span class="muted small">…</span>` : nothing}
       </td>
       ${this.renderCost(costs, app)}
     </tr>`;
+  }
+
+  /**
+   * What a resource is linked to, the same way on every row: a logo per linked resource, each a
+   * link to its page, "+N" past a handful. Weak links (configuration providers…) come last, dimmed.
+   */
+  private renderLinks(links: Array<{ href: string; logo: string; name: string; title: string; weak: boolean }>) {
+    return html`${links
+      .slice(0, MAX_LINK_ICONS)
+      .map(
+        (link) =>
+          html`<a class=${link.weak ? 'weak' : ''} href=${link.href} title=${link.title}
+            ><img src=${link.logo} alt=${link.name} width="18" height="18" loading="lazy"
+          /></a>`,
+      )}
+    ${links.length > MAX_LINK_ICONS ? html`<span class="muted small">+${links.length - MAX_LINK_ICONS}</span>` : nothing}`;
   }
 
   private renderActivity(activity: AppActivity | undefined) {
@@ -1467,7 +1476,13 @@ export class CvcOrgaPage extends CvcElement {
     </td>`;
   }
 
-  private renderAddonRow(addon: AddonSummary, context: GroupingContext, inferred: boolean, costs: CostTable | null) {
+  private renderAddonRow(
+    addon: AddonSummary,
+    context: GroupingContext,
+    inferred: boolean,
+    linksLoading: boolean,
+    costs: CostTable | null,
+  ) {
     const apps = linkedApps(addon.id, context);
     return html`<tr class="addon ${this.selected.has(addon.id) ? 'selected' : ''}">
       ${this.renderCheck(addon.id, addon.name)}
@@ -1480,13 +1495,23 @@ export class CvcOrgaPage extends CvcElement {
       <td class="kind small">${t('home.kind.addon')}</td>
       <td class="type muted small">${addon.providerId}</td>
       ${this.renderAddonState(addon)}
-      <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
-        ${apps.length === 0 ? t('home.notLinked') : apps.length === 1 ? apps[0].name : t('home.linkedApps', { count: apps.length })}
-      </td>
+      <td class="activity muted small">—</td>
       <td class="links">
-        <a class="small muted" href="${CONSOLE_URL}/goto/${addon.id}" target="_blank" rel="noopener"
-          >${t('common.console')}</a
-        >
+        ${
+          linksLoading
+            ? html`<span class="muted small">…</span>`
+            : apps.length === 0
+              ? html`<span class="muted small">${t('home.notLinked')}</span>`
+              : this.renderLinks(
+                  apps.map((app) => ({
+                    href: this.appHash(app.id),
+                    logo: app.variantLogoUrl,
+                    name: app.name,
+                    title: `${app.name} · ${app.variantName}`,
+                    weak: false,
+                  })),
+                )
+        }
       </td>
       ${this.renderCost(costs, addon)}
     </tr>`;
@@ -2215,11 +2240,18 @@ export class CvcOrgaPage extends CvcElement {
         margin-right: 0.2rem;
         border-radius: 4px;
       }
-      td.links img.weak {
+      td.links a.weak img {
         opacity: 0.4;
       }
       td.links a {
+        display: inline-block;
         text-decoration: none;
+        border-radius: 4px;
+      }
+      td.links a:hover img,
+      td.links a:focus-visible img {
+        outline: 2px solid var(--cvc-accent);
+        outline-offset: 1px;
       }
       @media (max-width: 1100px) {
         .layout {

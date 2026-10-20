@@ -749,7 +749,6 @@ export const en = {
   'home.inferred': 'inferred',
   'home.inferredTitle': 'Placed after its linked applications',
   'home.notLinked': 'not linked',
-  'home.linkedApps': '{count} applications',
   'home.nothing': 'Nothing to show.',
   'home.noMatch': 'Nothing matches “{query}”.',
   'origin.you': 'you',
