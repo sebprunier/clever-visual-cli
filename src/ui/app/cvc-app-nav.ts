@@ -16,6 +16,7 @@ import type { Deployment, OrganisationSummary } from '../../data/api.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { addonStateLabel, APP_STATE_LABELS, stateLabel } from '../shared/format.js';
 import { statusIcon, statusMessage } from '../shared/status.js';
+import { statusIconStyles } from '../shared/styles.js';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const FOLDED_KEY = 'cvc.appNav';
@@ -375,220 +376,223 @@ export class CvcAppNav extends CvcElement {
     </ul>`;
   }
 
-  static override styles = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      flex: none;
-      width: 260px;
-      min-height: 0;
-    }
-    :host([folded]) {
-      width: auto;
-    }
-    nav {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      flex: 1;
-      min-height: 0;
-      padding: 0 0.9rem 1.25rem 0;
-      border-right: 1px solid var(--cvc-border);
-    }
-    nav.folded {
-      padding-right: 0.5rem;
-    }
-    button {
-      font: inherit;
-      color: inherit;
-      cursor: pointer;
-      background: none;
-      border: none;
-    }
-    .head {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .back {
-      font-weight: 600;
-      color: var(--cvc-text);
-      text-decoration: none;
-    }
-    .back:hover {
-      color: var(--cvc-accent);
-    }
-    .count {
-      color: var(--cvc-muted);
-      font-size: 0.75rem;
-      font-weight: 400;
-    }
-    .grow {
-      flex: 1;
-    }
-    .fold {
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-      color: var(--cvc-muted);
-    }
-    .fold:hover {
-      color: var(--cvc-accent);
-      background: color-mix(in srgb, var(--cvc-accent) 10%, transparent);
-    }
-    .fold:focus-visible,
-    .group-toggle:focus-visible,
-    .item:focus-visible,
-    .back:focus-visible {
-      outline: 2px solid var(--cvc-accent);
-      outline-offset: 1px;
-    }
-    .fields {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0.3rem 0.5rem;
-      font-family: var(--cvc-mono);
-      font-size: 0.8rem;
-      color: var(--cvc-text);
-      background: var(--cvc-surface);
-      border: 1px solid var(--cvc-border);
-      border-radius: 6px;
-    }
-    input:focus {
-      outline: 2px solid color-mix(in srgb, var(--cvc-accent) 40%, transparent);
-      border-color: var(--cvc-accent);
-    }
-    p {
-      margin: 0;
-    }
-    .error-text {
-      color: var(--cvc-danger);
-      font-size: 0.75rem;
-    }
-    .outside {
-      color: var(--cvc-muted);
-      font-size: 0.75rem;
-    }
-    .outside button.link {
-      padding: 0;
-      color: var(--cvc-accent);
-      text-decoration: underline;
-    }
-    .tree {
-      position: relative;
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-      margin: 0 -0.3rem;
-      padding: 0 0.3rem;
-    }
-    .empty {
-      color: var(--cvc-muted);
-      font-size: 0.85rem;
-    }
-    .group .group {
-      margin-left: 0.8rem;
-    }
-    .group-toggle {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-      width: 100%;
-      padding: 0.25rem 0.3rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-align: left;
-      color: var(--cvc-text);
-      border-radius: 4px;
-    }
-    .group-toggle:hover {
-      background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
-    }
-    .group-toggle .chevron {
-      width: 0.7rem;
-      color: var(--cvc-muted);
-    }
-    .group-toggle .label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .group-toggle.missing .label {
-      color: var(--cvc-muted);
-      font-style: italic;
-    }
-    .group-toggle.holds-current .label {
-      color: var(--cvc-accent);
-    }
-    ul.items {
-      list-style: none;
-      margin: 0 0 0.25rem;
-      padding: 0;
-    }
-    .group > ul.items {
-      padding-left: 1rem;
-    }
-    .item {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.2rem 0.4rem;
-      font-size: 0.85rem;
-      color: var(--cvc-text);
-      text-decoration: none;
-      border-radius: 4px;
-    }
-    .item img {
-      flex: none;
-      border-radius: 3px;
-    }
-    .item .name {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      white-space: nowrap;
-    }
-    .item:hover {
-      background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
-    }
-    .item.current {
-      font-weight: 600;
-      color: var(--cvc-accent);
-      background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
-      box-shadow: var(--cvc-glow);
-    }
-    .item.addon:not(.current) {
-      color: var(--cvc-muted);
-    }
-    .hint {
-      padding-top: 0.4rem;
-      font-size: 0.75rem;
-      color: var(--cvc-muted);
-      border-top: 1px solid var(--cvc-border);
-    }
-    kbd {
-      font-family: inherit;
-      font-size: 0.7rem;
-      padding: 0 0.25rem;
-      border: 1px solid var(--cvc-border);
-      border-radius: 4px;
-    }
-  `;
+  static override styles = [
+    statusIconStyles,
+    css`
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex: none;
+        width: 260px;
+        min-height: 0;
+      }
+      :host([folded]) {
+        width: auto;
+      }
+      nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+        min-height: 0;
+        padding: 0 0.9rem 1.25rem 0;
+        border-right: 1px solid var(--cvc-border);
+      }
+      nav.folded {
+        padding-right: 0.5rem;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .back {
+        font-weight: 600;
+        color: var(--cvc-text);
+        text-decoration: none;
+      }
+      .back:hover {
+        color: var(--cvc-accent);
+      }
+      .count {
+        color: var(--cvc-muted);
+        font-size: 0.75rem;
+        font-weight: 400;
+      }
+      .grow {
+        flex: 1;
+      }
+      .fold {
+        padding: 0.1rem 0.45rem;
+        border-radius: 4px;
+        color: var(--cvc-muted);
+      }
+      .fold:hover {
+        color: var(--cvc-accent);
+        background: color-mix(in srgb, var(--cvc-accent) 10%, transparent);
+      }
+      .fold:focus-visible,
+      .group-toggle:focus-visible,
+      .item:focus-visible,
+      .back:focus-visible {
+        outline: 2px solid var(--cvc-accent);
+        outline-offset: 1px;
+      }
+      .fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.3rem 0.5rem;
+        font-family: var(--cvc-mono);
+        font-size: 0.8rem;
+        color: var(--cvc-text);
+        background: var(--cvc-surface);
+        border: 1px solid var(--cvc-border);
+        border-radius: 6px;
+      }
+      input:focus {
+        outline: 2px solid color-mix(in srgb, var(--cvc-accent) 40%, transparent);
+        border-color: var(--cvc-accent);
+      }
+      p {
+        margin: 0;
+      }
+      .error-text {
+        color: var(--cvc-danger);
+        font-size: 0.75rem;
+      }
+      .outside {
+        color: var(--cvc-muted);
+        font-size: 0.75rem;
+      }
+      .outside button.link {
+        padding: 0;
+        color: var(--cvc-accent);
+        text-decoration: underline;
+      }
+      .tree {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        margin: 0 -0.3rem;
+        padding: 0 0.3rem;
+      }
+      .empty {
+        color: var(--cvc-muted);
+        font-size: 0.85rem;
+      }
+      .group .group {
+        margin-left: 0.8rem;
+      }
+      .group-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        width: 100%;
+        padding: 0.25rem 0.3rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+        color: var(--cvc-text);
+        border-radius: 4px;
+      }
+      .group-toggle:hover {
+        background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
+      }
+      .group-toggle .chevron {
+        width: 0.7rem;
+        color: var(--cvc-muted);
+      }
+      .group-toggle .label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .group-toggle.missing .label {
+        color: var(--cvc-muted);
+        font-style: italic;
+      }
+      .group-toggle.holds-current .label {
+        color: var(--cvc-accent);
+      }
+      ul.items {
+        list-style: none;
+        margin: 0 0 0.25rem;
+        padding: 0;
+      }
+      .group > ul.items {
+        padding-left: 1rem;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.85rem;
+        color: var(--cvc-text);
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .item img {
+        flex: none;
+        border-radius: 3px;
+      }
+      .item .name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .item:hover {
+        background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
+      }
+      .item.current {
+        font-weight: 600;
+        color: var(--cvc-accent);
+        background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
+        box-shadow: var(--cvc-glow);
+      }
+      .item.addon:not(.current) {
+        color: var(--cvc-muted);
+      }
+      .hint {
+        padding-top: 0.4rem;
+        font-size: 0.75rem;
+        color: var(--cvc-muted);
+        border-top: 1px solid var(--cvc-border);
+      }
+      kbd {
+        font-family: inherit;
+        font-size: 0.7rem;
+        padding: 0 0.25rem;
+        border: 1px solid var(--cvc-border);
+        border-radius: 4px;
+      }
+    `,
+  ];
 }
 
 /** True when the application sits somewhere under the node. */

@@ -1,7 +1,32 @@
 import { css } from 'lit';
 
+/**
+ * The colours of the status icons (`src/ui/shared/status.ts`), given by class since the
+ * production CSP refuses `style` attributes. Part of `sharedStyles`, and on its own for the
+ * components that do without the rest.
+ */
+export const statusIconStyles = css`
+  .status-icon {
+    flex: none;
+    vertical-align: -0.15em;
+  }
+  .status-icon .s-ok {
+    color: var(--cvc-ok);
+  }
+  .status-icon .s-info {
+    color: var(--cvc-info);
+  }
+  .status-icon .s-danger {
+    color: var(--cvc-danger);
+  }
+  .status-icon .s-stopped {
+    color: color-mix(in srgb, var(--cvc-muted) 55%, transparent);
+  }
+`;
+
 /** Base styles shared by every component: typography, controls, cards, badges, tables. */
 export const sharedStyles = css`
+  ${statusIconStyles}
   :host {
     box-sizing: border-box;
   }
