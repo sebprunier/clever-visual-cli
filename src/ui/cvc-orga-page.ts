@@ -110,7 +110,7 @@ const COLUMN_LABELS: Record<SortColumn, MessageKey> = {
 };
 const MAX_RECENTS = 8;
 const MAX_LINK_ICONS = 6;
-const COLUMNS = 7;
+const COLUMNS = 8;
 
 const WATCH_LABELS: Record<WatchItem['kind'], { label: MessageKey; tone: string }> = {
   failed: { label: 'watch.failed', tone: 'danger' },
@@ -788,6 +788,7 @@ export class CvcOrgaPage extends CvcElement {
       <col class="check" />
       <col class="logo" />
       <col class="name" />
+      <col class="kind" />
       <col class="type" />
       <col class="state" />
       <col class="activity" />
@@ -818,9 +819,10 @@ export class CvcOrgaPage extends CvcElement {
             />
           </th>
           <th class="logo"></th>
-          ${this.renderSortHeader('name')} ${this.renderSortHeader('type')} ${this.renderSortHeader('state')}
-          ${this.renderSortHeader('activity')} ${this.renderSortHeader('links')}
-          ${this.prefs.costs ? this.renderSortHeader('cost') : nothing}
+          ${this.renderSortHeader('name')}
+          <th class="kind">${t('home.col.kind')}</th>
+          ${this.renderSortHeader('type')} ${this.renderSortHeader('state')} ${this.renderSortHeader('activity')}
+          ${this.renderSortHeader('links')} ${this.prefs.costs ? this.renderSortHeader('cost') : nothing}
         </tr>
       </thead>
     </table>`;
@@ -1180,6 +1182,7 @@ export class CvcOrgaPage extends CvcElement {
         <a href=${this.appHash(app.id)}>${app.name}</a>
         ${this.renderTags(app.customerTags)}
       </td>
+      <td class="kind small">${t('home.kind.app')}</td>
       <td class="type muted small">${app.variantName}</td>
       <td class="state"><span class="badge ${status.tone}">${status.label}</span></td>
       ${this.renderActivity(activity)}
@@ -1241,8 +1244,9 @@ export class CvcOrgaPage extends CvcElement {
         ${this.renderTags(addon.customerTags)}
         ${inferred ? html`<span class="tag inferred" title=${t('home.inferredTitle')}>${t('home.inferred')}</span>` : nothing}
       </td>
+      <td class="kind small">${t('home.kind.addon')}</td>
       <td class="type muted small">${addon.providerId}</td>
-      <td class="state"><span class="badge plain">add-on</span></td>
+      <td class="state muted small" title=${t('home.addonNoState')}>—</td>
       <td class="activity muted small" title=${apps.map((app) => app.name).join('\n')}>
         ${apps.length === 0 ? t('home.notLinked') : apps.length === 1 ? apps[0].name : t('home.linkedApps', { count: apps.length })}
       </td>
@@ -1625,8 +1629,11 @@ export class CvcOrgaPage extends CvcElement {
       col.logo {
         width: 2.2rem;
       }
+      col.kind {
+        width: 6rem;
+      }
       col.type {
-        width: 9rem;
+        width: 8.5rem;
       }
       col.state {
         width: 8rem;
@@ -1776,6 +1783,8 @@ export class CvcOrgaPage extends CvcElement {
         text-align: left;
         font-size: 0.8rem;
         font-weight: 500;
+        text-transform: none;
+        letter-spacing: normal;
         color: var(--cvc-muted);
         white-space: nowrap;
         overflow: hidden;

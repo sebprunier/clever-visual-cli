@@ -316,9 +316,11 @@ export class CvcAppNav extends CvcElement {
             class="item ${current ? 'current' : ''}"
             href=${this.appHref(app.id)}
             aria-current=${current ? 'page' : nothing}
-            title=${app.name}
-            >${app.name}</a
+            title="${app.name} · ${app.variantName}"
           >
+            <img src=${app.variantLogoUrl} alt="" width="16" height="16" loading="lazy" />
+            <span class="name">${app.name}</span>
+          </a>
         </li>`;
       })}
       ${node.addons.map(
@@ -330,8 +332,11 @@ export class CvcAppNav extends CvcElement {
               target="_blank"
               rel="noopener"
               title=${t('nav.addonTitle', { name: addon.name, provider: addon.providerId })}
-              >${addon.name}</a
             >
+              <img src=${addon.logoUrl} alt="" width="16" height="16" loading="lazy" />
+              <span class="name">${addon.name}</span>
+              <span class="external" aria-hidden="true">↗</span>
+            </a>
           </li>`,
       )}
     </ul>`;
@@ -342,7 +347,7 @@ export class CvcAppNav extends CvcElement {
       display: flex;
       flex-direction: column;
       flex: none;
-      width: 240px;
+      width: 260px;
       min-height: 0;
     }
     :host([folded]) {
@@ -497,15 +502,29 @@ export class CvcAppNav extends CvcElement {
       padding-left: 1rem;
     }
     .item {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
       padding: 0.2rem 0.4rem;
       font-size: 0.85rem;
       color: var(--cvc-text);
       text-decoration: none;
-      white-space: nowrap;
+      border-radius: 4px;
+    }
+    .item img {
+      flex: none;
+      border-radius: 3px;
+    }
+    .item .name {
+      flex: 1;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
-      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .external {
+      flex: none;
+      font-size: 0.75em;
     }
     .item:hover {
       background: color-mix(in srgb, var(--cvc-muted) 10%, transparent);
@@ -517,10 +536,6 @@ export class CvcAppNav extends CvcElement {
     }
     .item.addon {
       color: var(--cvc-muted);
-    }
-    .item.addon::after {
-      content: ' ↗';
-      font-size: 0.75em;
     }
     .hint {
       padding-top: 0.4rem;

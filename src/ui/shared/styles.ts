@@ -150,14 +150,6 @@ export const sharedStyles = css`
     color: var(--cvc-info);
     background: color-mix(in srgb, var(--cvc-info) 12%, transparent);
   }
-  /* Not a state: an outlined label without the dot, so an add-on never looks like a stopped application. */
-  .badge.plain {
-    color: var(--cvc-muted);
-    border-color: var(--cvc-border);
-  }
-  .badge.plain::before {
-    display: none;
-  }
 
   .cli {
     display: inline-flex;
