@@ -7,6 +7,7 @@ import { loginViaConsole } from '../core/console-login.js';
 import type { Credentials } from '../core/credentials.js';
 import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
+import { appMark } from './shared/brand.js';
 import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -170,7 +171,7 @@ export class CvcLogin extends CvcElement {
     return html`
       <main class="stack">
         <header>
-          <h1>clever-visual-cli</h1>
+          <h1>${appMark(26)}clever-visual-cli</h1>
           <p class="muted">${this.adding ? t('login.addAccount') : t('login.tagline')}</p>
         </header>
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
@@ -310,6 +311,11 @@ export class CvcLogin extends CvcElement {
         max-width: 560px;
         margin: 0 auto;
         padding: 3rem 1rem;
+      }
+      header h1 {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
       }
       section.card h2 {
         margin-bottom: 0.25rem;

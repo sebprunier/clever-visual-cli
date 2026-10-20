@@ -1,3 +1,5 @@
+<img src="public/favicon.svg" alt="" width="80" height="80" />
+
 # clever-visual-cli
 
 A Clever Cloud console for daily use, as a single static page: no backend, your own API token, the same client library as the official CLI.

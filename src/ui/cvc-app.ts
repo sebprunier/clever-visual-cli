@@ -33,6 +33,7 @@ import './cvc-orga-page.js';
 import './cvc-toaster.js';
 import type { CvcToaster, Toast } from './cvc-toaster.js';
 import './cvc-unlock.js';
+import { appMark } from './shared/brand.js';
 import type { OpenActionDetail } from './shared/events.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -435,7 +436,7 @@ export class CvcApp extends CvcElement {
     const actionContext = this.pendingAction != null ? this.actionContext() : null;
     return html`
       <header class="topbar">
-        <a class="brand" href="#/">clever-visual-cli</a>
+        <a class="brand" href="#/">${appMark(18)}clever-visual-cli</a>
         ${
           session.summary != null
             ? html`<select
@@ -711,6 +712,9 @@ export class CvcApp extends CvcElement {
         flex: none;
       }
       .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
         font-weight: 600;
         text-decoration: none;
       }
