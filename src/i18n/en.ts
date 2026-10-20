@@ -215,6 +215,9 @@ export const en = {
   'backups.hint':
     'One backup a day, kept a few days. Download links last two hours: the list reloads before they expire.',
   'backups.none': 'No backup yet.',
+  'backups.never': 'never',
+  'backups.showAll': 'Show the {count} older ones',
+  'backups.showFewer': 'Show the most recent only',
   'backups.noneShared': 'No backup: this shared plan takes none.',
   'backups.taken': 'Taken',
   'backups.deleted': 'Deleted',

@@ -15,6 +15,9 @@ import { sharedStyles } from '../shared/styles.js';
 /** Download links are signed for two hours: the list is read again well before. */
 const RELOAD_AFTER = 90 * 60_000;
 
+/** The most recent backups shown at first; some Elasticsearch add-ons keep a thousand snapshots. */
+const SHOWN_FIRST = 20;
+
 /** What to know once a backup that does not load back from here is downloaded. */
 const RETRIEVE_HINTS: Readonly<Record<string, MessageKey>> = {
   'redis-addon': 'backups.redisHint',
@@ -43,6 +46,8 @@ export class CvcAddonBackups extends CvcElement {
   @state() private loading = false;
   /** The backup whose restore commands are shown. */
   @state() private picked: string | null = null;
+  /** Every backup listed, not only the most recent ones. */
+  @state() private showAll = false;
 
   #reload: ReturnType<typeof setTimeout> | undefined;
 
@@ -55,6 +60,7 @@ export class CvcAddonBackups extends CvcElement {
     if (changed.has('client') || changed.has('ownerId') || changed.has('addonId')) {
       this.backups = null;
       this.picked = null;
+      this.showAll = false;
       void this.load();
     }
   }
@@ -82,6 +88,7 @@ export class CvcAddonBackups extends CvcElement {
 
   override render() {
     const backups = this.backups;
+    const shown = backups == null || this.showAll ? backups : backups.slice(0, SHOWN_FIRST);
     const takesNone = this.shared && SHARED_WITHOUT_BACKUPS.includes(this.providerId);
     return html`
       <div class="row toolbar">
@@ -109,10 +116,26 @@ export class CvcAddonBackups extends CvcElement {
                       </tr>
                     </thead>
                     <tbody>
-                      ${backups.map((backup) => this.renderRow(backup))}
+                      ${(shown ?? []).map((backup) => this.renderRow(backup))}
                     </tbody>
                   </table>
                 </div>
+                ${
+                  backups.length > SHOWN_FIRST
+                    ? html`<button
+                        type="button"
+                        class="link small more"
+                        aria-expanded=${this.showAll}
+                        @click=${() => (this.showAll = !this.showAll)}
+                      >
+                        ${
+                          this.showAll
+                            ? t('backups.showFewer')
+                            : t('backups.showAll', { count: backups.length - SHOWN_FIRST })
+                        }
+                      </button>`
+                    : nothing
+                }
                 ${this.renderRestore(backups.find((backup) => backup.backupId === this.picked))}`
       }
     `;
@@ -126,7 +149,9 @@ export class CvcAddonBackups extends CvcElement {
         <span class="muted small">${formatRelative(backup.createdAt)}</span>
         ${backup.status === 'Done' ? nothing : html`<span class="badge neutral">${backup.status}</span>`}
       </td>
-      <td class="muted" title=${formatDateTime(backup.expiresAt)}>${formatRelative(backup.expiresAt)}</td>
+      <td class="muted" title=${formatDateTime(backup.expiresAt)}>
+        ${backup.expiresAt == null ? t('backups.never') : formatRelative(backup.expiresAt)}
+      </td>
       <td class="mono small file">${backup.filename ?? backup.backupId}</td>
       <td class="actions">
         <div class="buttons">
@@ -257,6 +282,9 @@ export class CvcAddonBackups extends CvcElement {
       }
       .restore .step {
         margin-top: 0.4rem;
+      }
+      .more {
+        margin-top: 0.5rem;
       }
     `,
   ];

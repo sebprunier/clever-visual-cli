@@ -209,6 +209,9 @@ export const fr: Record<MessageKey, string> = {
   'backups.hint':
     'Une sauvegarde par jour, gardée quelques jours. Les liens de téléchargement valent deux heures : la liste se recharge avant qu’ils expirent.',
   'backups.none': 'Aucune sauvegarde pour l’instant.',
+  'backups.never': 'jamais',
+  'backups.showAll': 'Voir les {count} plus anciennes',
+  'backups.showFewer': 'Ne voir que les plus récentes',
   'backups.noneShared': 'Aucune sauvegarde : ce plan mutualisé n’en fait pas.',
   'backups.taken': 'Prise',
   'backups.deleted': 'Supprimée',
