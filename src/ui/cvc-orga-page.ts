@@ -1,6 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { getLocale, t, type MessageKey } from '../core/i18n.js';
+import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import {
   buildCostExport,
   costExportCsv,
@@ -904,7 +905,14 @@ export class CvcOrgaPage extends CvcElement {
                 >${item.app.name}</a
               >
             </span>
-            <span class="muted small">${this.describeWatch(item)}</span>
+            <span class="muted small"
+              >${this.describeWatch(item)}${
+                (item.kind === 'failed' || item.kind === 'deploying') && item.deployment != null
+                  ? html` ·
+                      <a href=${this.deploymentLogsHash(item.app.id, item.deployment.id)}>${t('watch.logs')}</a>`
+                  : nothing
+              }</span
+            >
           </li>`;
         })}
         ${databaseItems.map((item) =>
@@ -1510,7 +1518,17 @@ export class CvcOrgaPage extends CvcElement {
       <td class="kind small">${t('home.kind.app')}</td>
       <td class="type muted small">${app.variantName}</td>
       <td class="state small">
-        <span class="status" title=${statusMessage(status)}>${statusIcon(status)} ${label}</span>
+        ${
+          activity != null && (isInProgress(activity.last) || activity.last.state === 'FAILED')
+            ? html`<a
+                class="status"
+                href=${this.deploymentLogsHash(app.id, activity.last.id)}
+                title="${statusMessage(status)}
+${t('activity.logsHint')}"
+                >${statusIcon(status)} ${label}</a
+              >`
+            : html`<span class="status" title=${statusMessage(status)}>${statusIcon(status)} ${label}</span>`
+        }
       </td>
       ${this.renderActivity(activity)}
       <td class="links">
@@ -1567,8 +1585,11 @@ export class CvcOrgaPage extends CvcElement {
     ]
       .filter((part) => part !== '')
       .join('\n');
-    return html`<td class="activity small ${tone}" title=${title}>
-      ${last.state === 'FAILED' ? '✕ ' : isInProgress(last) ? '● ' : ''}${formatRelative(last.date)}
+    const mark = last.state === 'FAILED' ? '✕ ' : isInProgress(last) ? '● ' : '';
+    const when = `${mark}${formatRelative(last.date)}`;
+    // A failure or a deployment in progress opens its logs (#13).
+    return html`<td class="activity small ${tone}" title=${mark === '' ? title : `${title}\n${t('activity.logsHint')}`}>
+      ${mark === '' ? when : html`<a href=${this.deploymentLogsHash(last.applicationId, last.id)}>${when}</a>`}
     </td>`;
   }
 
@@ -1642,6 +1663,14 @@ export class CvcOrgaPage extends CvcElement {
           ${tag}
         </button>`,
     );
+  }
+
+  /** The logs of one deployment of an application (#13), carrying the list as for its page. */
+  private deploymentLogsHash(appId: string, deploymentId: string): string {
+    return deploymentLogsHash(this.orga.id, appId, deploymentId, {
+      filter: this.filterText,
+      grouping: this.groupingText,
+    });
   }
 
   /** The page of an add-on, carrying the list as for an application. */
@@ -2330,6 +2359,15 @@ export class CvcOrgaPage extends CvcElement {
         border-style: dashed;
         border-color: var(--cvc-border);
         font-weight: 400;
+      }
+      td.activity a,
+      td.state a.status {
+        color: inherit;
+        text-decoration: none;
+      }
+      td.activity a:hover,
+      td.state a.status:hover {
+        text-decoration: underline;
       }
       td.activity.platform {
         color: var(--cvc-muted);

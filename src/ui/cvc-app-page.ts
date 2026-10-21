@@ -4,7 +4,8 @@ import { t, type MessageKey } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
-import { indexActivity, type AppActivity } from '../core/home/activity.js';
+import { indexActivity, isInProgress, type AppActivity } from '../core/home/activity.js';
+import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import type { AddonStore } from '../core/home/addon-store.js';
 import type { CostStore } from '../core/home/cost-store.js';
 import type { HomeStore } from '../core/home/home-store.js';
@@ -178,6 +179,21 @@ export class CvcAppPage extends CvcElement {
       <div class="page">${this.renderPage()}</div>`;
   }
 
+  /** The state icon of the title; during a deployment or after a failed one, a link to its logs (#13). */
+  private renderTitleStatus(icon: unknown, title: string) {
+    const last = this.lastDeployment();
+    if (last == null || !(isInProgress(last) || last.state === 'FAILED')) {
+      return html`<span class="status" title=${title}>${icon}</span>`;
+    }
+    return html`<a
+      class="status"
+      href=${deploymentLogsHash(this.ownerId, this.appId, last.id, readListView(window.location.hash))}
+      title="${title}
+${t('activity.logsHint')}"
+      >${icon}</a
+    >`;
+  }
+
   private renderPage() {
     const name = this.app?.name ?? this.summaryApp?.name ?? this.appId;
     const state = this.app?.state ?? this.summaryApp?.state;
@@ -194,13 +210,12 @@ export class CvcAppPage extends CvcElement {
           <h1>${name}</h1>
           ${
             /* The overview spells out the state, runtime and zone; the title keeps the state icon for the other tabs. */
-            status != null
-              ? html`<span
-                  class="status"
-                  title="${statusMessage(status)}${variant ? ` · ${variant}` : ''}${zone ? ` · ${zone}` : ''}"
-                  >${statusIcon(status, 16)}<span class="sr-only">${statusMessage(status)}</span></span
-                >`
-              : nothing
+            status == null
+              ? nothing
+              : this.renderTitleStatus(
+                  html`${statusIcon(status, 16)}<span class="sr-only">${statusMessage(status)}</span>`,
+                  `${statusMessage(status)}${variant ? ` · ${variant}` : ''}${zone ? ` · ${zone}` : ''}`,
+                )
           }
           <span class="grow"></span>
           <button type="button" class="with-icon" @click=${() => openAction(this, 'restart')}>

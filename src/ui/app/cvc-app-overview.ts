@@ -9,7 +9,8 @@ import { CONSOLE_URL } from '../../core/constants.js';
 import { appStatus } from '../../core/home/status.js';
 import { isInProgress } from '../../core/home/activity.js';
 import { t } from '../../core/i18n.js';
-import { keepListView, routeToHash, type AppTab, type Route } from '../../core/router.js';
+import { deploymentLogsHash } from '../../core/logs/deployment-logs.js';
+import { keepListView, readListView, routeToHash, type AppTab, type Route } from '../../core/router.js';
 import { fetchDeployments, fetchInstances, type Application, type Deployment, type Instance } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
@@ -196,7 +197,12 @@ export class CvcAppOverview extends CvcElement {
     const who = deployment.author.name ?? deployment.cause ?? '';
     return html`<span title=${formatDateTime(deployment.date)}>${formatRelative(deployment.date)}</span> ·
       <span class="tone-${status.tone}">${status.label}</span
-      >${who !== '' ? html` · <span class="muted">${who}</span>` : nothing}`;
+      >${who !== '' ? html` · <span class="muted">${who}</span>` : nothing} ·
+      <a
+        href=${deploymentLogsHash(this.ownerId, this.app.id, deployment.id, readListView(window.location.hash))}
+        title=${t('deployments.logsTitle', { index: deployment.index })}
+        >${t('watch.logs')}</a
+      >`;
   }
 
   // --- what moves or can be changed ----------------------------------------
