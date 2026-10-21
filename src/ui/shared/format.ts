@@ -100,7 +100,13 @@ function formats(): Formatters {
       locale,
       relative: new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }),
       dateTime: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
-      time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      // 24-hour clock in every language: log times fit their 8ch column, without AM or PM.
+      time: new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }),
       month: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
       day: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
       money: new Map(),
