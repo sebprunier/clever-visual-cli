@@ -6,7 +6,7 @@ A visual interface for [clever-tools](https://github.com/CleverCloud/clever-tool
 
 > **This is not a new Console.** The [Clever Cloud Console](https://console.clever-cloud.com) remains the place to create, configure and explore, and this page often sends you there. clever-visual-cli is something extra, for the days spent in the CLI. A community project, not affiliated with Clever Cloud.
 
-**Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token or through the Console; everything stays in your browser.
+**Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token; everything stays in your browser. The user documentation, with screenshots: <https://sebprunier.github.io/clever-visual-cli/docs/>.
 
 Status: usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
 
@@ -130,6 +130,8 @@ pnpm test           # unit tests (crypto, router, palette, actions, home page lo
 pnpm typecheck
 pnpm build          # static site in dist/
 pnpm spike:node     # checks @clevercloud/client from Node, without a browser
+pnpm docs:dev       # the user documentation (VitePress), from docs/
+pnpm docs:build     # the documentation in dist/docs/, beside the site
 ```
 
 `pnpm dev:cli` enables a Vite middleware that serves the API token of `CVC_DEV_API_TOKEN` (from the environment or a git-ignored `.env.local`, created once with `clever tokens create clever-visual-cli-dev`) on `/__cvc/dev-profile`. It is a development convenience, never part of the build, to enable on a trusted machine only.
@@ -146,12 +148,12 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 
 - **Encrypted vault**: tokens are encrypted with AES-256-GCM under a key derived from a passphrase with PBKDF2-SHA256 (600 000 iterations), and stored in `localStorage`. So that the passphrase is not asked on every reload, the raw key is kept in `sessionStorage` while the tab is open; "Lock" erases it.
 - **Session only**: plain JSON in `sessionStorage`, gone with the tab.
-- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences and favourite views per organisation (`cvc.home.*`, `cvc.favorites.*`), the folded side cards (`cvc.side.folded`), whether the sync offer was declined (`cvc.sync.declined`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan, the database versions and the operators' version checks, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`, `cvc.operator-versions.*`), the language (`cvc.locale`) and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
+- **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences and favourite views per organisation (`cvc.home.*`, `cvc.favorites.*`), the folded side cards (`cvc.side.folded`), whether the sync offer was declined (`cvc.sync.declined`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan, the database versions and the operators' version checks, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`, `cvc.operator-versions.*`), and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The language, the theme, the organisation opened last, the folded list column and the logs layouts (`cvc.locale`, `cvc.theme`, `cvc.lastOwnerId`, `cvc.appNav`, `cvc.logs.mode`, `cvc.logs.layout`) stay in `localStorage` as well, and are left by "Erase everything". The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab. The [Security and privacy](https://sebprunier.github.io/clever-visual-cli/docs/guide/security.html) page of the documentation lists every key.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production: no inline script but the theme one in `index.html`, allowed by its hash, and no `style` attribute (styles computed at render time go through the CSSOM, a test keeps it that way).
 
 ### Deployment
 
-The site is published on GitHub Pages on every push to `main` by the `.github/workflows/deploy.yml` workflow (typecheck, tests, build, publish): <https://sebprunier.github.io/clever-visual-cli/>.
+The site is published on GitHub Pages on every push to `main` by the `.github/workflows/deploy.yml` workflow (typecheck, tests, build, documentation build, publish): <https://sebprunier.github.io/clever-visual-cli/>, and its documentation under `docs/`.
 
 - `CVC_BASE=/clever-visual-cli/` at build time sets the base path; without it the build targets the root of any host (Clever Cloud static hosting, for instance).
 - The production build injects a Content Security Policy as a `meta` tag: scripts and styles from the site only, network limited to the Clever Cloud APIs, the status page and the npm registry, images from any https origin for the logos.
@@ -169,6 +171,7 @@ src/data/      the only module that imports the @clevercloud/client commands
 src/i18n/      message dictionaries (en.ts is the reference, fr.ts must match its keys)
 src/ui/        Lit components: shell, sign-in, unlock, palette, pages, dialogs
 scripts/       checks outside the browser
+docs/          the user documentation (VitePress), published under docs/ beside the site
 ```
 
 Stack: Vite, TypeScript, Lit, no UI library, `#` routing so the page runs on any host.

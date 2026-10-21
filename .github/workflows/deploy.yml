@@ -32,6 +32,10 @@ jobs:
       - run: pnpm build
         env:
           CVC_BASE: /clever-visual-cli/
+      # The user documentation, beside the interface under /docs/ (#15).
+      - run: pnpm docs:build
+        env:
+          CVC_BASE: /clever-visual-cli/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

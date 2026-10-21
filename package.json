@@ -23,7 +23,10 @@
     "spike:node": "node scripts/spike-node.mjs",
     "dev:cli": "CVC_DEV_PROFILE=1 vite",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@clevercloud/client": "12.6.6",
@@ -31,9 +34,11 @@
   },
   "devDependencies": {
     "@types/node": "26.6.5",
+    "playwright": "1.64.1",
     "prettier": "3.9.10",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
+    "vitepress": "1.6.4",
     "vitest": "5.0.5"
   }
 }

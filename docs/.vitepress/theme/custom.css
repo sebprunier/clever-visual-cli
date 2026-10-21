@@ -1,0 +1,26 @@
+/* The blue accent of the interface (src/core/themes.ts), light and dark, instead of VitePress's indigo. */
+:root {
+  --vp-c-brand-1: #0969da;
+  --vp-c-brand-2: #0860c7;
+  --vp-c-brand-3: #0969da;
+  --vp-c-brand-soft: rgba(9, 105, 218, 0.14);
+}
+
+.dark {
+  --vp-c-brand-1: #58a6ff;
+  --vp-c-brand-2: #79b8ff;
+  --vp-c-brand-3: #1f6feb;
+  --vp-c-brand-soft: rgba(88, 166, 255, 0.16);
+}
+
+/* The logo is drawn at 64 × 64: give it the room of the hero image. */
+.VPHero .image-src {
+  width: 200px;
+  height: 200px;
+}
+
+/* Screenshots: a thin border, so their light background does not melt into the page. */
+.vp-doc img[src*='/screenshots/'] {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+}
