@@ -1,6 +1,13 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
-import { t, type MessageKey } from '../core/i18n.js';
+import { getLocale, t, type MessageKey } from '../core/i18n.js';
+import {
+  buildCostExport,
+  costExportCsv,
+  costExportFileName,
+  costExportJson,
+  costExportMarkdown,
+} from '../core/home/cost-export.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -74,6 +81,8 @@ import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './cvc-bulk-dialog.js';
 import type { BulkDoneDetail } from './cvc-bulk-dialog.js';
+import { copyToClipboard } from './shared/clipboard.js';
+import { downloadText } from './shared/download.js';
 import { pushToast, requestSummaryRefresh } from './shared/events.js';
 import { announceTagResult } from './shared/tag-result.js';
 import {
@@ -617,7 +626,7 @@ export class CvcOrgaPage extends CvcElement {
                   this.setFavorites(renameFavorite(this.favorites, event.detail.id, event.detail.name))}
                 @cvc-favorite-remove=${(event: CustomEvent<FavoriteViewDetail>) => this.deleteFavorite(event.detail.view)}
               ></cvc-favorites-menu>
-              ${this.renderCostMenu(visibleApps, visibleAddons, costs)}
+              ${this.renderCostMenu(visibleApps, visibleAddons, costs, tree)}
               <button
                 type="button"
                 class="ghost small with-icon head-button"
@@ -1311,7 +1320,12 @@ export class CvcOrgaPage extends CvcElement {
    * resources are the visible ones, so the menu can say what the list leaves
    * out.
    */
-  private renderCostMenu(apps: ApplicationSummary[], addons: AddonSummary[], costs: CostTable | null) {
+  private renderCostMenu(
+    apps: ApplicationSummary[],
+    addons: AddonSummary[],
+    costs: CostTable | null,
+    tree: readonly GroupNode[],
+  ) {
     const on = this.prefs.costs && this.costStore != null;
     const data = on ? this.costStore.get(this.orga.id) : null;
     const currency = data?.currency ?? data?.invoice?.currency ?? 'EUR';
@@ -1334,9 +1348,33 @@ export class CvcOrgaPage extends CvcElement {
         }</span
       >
       <div class="costs">
-        ${data == null ? this.renderCostsOff() : this.renderCostsOn(data, currency, apps, addons, costs)}
+        ${data == null ? this.renderCostsOff() : this.renderCostsOn(data, currency, apps, addons, costs, tree)}
       </div>
     </cvc-dropdown>`;
+  }
+
+  /** The current list with the selected source, as a file or as Markdown on the clipboard (#12). */
+  private async exportCosts(
+    format: 'csv' | 'json' | 'markdown',
+    table: CostTable | null,
+    tree: readonly GroupNode[],
+  ): Promise<void> {
+    if (table == null) {
+      return;
+    }
+    const data = buildCostExport({
+      organisation: { id: this.orga.id, name: this.orga.name },
+      table,
+      tree,
+      view: { filter: this.filterText, grouping: this.groupingText, sort: this.prefs.sort },
+    });
+    if (format === 'csv') {
+      downloadText(costExportCsv(data, getLocale()), costExportFileName(data, 'csv'), 'text/csv;charset=utf-8');
+    } else if (format === 'json') {
+      downloadText(costExportJson(data), costExportFileName(data, 'json'), 'application/json');
+    } else if (await copyToClipboard(costExportMarkdown(data, getLocale()))) {
+      pushToast(this, { kind: 'success', message: t('costs.markdownCopied') });
+    }
   }
 
   private renderCostsOff() {
@@ -1350,8 +1388,10 @@ export class CvcOrgaPage extends CvcElement {
     apps: ApplicationSummary[],
     addons: AddonSummary[],
     costs: CostTable | null,
+    tree: readonly GroupNode[],
   ) {
     const errors = [...new Set([data.daysError, data.invoiceError, data.estimateError].filter((e) => e != null))];
+    const exportable = costs != null && !this.isSourcePending(this.prefs.costSource);
     const unlisted = costs == null ? null : unlistedCost(costs, [...apps, ...addons]);
     return html`<div class="menu-head">
         <h2>${t('costs.title')} <span class="muted small">${t('costs.taxExcluded')}</span></h2>
@@ -1368,6 +1408,33 @@ export class CvcOrgaPage extends CvcElement {
             </p>`
           : nothing
       }
+      <div class="export" title=${t('costs.exportTitle')}>
+        <span class="muted small">${t('costs.export')}</span>
+        <button
+          type="button"
+          class="ghost small"
+          ?disabled=${!exportable}
+          @click=${() => this.exportCosts('csv', costs, tree)}
+        >
+          CSV
+        </button>
+        <button
+          type="button"
+          class="ghost small"
+          ?disabled=${!exportable}
+          @click=${() => this.exportCosts('json', costs, tree)}
+        >
+          JSON
+        </button>
+        <button
+          type="button"
+          class="ghost small"
+          ?disabled=${!exportable}
+          @click=${() => this.exportCosts('markdown', costs, tree)}
+        >
+          ${t('costs.copyMarkdown')}
+        </button>
+      </div>
       <details>
         <summary>${t('costs.about')}</summary>
         <p>${t('costs.columnHint')}</p>
@@ -2139,6 +2206,21 @@ export class CvcOrgaPage extends CvcElement {
         to {
           transform: rotate(360deg);
         }
+      }
+      .costs .export {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        padding-top: 0.4rem;
+        border-top: 1px solid var(--cvc-border);
+      }
+      .costs .export .muted {
+        margin-right: auto;
+      }
+      .costs .export button {
+        padding: 0.2rem 0.6rem;
+        font-size: 0.82rem;
       }
       .costs details {
         margin-top: 0.2rem;
