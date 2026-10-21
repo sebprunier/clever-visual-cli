@@ -181,21 +181,31 @@ export function shownCost(table: CostTable, resource: Keyed): number | null {
 
 /** The sum of a group and its sub-groups; resources without a line count for zero. */
 export function nodeCost(node: GroupNode, table: CostTable): number {
+  return totalCost([node], table);
+}
+
+/**
+ * The sum of the resources under these groups, each counted once: a resource with two values for a
+ * key (`project:shop` and `project:blog`) shows in two groups, yet costs once (#22).
+ */
+export function totalCost(nodes: readonly GroupNode[], table: CostTable): number {
   let total = 0;
-  for (const app of node.apps) {
-    total += resourceCost(table, app) ?? 0;
-  }
-  for (const addon of node.addons) {
-    total += resourceCost(table, addon) ?? 0;
-  }
-  for (const child of node.children) {
-    total += nodeCost(child, table);
+  for (const resource of distinctResources(nodes)) {
+    total += resourceCost(table, resource) ?? 0;
   }
   return total;
 }
 
-export function totalCost(nodes: readonly GroupNode[], table: CostTable): number {
-  return nodes.reduce((total, node) => total + nodeCost(node, table), 0);
+function distinctResources(nodes: readonly GroupNode[]): Keyed[] {
+  const resources = new Map<string, Keyed>();
+  const visit = (node: GroupNode) => {
+    for (const resource of [...node.apps, ...node.addons]) {
+      resources.set(resource.id, resource);
+    }
+    node.children.forEach(visit);
+  };
+  nodes.forEach(visit);
+  return [...resources.values()];
 }
 
 /**

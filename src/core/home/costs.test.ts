@@ -159,6 +159,26 @@ describe('lookups', () => {
     expect(totalCost(tree, table)).toBe(39);
   });
 
+  it('counts once a resource that shows in two groups (#22)', () => {
+    // app_1 is tagged project:shop and project:blog; inside shop, env:prod and env:dev.
+    const shared = app('app_1');
+    const tree = [
+      node({
+        path: 'shop',
+        children: [
+          node({ path: 'shop/prod', level: 2, apps: [shared] }),
+          node({ path: 'shop/dev', level: 2, apps: [shared, app('app_2')] }),
+        ],
+      }),
+      node({ path: 'blog', apps: [shared] }),
+    ];
+    expect(nodeCost(tree[0].children[0], table)).toBe(10);
+    expect(nodeCost(tree[0].children[1], table)).toBe(30);
+    expect(nodeCost(tree[0], table)).toBe(30);
+    expect(nodeCost(tree[1], table)).toBe(10);
+    expect(totalCost(tree, table)).toBe(30);
+  });
+
   it('reports what the list does not show', () => {
     const unlisted = unlistedCost(table, [app('app_1'), app('app_2'), addon('addon_1', 'postgresql_1')]);
     expect(unlisted).toEqual({ amount: 11, count: 2 });

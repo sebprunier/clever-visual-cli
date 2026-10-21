@@ -67,7 +67,7 @@ The resources without a value for a key gather in a last group named after it: "
 
 ## Several values {#several-values}
 
-A resource with two values for a key, such as both `project:shop` and `project:blog`, shows in both groups. It is one resource: selecting it in one group selects it in the other.
+A resource with two values for a key, such as both `project:shop` and `project:blog`, shows in both groups. It is one resource: selecting it in one group selects it in the other. Its cost counts in the total of each group, but once in the totals above them: the parent group, the list and the [export](/guide/organisation-home#export). So the totals of the groups can add up to more than the total of the list.
 
 ## Add-ons inherit from their applications {#inferred}
 

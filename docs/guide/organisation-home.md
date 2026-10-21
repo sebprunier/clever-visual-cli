@@ -256,7 +256,7 @@ The menu button then reads the amount of the selected source, such as "€1,234 
 ### Costs in the list {#cost-in-list}
 
 - A **Cost** column joins the list, sortable like the others. The tooltip of a cell says what it holds: "Consumption of Oct 20", "Sum of the last 30 days of consumption", "Invoice" with its number and month, or the rule of the current configuration. Under the current configuration, a stopped application costs zero and its tooltip says what it would cost started ("Stopped: €42.18 per month if started").
-- Each group and sub-group shows its total on its header, so `project > env` answers "what does the production of this project cost".
+- Each group and sub-group shows its total on its header, so `project > env` answers "what does the production of this project cost". A resource that shows in two groups counts in each, and once in the totals above them (see [Several values](/reference/grouping#several-values)).
 - Under the list, a line gives the total of the list and its source: "21 resources · Last 30 days, Sep 21 – Oct 20".
 
 Amounts of 10 and more show without cents, smaller ones with their cents. A spinner shows while the source loads.
