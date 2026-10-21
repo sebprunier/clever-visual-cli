@@ -13,12 +13,16 @@
  * - Never written while the add-on is linked to an application: Clever Cloud
  *   would redeploy it on each change.
  *
+ * - Off again when the add-on is deleted from elsewhere (the Console, `clever addon
+ *   delete`): a read or write that fails checks it is still there.
+ *
  * Emits `change` when its state changes, `created` once it created the add-on
  * and `applied` (with the owners) when spaces were updated from another
  * browser.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import {
+  addonExists,
   countLinkedApplications,
   createConfigProvider,
   fetchConfigProviderEnvironment,
@@ -59,6 +63,8 @@ export class SyncStore extends EventTarget {
   busy = false;
   lastSyncAt: number | null = null;
   error: string | null = null;
+  /** The add-on was deleted from elsewhere, so the sync went off (#19). */
+  lost = false;
 
   #client: CcApiClient | null = null;
   /** The personal space, owner of the add-on. */
@@ -78,6 +84,10 @@ export class SyncStore extends EventTarget {
   attach(client: CcApiClient, userId: string, personalAddons: readonly AddonSummary[]): void {
     const found = personalAddons.find((addon) => addon.providerId === SYNC_PROVIDER && addon.name === SYNC_ADDON_NAME);
     if (this.#client === client && this.#userId === userId && (found == null || this.addon?.id === found.id)) {
+      if (found == null && this.addon != null && this.state === 'on' && !this.busy) {
+        // Gone from the summary: deleted elsewhere, or created a moment ago and not listed yet. A read tells.
+        void this.syncNow();
+      }
       return;
     }
     if (this.#userId !== userId) {
@@ -86,6 +96,7 @@ export class SyncStore extends EventTarget {
       this.#pending.clear();
       this.addon = null;
       this.lastSyncAt = null;
+      this.lost = false;
     }
     this.#client = client;
     this.#userId = userId;
@@ -111,6 +122,7 @@ export class SyncStore extends EventTarget {
     this.addon = null;
     this.lastSyncAt = null;
     this.error = null;
+    this.lost = false;
     this.#setState('idle');
   }
 
@@ -147,6 +159,7 @@ export class SyncStore extends EventTarget {
       return;
     }
     this.error = null;
+    this.lost = false;
     this.#setState('enabling');
     try {
       this.addon = await createConfigProvider(client, this.#userId, SYNC_ADDON_NAME);
@@ -226,11 +239,35 @@ export class SyncStore extends EventTarget {
         this.#emit('applied', { owners: applied });
       }
     } catch (error) {
-      this.error = describeError(error);
+      if (await this.#gone(client, addon.id)) {
+        this.#lose();
+      } else {
+        this.error = describeError(error);
+      }
     } finally {
       this.busy = false;
       this.#emit('change');
     }
+  }
+
+  /** Whether the add-on was deleted; false when that cannot be told (the network, for instance). */
+  async #gone(client: CcApiClient, addonId: string): Promise<boolean> {
+    try {
+      return !(await addonExists(client, this.#userId, addonId));
+    } catch {
+      return false;
+    }
+  }
+
+  /** The add-on is gone: the sync goes off, and can be enabled again. What this browser has stays. */
+  #lose(): void {
+    clearTimeout(this.#timer);
+    this.#pending.clear();
+    this.addon = null;
+    this.lastSyncAt = null;
+    this.error = null;
+    this.lost = true;
+    this.#setState('off');
   }
 
   #setState(state: SyncState): void {

@@ -789,7 +789,8 @@ export class CvcApp extends CvcElement {
               <div class="row">
                 <button type="button" ?disabled=${sync.busy} @click=${() => sync.syncNow()}>${t('sync.now')}</button>
               </div>`
-          : html`<p class="muted small">${t('sync.accountOff')}</p>
+          : html`${sync.lost ? html`<p class="notice small" role="status">${t('sync.lost')}</p>` : nothing}
+              <p class="muted small">${t('sync.accountOff')}</p>
               <cvc-cli block command=${SYNC_CREATE_COMMAND}></cvc-cli>
               <div class="row">
                 <button
@@ -1105,6 +1106,12 @@ export class CvcApp extends CvcElement {
       button.danger {
         color: var(--cvc-danger);
         border-color: var(--cvc-danger);
+      }
+      .notice {
+        padding: 0.6rem 0.8rem;
+        border: 1px solid color-mix(in srgb, var(--cvc-info) 40%, var(--cvc-border));
+        border-radius: var(--cvc-radius);
+        background: color-mix(in srgb, var(--cvc-info) 8%, transparent);
       }
       .erase-confirm {
         gap: 0.6rem;

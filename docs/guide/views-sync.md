@@ -82,4 +82,4 @@ Delete the add-on, from the Console or with clever-tools:
 clever addon delete clever-visual-cli
 ```
 
-The sync stops; what each browser has stays there. After a reload, the "Views sync" card offers to enable it again.
+The sync stops; what each browser has stays there. An open page notices at its next read or write, or when you click **Refresh**: the "Views sync" card says the add-on no longer exists, and offers to enable the sync again, which creates a new add-on.

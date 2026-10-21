@@ -514,6 +514,12 @@ export async function countLinkedApplications(client: CcApiClient, ownerId: stri
   return links.length;
 }
 
+/** Whether an add-on is still in its owner's list: the sync's add-on can be deleted from elsewhere (#19). */
+export async function addonExists(client: CcApiClient, ownerId: string, addonId: string): Promise<boolean> {
+  const addons = await client.send(new ListAddonCommand({ ownerId }));
+  return addons.some((addon) => addon.id === addonId);
+}
+
 /** `clever addon env <addon-id>`: the variables an add-on exposes to the applications linked to it. */
 export async function fetchAddonEnvironment(
   client: CcApiClient,

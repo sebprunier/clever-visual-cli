@@ -613,6 +613,8 @@ export const fr: Record<MessageKey, string> = {
   'home.watchFilter': 'Ne garder que ceux-là dans la liste',
   'fav.title': 'Vues favorites',
   'sync.title': 'Synchronisation des vues',
+  'sync.lost':
+    'L’add-on clever-visual-cli de ton espace perso n’existe plus : la synchronisation est coupée. Tes vues et préférences restent dans ce navigateur ; réactive la synchronisation pour créer un nouvel add-on.',
   'sync.accountOff':
     'Tes vues favorites et tes préférences d’affichage restent dans ce navigateur. Synchronisées, elles te suivent dans tous les navigateurs connectés à ce compte, grâce à un config provider gratuit nommé clever-visual-cli dans ton espace perso.',
   'sync.accountOn':

@@ -12,9 +12,27 @@ const platform = vi.hoisted(() => ({
   writes: 0,
   created: 0,
   refuseCreation: false,
+  /** The add-on was deleted from elsewhere: reading it fails, and the list no longer holds it. */
+  deleted: false,
+  /** Reading fails for another reason (the network): the add-on is still there. */
+  unreachable: false,
 }));
 vi.mock('../../data/api.js', () => ({
-  fetchConfigProviderEnvironment: async () => platform.variables,
+  fetchConfigProviderEnvironment: async () => {
+    if (platform.deleted) {
+      throw new Error('[404]: not found');
+    }
+    if (platform.unreachable) {
+      throw new Error('Failed to fetch');
+    }
+    return platform.variables;
+  },
+  addonExists: async () => {
+    if (platform.unreachable) {
+      throw new Error('Failed to fetch');
+    }
+    return !platform.deleted;
+  },
   replaceConfigProviderEnvironment: async (
     _client: unknown,
     _realId: string,
@@ -80,6 +98,8 @@ beforeEach(() => {
   platform.writes = 0;
   platform.created = 0;
   platform.refuseCreation = false;
+  platform.deleted = false;
+  platform.unreachable = false;
 });
 
 afterEach(() => {
@@ -113,6 +133,45 @@ describe('SyncStore', () => {
     store.decline();
     expect(store.declined).toBe(true);
     expect(store.error).toBeNull();
+  });
+
+  it('goes off when the add-on is deleted from elsewhere, and can be enabled again (#19)', async () => {
+    const store = new SyncStore();
+    store.attach(client, USER, [SYNC_ADDON]);
+    await store.syncNow();
+    expect(store.state).toBe('on');
+    platform.deleted = true;
+    await store.syncNow();
+    expect(store.state).toBe('off');
+    expect(store.lost).toBe(true);
+    expect(store.addon).toBeNull();
+    expect(store.error).toBeNull();
+    platform.deleted = false;
+    await store.enable();
+    expect(store.state).toBe('on');
+    expect(store.lost).toBe(false);
+  });
+
+  it('notices the deletion when a refreshed summary no longer lists the add-on (#19)', async () => {
+    const store = new SyncStore();
+    store.attach(client, USER, [SYNC_ADDON]);
+    await store.syncNow();
+    platform.deleted = true;
+    store.attach(client, USER, []);
+    await store.syncNow();
+    expect(store.state).toBe('off');
+    expect(store.lost).toBe(true);
+  });
+
+  it('stays on, with the error, when the add-on cannot be reached but is still there', async () => {
+    const store = new SyncStore();
+    store.attach(client, USER, [SYNC_ADDON]);
+    await store.syncNow();
+    platform.unreachable = true;
+    await store.syncNow();
+    expect(store.state).toBe('on');
+    expect(store.lost).toBe(false);
+    expect(store.error).toBe('Failed to fetch');
   });
 
   it('brings another browser the views it finds in the add-on', async () => {

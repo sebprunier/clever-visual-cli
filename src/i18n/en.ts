@@ -617,6 +617,8 @@ export const en = {
   'home.watchFilter': 'Only these in the list',
   'fav.title': 'Favourite views',
   'sync.title': 'Views sync',
+  'sync.lost':
+    'The clever-visual-cli add-on of your personal space no longer exists, so the sync is off. Your views and preferences stay in this browser; enable the sync again to create a new add-on.',
   'sync.accountOff':
     'Your favourite views and display preferences stay in this browser. Synced, they follow you to every browser signed in to this account, through a free configuration provider named clever-visual-cli in your personal space.',
   'sync.accountOn':
