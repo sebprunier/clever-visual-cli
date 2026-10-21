@@ -5,6 +5,8 @@ import { CvcElement } from '../shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { describeError } from '../../core/clever-client.js';
+import { deploymentLogsHash } from '../../core/logs/deployment-logs.js';
+import { readListView } from '../../core/router.js';
 import { fetchDeployments, type Deployment } from '../../data/api.js';
 import { openAction } from '../shared/events.js';
 import {
@@ -16,7 +18,7 @@ import {
   stateLabel,
 } from '../shared/format.js';
 import '../shared/cvc-cli.js';
-import { ICON_REFRESH } from '../shared/icons.js';
+import { ICON_LOGS, ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 
 @customElement('cvc-app-deployments')
@@ -103,6 +105,12 @@ export class CvcAppDeployments extends CvcElement {
                           <td class="small">${deployment.cause ?? html`<span class="muted">–</span>`}</td>
                           <td>${deployment.instances}</td>
                           <td class="actions">
+                            <a
+                              class="logs with-icon small"
+                              href=${deploymentLogsHash(this.ownerId, this.appId, deployment.id, readListView(window.location.hash))}
+                              title=${t('deployments.logsTitle', { index: deployment.index })}
+                              >${ICON_LOGS} ${t('deployments.logs')}</a
+                            >
                             ${
                               inProgress
                                 ? html`<button
@@ -139,6 +147,13 @@ export class CvcAppDeployments extends CvcElement {
       td.actions {
         text-align: right;
         white-space: nowrap;
+      }
+      td.actions .logs {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin-right: 0.6rem;
+        text-decoration: none;
       }
       button.small {
         padding: 0.2rem 0.5rem;

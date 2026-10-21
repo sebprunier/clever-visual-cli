@@ -22,7 +22,8 @@ export const APP_STATE_LABELS: Record<Application['state'], StateSpec> = {
   DEFAULT_OF_PAYMENT: { key: 'state.app.DEFAULT_OF_PAYMENT', tone: 'danger' },
 };
 
-export const DEPLOYMENT_STATE_LABELS: Record<Deployment['state'], StateSpec> = {
+export const DEPLOYMENT_STATE_LABELS: Record<Deployment['state'] | 'QUEUED', StateSpec> = {
+  QUEUED: { key: 'state.deployment.QUEUED', tone: 'neutral' },
   WORK_IN_PROGRESS: { key: 'state.deployment.WORK_IN_PROGRESS', tone: 'warn' },
   TASK_IN_PROGRESS: { key: 'state.deployment.TASK_IN_PROGRESS', tone: 'warn' },
   SUCCEEDED: { key: 'state.deployment.SUCCEEDED', tone: 'ok' },

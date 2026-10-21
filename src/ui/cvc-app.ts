@@ -21,7 +21,15 @@ import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
 import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
 import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
-import { navigate, routeOwner, routeToHash, watchRoute, type AppTab, type Route } from '../core/router.js';
+import {
+  navigate,
+  readHashParams,
+  routeOwner,
+  routeToHash,
+  watchRoute,
+  type AppTab,
+  type Route,
+} from '../core/router.js';
 import { Session } from '../core/session.js';
 import { Vault, type StoredProfile } from '../core/vault/vault.js';
 import type { Application } from '../data/api.js';
@@ -659,6 +667,7 @@ export class CvcApp extends CvcElement {
           ownerId=${this.route.ownerId}
           appId=${this.route.appId}
           tab=${this.route.tab}
+          deploymentId=${this.route.tab === 'logs' ? (readHashParams().get('deployment') ?? '') : ''}
           .summaryApp=${found?.app ?? null}
           .revision=${this.revision}
           .orga=${session.findOrganisation(this.route.ownerId)}

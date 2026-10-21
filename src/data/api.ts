@@ -46,8 +46,15 @@ import { UndeployApplicationCommand } from '@clevercloud/client/cc-api-commands/
 import { UpdateApplicationCommand } from '@clevercloud/client/cc-api-commands/application/update-application-command.js';
 import type { UpdateApplicationCommandInput } from '@clevercloud/client/cc-api-commands/application/update-application-command.types.js';
 import { CancelDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/cancel-deployment-command.js';
-import type { DeploymentLegacy } from '@clevercloud/client/cc-api-commands/deployment/deployment.types.js';
+import type {
+  Deployment as DeploymentProgress,
+  DeploymentLegacy,
+} from '@clevercloud/client/cc-api-commands/deployment/deployment.types.js';
 import { ListDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/list-deployment-command.js';
+import {
+  GetDeploymentCommand,
+  GetDeploymentCommandLegacy,
+} from '@clevercloud/client/cc-api-commands/deployment/get-deployment-command.js';
 import type { Link } from '@clevercloud/client/cc-api-commands/link/link.types.js';
 import { AddLinkCommand } from '@clevercloud/client/cc-api-commands/link/add-link-command.js';
 import { ListLinkCommand } from '@clevercloud/client/cc-api-commands/link/list-link-command.js';
@@ -158,6 +165,31 @@ export function fetchDeployments(
   return client.send(new ListDeploymentCommand({ ownerId, applicationId, limit }));
 }
 
+export type { DeploymentProgress };
+
+/**
+ * Where a deployment stands (v4): its state from the moment it is queued (the v2 API only knows it once
+ * started), when it was asked for, the steps it went through, its action and cause.
+ */
+export function fetchDeploymentProgress(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  deploymentId: string,
+): Promise<DeploymentProgress> {
+  return client.send(new GetDeploymentCommand({ ownerId, applicationId, deploymentId }));
+}
+
+/** One deployment of an application, in the shape `fetchDeployments` lists them (number, author, cause). */
+export function fetchDeployment(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  deploymentId: string,
+): Promise<DeploymentLegacy> {
+  return client.send(new GetDeploymentCommandLegacy({ ownerId, applicationId, deploymentId }));
+}
+
 export function fetchEnvironment(
   client: CcApiClient,
   ownerId: string,
@@ -172,6 +204,8 @@ export interface RuntimeLogsOptions {
   since?: Date;
   filter?: string;
   instanceId?: string[];
+  /** Only the lines of the instances of this deployment (`clever logs --deployment-id`). */
+  deploymentId?: string;
 }
 
 export function openRuntimeLogs(
@@ -187,6 +221,7 @@ export function openRuntimeLogs(
       since: options.since,
       filter: options.filter,
       instanceId: options.instanceId,
+      deploymentId: options.deploymentId,
     }),
   );
 }

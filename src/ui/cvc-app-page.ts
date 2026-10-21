@@ -59,6 +59,8 @@ export class CvcAppPage extends CvcElement {
   @property() ownerId = '';
   @property() appId = '';
   @property() tab: AppTab = 'overview';
+  /** The Logs tab on one deployment (`?deployment=`), empty for the live logs. */
+  @property() deploymentId = '';
   /** The summary entry, shown while the full application loads. */
   @property({ attribute: false }) summaryApp: ApplicationSummary | null = null;
   /** Bumped by the shell after an action so every view reloads. */
@@ -268,7 +270,12 @@ export class CvcAppPage extends CvcElement {
           .lastDeployment=${this.store?.get(this.ownerId).deployments == null ? undefined : (this.lastDeployment()?.date ?? null)}
         ></cvc-app-env>`;
       case 'logs':
-        return html`<cvc-app-logs .client=${this.client} ownerId=${this.ownerId} appId=${this.appId}></cvc-app-logs>`;
+        return html`<cvc-app-logs
+          .client=${this.client}
+          ownerId=${this.ownerId}
+          appId=${this.appId}
+          deploymentId=${this.deploymentId}
+        ></cvc-app-logs>`;
       case 'domains':
         return this.app == null
           ? html`<p class="empty">${t('common.loading')}</p>`
