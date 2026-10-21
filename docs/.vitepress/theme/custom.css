@@ -34,9 +34,54 @@
   }
 }
 .hero-video {
+  position: relative;
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
+}
+/* Over the poster until the video plays. */
+.hero-video-play {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px 10px 14px;
+  border: 1px solid rgb(63 208 234 / 55%);
+  border-radius: 999px;
+  background: rgb(10 13 23 / 72%);
+  color: #e8ecf5;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 0 22px rgb(63 208 234 / 25%);
+  transform: translateX(-50%);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.hero-video-play:hover,
+.hero-video-play:focus-visible {
+  background: rgb(10 13 23 / 88%);
+  box-shadow: 0 0 30px rgb(63 208 234 / 45%);
+}
+.hero-video-play svg {
+  width: 22px;
+  height: 22px;
+  color: #3fd0ea;
+}
+@media (max-width: 639px) {
+  .hero-video-play {
+    bottom: 5%;
+    gap: 6px;
+    padding: 6px 14px 6px 10px;
+    font-size: 13px;
+  }
+  .hero-video-play svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 .hero-video video {
   display: block;

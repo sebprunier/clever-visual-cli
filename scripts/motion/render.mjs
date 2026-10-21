@@ -6,8 +6,12 @@
  * Run capture.mjs first, for the screens.
  *
  *   node scripts/motion/render.mjs                    # the video
- *   CVC_MOTION_WIDTH=1280 CVC_MOTION_BITRATE=700000 CVC_MOTION_NAME=clever-visual-cli-720p \
- *     node scripts/motion/render.mjs                  # a lighter one, 720p, under 10 MB
+ *   CVC_MOTION_WIDTH=1280 CVC_MOTION_BITRATE=1500000 CVC_MOTION_NAME=clever-visual-cli-720p \
+ *     node scripts/motion/render.mjs                  # the 720p one of the documentation, about 17 MB
+ *
+ * Text moving on screen needs bits: below about 1.4 Mb/s at 720p, H.264 turns it into blocks
+ * while the camera moves. CVC_MOTION_CODEC=vp9 (a WebM file) holds as well at about 900 kb/s,
+ * but Safari does not play it everywhere. CVC_MOTION_RANGE=13,19 renders a part only, to compare.
  *   node scripts/motion/render.mjs --stills 1,9.5,47  # a few moments, as PNG, into out/stills/
  *   node scripts/motion/render.mjs --poster 3.2       # the picture shown before the video plays, out/poster.jpg
  *   node scripts/motion/render.mjs --preview          # a link to play it in a browser
@@ -26,6 +30,11 @@ const NAME = process.env.CVC_MOTION_NAME ?? 'clever-visual-cli';
 // The frames are taken at 1920 × 1080 and scaled down to this width when smaller (1280 for 720p).
 const WIDTH = Number(process.env.CVC_MOTION_WIDTH ?? 1920);
 const HEIGHT = Math.round((WIDTH * 9) / 16);
+// avc (H.264, every browser) by default; vp9 and av1 compress better, in a WebM file.
+const CODEC = process.env.CVC_MOTION_CODEC ?? 'avc';
+const EXTENSION = CODEC === 'avc' ? 'mp4' : 'webm';
+// A part only, in seconds, to compare encodings quickly: CVC_MOTION_RANGE=13,19.
+const RANGE = process.env.CVC_MOTION_RANGE?.split(',').map(Number);
 const TYPES = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -99,17 +108,17 @@ async function render() {
   const encoder = await browser.newPage();
   await encoder.goto(`${origin}/__encoder`);
   await encoder.evaluate(
-    async ({ library, fps, bitrate }) => {
-      const { Output, Mp4OutputFormat, BufferTarget, CanvasSource } = await import(library);
+    async ({ library, fps, bitrate, codec }) => {
+      const { Output, Mp4OutputFormat, WebMOutputFormat, BufferTarget, CanvasSource } = await import(library);
       const canvas = document.querySelector('canvas');
       window.context2d = canvas.getContext('2d');
       window.context2d.imageSmoothingQuality = 'high';
       window.output = new Output({
-        format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
+        format: codec === 'avc' ? new Mp4OutputFormat({ fastStart: 'in-memory' }) : new WebMOutputFormat(),
         target: new BufferTarget(),
       });
       window.source = new CanvasSource(canvas, {
-        codec: 'avc',
+        codec,
         bitrate,
         bitrateMode: 'variable',
         latencyMode: 'quality',
@@ -117,13 +126,19 @@ async function render() {
       window.output.addVideoTrack(window.source, { frameRate: fps });
       await window.output.start();
     },
-    { library: `${origin}/node_modules/mediabunny/dist/bundles/mediabunny.min.mjs`, fps, bitrate: BITRATE },
+    {
+      library: `${origin}/node_modules/mediabunny/dist/bundles/mediabunny.min.mjs`,
+      fps,
+      bitrate: BITRATE,
+      codec: CODEC,
+    },
   );
 
-  const frames = Math.round(duration * fps);
+  const first = RANGE == null ? 0 : Math.round(RANGE[0] * fps);
+  const frames = Math.round((RANGE == null ? duration : RANGE[1]) * fps) - first;
   const started = Date.now();
   for (let index = 0; index < frames; index++) {
-    await seek(index / fps);
+    await seek((first + index) / fps);
     const image = await page.screenshot({ type: 'png' });
     await encoder.evaluate(
       async ({ data, index, fps }) => {
@@ -148,7 +163,7 @@ async function render() {
     return btoa(binary);
   });
   mkdirSync(OUT, { recursive: true });
-  const path = join(OUT, `${NAME}.mp4`);
+  const path = join(OUT, `${NAME}.${EXTENSION}`);
   writeFileSync(path, Buffer.from(video, 'base64'));
   console.log(`\n${path}: ${frames} frames in ${Math.round((Date.now() - started) / 1000)} s`);
   await browser.close();

@@ -1,21 +1,20 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress';
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
 /**
  * The motion design of clever-visual-cli (scripts/motion/), where the home page
- * of the documentation would show the logo. It plays muted and loops, unless
- * the reader asked for less motion; the controls give the sound-free full screen.
+ * of the documentation would show the logo. It waits for the reader: the poster
+ * and a play button first, the controls once it plays. Only its metadata loads
+ * with the page.
  */
 const video = ref<HTMLVideoElement>();
+const started = ref(false);
 
-onMounted(() => {
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    void video.value?.play().catch(() => {
-      // Autoplay refused: the poster and the controls stay.
-    });
-  }
-});
+function play(): void {
+  started.value = true;
+  void video.value?.play();
+}
 </script>
 
 <template>
@@ -24,12 +23,15 @@ onMounted(() => {
       ref="video"
       :src="withBase('/video/clever-visual-cli.mp4')"
       :poster="withBase('/video/poster.jpg')"
-      muted
-      loop
+      :controls="started"
       playsinline
-      controls
       preload="metadata"
       aria-label="clever-visual-cli in about 90 seconds: filters and grouping, favourite views, costs, actions on a selection, the logs of several applications merged, application and access logs, the status, signing in with a token"
+      @play="started = true"
     ></video>
+    <button v-if="!started" type="button" class="hero-video-play" @click="play">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" /></svg>
+      <span>Watch it in 90 seconds</span>
+    </button>
   </div>
 </template>
