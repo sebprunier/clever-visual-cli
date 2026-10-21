@@ -445,7 +445,8 @@ export class CvcApp extends CvcElement {
       id: 'session:add',
       title: t('shell.addAccount'),
       group: 'Session',
-      cli: 'clever login --alias',
+      // Adding an account here means creating an API token for it: `clever login` is the OAuth flow (#14, #18).
+      cli: 'clever tokens create clever-visual-cli',
       run: () => (this.phase = 'adding'),
     });
     for (const locale of LOCALES) {

@@ -37,7 +37,7 @@ An action opens its dialog, which shows the equivalent `clever` command as you f
 | Set, delete or import variables                            | `clever env set`, `clever env rm`, `clever env import`                                             |
 | Add or remove a domain, set the primary domain             | `clever domain add`, `clever domain rm`, `clever domain favourite set`                             |
 | Accounts in this browser, Switch to account …              | `clever profile list`, `clever profile switch`                                                     |
-| Add an account, Sign out                                   | `clever login --alias`, `clever logout`                                                            |
+| Add an account, Sign out                                   | `clever tokens create clever-visual-cli`, `clever logout`                                          |
 
 ## How the search works {#search}
 

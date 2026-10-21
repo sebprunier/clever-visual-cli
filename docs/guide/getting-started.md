@@ -62,7 +62,7 @@ One browser can hold several Clever Cloud accounts. They are listed on the "Acco
 - **Switch**: "Use" on that page, or "Switch to account …" in the palette.
 - **Remove**: "Sign out" removes the active account from this browser.
 
-As clever-tools has profiles, the palette names their commands beside these actions: `clever profile list`, `clever profile switch`, `clever login --alias` and `clever logout`.
+As clever-tools has profiles, the palette names their commands beside these actions: `clever profile list`, `clever profile switch` and `clever logout`. Beside "Add an account", it names `clever tokens create clever-visual-cli`, which creates the token to sign in with: `clever login` signs clever-tools in through the Console, which clever-visual-cli does not accept.
 
 ## The account menu {#account-menu}
 
