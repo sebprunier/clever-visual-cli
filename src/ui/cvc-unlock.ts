@@ -4,6 +4,7 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import type { Vault } from '../core/vault/vault.js';
+import './shared/cvc-locale-switch.js';
 import { sharedStyles } from './shared/styles.js';
 
 /** Passphrase prompt shown when an encrypted vault exists but the tab holds no key. */
@@ -43,7 +44,10 @@ export class CvcUnlock extends CvcElement {
   override render() {
     return html`
       <main class="stack">
-        <h1>${t('unlock.title')}</h1>
+        <div class="title">
+          <h1>${t('unlock.title')}</h1>
+          <cvc-locale-switch></cvc-locale-switch>
+        </div>
         <p class="muted">${t('unlock.text')}</p>
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
         <form class="row" @submit=${this.onSubmit}>
@@ -87,6 +91,12 @@ export class CvcUnlock extends CvcElement {
       }
       input {
         flex: 1 1 200px;
+      }
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
       }
     `,
   ];

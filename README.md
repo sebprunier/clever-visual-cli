@@ -36,7 +36,7 @@ clever-tools and the Clever Cloud APIs are well designed and well documented. [`
 - **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but the Clever Cloud API (`api-bridge.clever-cloud.com`, where API tokens go, and `api.clever-cloud.com`), and read-only calls to the public status page and to the npm registry (the latest clever-tools release, once a day).
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
 - **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands are checked against one clever-tools release (5.2.0 today, named in the account menu); when npm has a newer one, the menu says so with its release notes, and a weekly workflow opens an issue to check the commands again.
-- **English and French**, picked from the browser, switchable from the account menu.
+- **English and French**, picked from the browser, switchable from the account menu, and before signing in from the sign-in and unlock pages.
 - **Themes**: system (follows the computer's light or dark setting), light, dark, and a modern look after the Clever Cloud technologies page. Every palette is checked for WCAG AA contrast by the tests.
 - **Open source**, Apache-2.0, built in the open, one feature at a time.
 

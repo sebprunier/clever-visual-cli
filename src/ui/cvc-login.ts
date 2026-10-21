@@ -8,6 +8,7 @@ import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
 import { appMark } from './shared/brand.js';
 import './shared/cvc-cli.js';
+import './shared/cvc-locale-switch.js';
 import { sharedStyles } from './shared/styles.js';
 
 /** What `pnpm dev:cli` serves: the API token of `CVC_DEV_API_TOKEN`. */
@@ -150,7 +151,10 @@ export class CvcLogin extends CvcElement {
     return html`
       <main class="stack">
         <header>
-          <h1>${appMark(26)}clever-visual-cli</h1>
+          <div class="title">
+            <h1>${appMark(26)}clever-visual-cli</h1>
+            <cvc-locale-switch></cvc-locale-switch>
+          </div>
           <p class="muted">${this.adding ? t('login.addAccount') : t('login.tagline')}</p>
         </header>
         ${
@@ -267,6 +271,12 @@ export class CvcLogin extends CvcElement {
         max-width: 560px;
         margin: 0 auto;
         padding: 3rem 1rem;
+      }
+      header .title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
       }
       header h1 {
         display: flex;
