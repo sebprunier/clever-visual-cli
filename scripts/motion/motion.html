@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>clever-visual-cli, in motion</title>
+    <link rel="stylesheet" href="motion.css" />
+  </head>
+  <body>
+    <!--
+      The motion design of clever-visual-cli: 1920 × 1080, every frame computed
+      from a time (motion.js), so render.mjs can take them one by one. Opened
+      through `node scripts/motion/render.mjs --preview`, it plays in real time.
+    -->
+    <main id="stage">
+      <div class="bg">
+        <div class="glow cyan" id="glow-a"></div>
+        <div class="glow indigo" id="glow-b"></div>
+        <div class="grid"></div>
+      </div>
+
+      <!-- 1. Intro -->
+      <section class="center" id="intro">
+        <div class="logo big" id="intro-logo"></div>
+        <h1 id="intro-name">clever-visual-cli</h1>
+        <p class="tagline" id="intro-tagline">The Clever Cloud CLI, visually.</p>
+        <p class="mono muted" id="intro-sub">a visual interface of clever-tools · with a few extras</p>
+      </section>
+
+      <!-- Feature scenes: text on the left -->
+      <section class="text" id="t-idea">
+        <p class="eyebrow">01 · The idea</p>
+        <h2>The CLI, laid out on a&nbsp;screen.</h2>
+        <p class="body">
+          Every screen stands for a <code>clever</code> command, with the real ids, one click to copy. Use it, and you
+          learn clever-tools along the way.
+        </p>
+        <p class="note" id="t-idea-note">
+          Not a new Console: a static page, between your browser and the Clever Cloud APIs.
+        </p>
+      </section>
+
+      <section class="text" id="t-filter">
+        <p class="eyebrow">02 · Filter &amp; group</p>
+        <h2>A whole organisation, sliced your way.</h2>
+        <p class="body">Expressions to filter, tags to group, up to three levels.</p>
+        <div class="expr" id="expr-filter"><span class="label">filter</span><span class="typed"></span></div>
+        <div class="expr" id="expr-group"><span class="label">group by</span><span class="typed"></span></div>
+      </section>
+
+      <section class="text" id="t-views">
+        <p class="eyebrow">03 · Views</p>
+        <h2>Save it as a view.</h2>
+        <p class="body">
+          Filter, grouping and sort, one click away. Kept per organisation, and synced across your browsers through a
+          configuration provider of your own.
+        </p>
+      </section>
+
+      <section class="text" id="t-costs">
+        <p class="eyebrow">04 · Costs</p>
+        <h2>What does it cost? Per project, per&nbsp;env.</h2>
+        <p class="body">
+          Yesterday, the last 30 days, the latest invoice or the current configuration, summed by group.
+        </p>
+        <p class="chips">
+          <span class="chip">CSV</span><span class="chip">JSON</span><span class="chip">Markdown</span>
+        </p>
+      </section>
+
+      <section class="text" id="t-bulk">
+        <p class="eyebrow">05 · Act on a selection</p>
+        <h2>Tick, then act on all of&nbsp;them.</h2>
+        <p class="body">Restart or stop several applications, add or rename tags, open their logs together.</p>
+        <p class="chips">
+          <span class="chip"><b>$</b> clever restart</span><span class="chip"><b>$</b> clever stop</span>
+        </p>
+      </section>
+
+      <section class="text" id="t-multilogs">
+        <p class="eyebrow">06 · Logs of several apps</p>
+        <h2>Several apps, one&nbsp;timeline.</h2>
+        <p class="body">Side by side in a grid, or merged into one stream, every line coloured by its application.</p>
+        <p class="note" data-at="7.6">
+          When something breaks, the API, the gateway and the worker tell the same story, line after line.
+        </p>
+      </section>
+
+      <section class="text" id="t-app">
+        <p class="eyebrow">07 · One application</p>
+        <h2>Every tab, one command.</h2>
+        <p class="body">
+          Overview, activity, domains, variables, dependencies and logs: each tab names the <code>clever</code>
+          command it stands for.
+        </p>
+      </section>
+
+      <section class="text" id="t-mixed">
+        <p class="eyebrow">08 · Application + access logs</p>
+        <h2>See the request behind the&nbsp;error.</h2>
+        <p class="body">Application and access logs, merged in time: analysis and debugging, in one place.</p>
+        <p class="note" data-at="2">An error in the application logs: the payment provider timed out…</p>
+        <p class="note" data-at="8">
+          …and the request behind it: <code>POST /api/payments</code>, a 502 after 5&nbsp;s, then a 404 on order 4812.
+        </p>
+      </section>
+
+      <section class="text" id="t-watch">
+        <p class="eyebrow">09 · At a glance</p>
+        <h2>Is everything OK?</h2>
+        <p class="body">
+          The Clever Cloud status, and what needs you: failed deployments, outdated databases, operator updates.
+        </p>
+      </section>
+
+      <section class="text" id="t-signin">
+        <p class="eyebrow">10 · Your token, your browser</p>
+        <h2>No backend. Nothing to install.</h2>
+        <p class="body">
+          Sign in with an API token, encrypted in your browser or kept for the tab only. Several accounts, one click to
+          switch.
+        </p>
+      </section>
+
+      <!-- The terminal of the idea, then the window of the interface -->
+      <div class="window" id="terminal">
+        <div class="bar"><i></i><i></i><i></i><span class="url">~ zsh</span></div>
+        <pre class="term" id="term"></pre>
+      </div>
+      <div class="window" id="window">
+        <div class="bar"><i></i><i></i><i></i><span class="url">sebprunier.github.io/clever-visual-cli</span></div>
+        <div class="screen" id="screen"></div>
+      </div>
+
+      <!-- 10. Outro -->
+      <section class="center" id="outro">
+        <div class="logo" id="outro-logo"></div>
+        <h1 id="outro-name">clever-visual-cli</h1>
+        <p class="credits" id="outro-credits">
+          by <strong>Sébastien Prunier</strong> &amp; <strong>Mathieu Ancelin</strong>
+        </p>
+        <p class="mono muted" id="outro-role">Clever Cloud ambassadors · open source, Apache-2.0</p>
+        <p class="link" id="outro-link">github.com/sebprunier/clever-visual-cli</p>
+      </section>
+    </main>
+    <script type="module" src="motion.js"></script>
+  </body>
+</html>

@@ -1,0 +1,363 @@
+/* The modern theme of clever-visual-cli (src/core/themes.ts): night blue, indigo borders, a cyan accent that glows. */
+:root {
+  --bg: #0a0d17;
+  --surface: #0f1426;
+  --border: #27315a;
+  --text: #e8ecf5;
+  --muted: #94a0c8;
+  --accent: #3fd0ea;
+  --indigo: #5b6cff;
+  --glow: 0 0 0 1px rgb(63 208 234 / 45%), 0 0 16px rgb(63 208 234 / 22%);
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  background: #000;
+  overflow: hidden;
+}
+
+#stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+/* Every animated element is placed absolutely and moved by motion.js. */
+#stage > section,
+#stage > .window {
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.bg,
+.bg > * {
+  position: absolute;
+  inset: 0;
+}
+.glow {
+  inset: auto;
+  width: 1100px;
+  height: 1100px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.32;
+}
+.glow.cyan {
+  background: radial-gradient(circle, rgb(63 208 234 / 70%), transparent 65%);
+  left: -300px;
+  top: -420px;
+}
+.glow.indigo {
+  background: radial-gradient(circle, rgb(91 108 255 / 75%), transparent 65%);
+  right: -380px;
+  bottom: -480px;
+}
+.grid {
+  background-image:
+    linear-gradient(rgb(39 49 90 / 38%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(39 49 90 / 38%) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 45%, #000 20%, transparent 75%);
+}
+
+.mono {
+  font-family: var(--mono);
+}
+.muted {
+  color: var(--muted);
+}
+
+/* Intro and outro, centred */
+.center {
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.center > * {
+  will-change: transform, opacity;
+}
+.logo {
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 0 28px rgb(63 208 234 / 35%));
+}
+.logo.big {
+  width: 220px;
+  height: 220px;
+  margin-bottom: 36px;
+}
+.logo svg {
+  width: 100%;
+  height: 100%;
+}
+.center h1 {
+  font-size: 104px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.tagline {
+  margin-top: 22px;
+  font-size: 46px;
+  font-weight: 600;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgb(63 208 234 / 35%);
+}
+#intro-sub {
+  margin-top: 26px;
+  font-size: 26px;
+}
+#outro .logo {
+  margin-bottom: 30px;
+}
+#outro h1 {
+  font-size: 84px;
+}
+.credits {
+  margin-top: 26px;
+  font-size: 40px;
+  color: var(--text);
+}
+.credits strong {
+  font-weight: 650;
+}
+#outro-role {
+  margin-top: 16px;
+  font-size: 24px;
+}
+.link {
+  margin-top: 46px;
+  padding: 16px 30px;
+  border-radius: 14px;
+  font-family: var(--mono);
+  font-size: 34px;
+  color: var(--accent);
+  background: rgb(63 208 234 / 8%);
+  box-shadow: var(--glow);
+}
+
+/* Feature scenes: the text on the left */
+.text {
+  left: 100px;
+  top: 0;
+  bottom: 0;
+  width: 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 26px;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.text h2 {
+  font-size: 60px;
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+.text .body {
+  font-size: 29px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.text code {
+  font-family: var(--mono);
+  color: var(--text);
+}
+.note {
+  margin-top: 10px;
+  padding-left: 18px;
+  border-left: 3px solid var(--accent);
+  font-size: 25px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.chip {
+  padding: 8px 16px;
+  border: 1px solid rgb(63 208 234 / 35%);
+  border-radius: 10px;
+  background: rgb(63 208 234 / 7%);
+  font-family: var(--mono);
+  font-size: 23px;
+  color: var(--text);
+}
+.chip b {
+  font-weight: 400;
+  color: var(--muted);
+}
+.expr {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 30px;
+  min-height: 72px;
+}
+.expr .label {
+  flex: none;
+  width: 130px;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.expr.active {
+  box-shadow: var(--glow);
+}
+.caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+}
+
+/* The window of the interface, and the terminal before it */
+.window {
+  left: 700px;
+  top: 168px;
+  width: 1120px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgb(63 208 234 / 12%),
+    0 30px 80px rgb(0 0 0 / 55%),
+    0 0 60px rgb(63 208 234 / 8%);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 44px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+.bar i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.bar .url {
+  margin: 0 auto;
+  padding: 5px 18px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--muted);
+}
+.screen {
+  position: relative;
+  width: 1120px;
+  height: 700px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.layer {
+  position: absolute;
+  inset: 0;
+}
+.viewport {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1440px;
+  height: 900px;
+  transform-origin: 0 0;
+}
+.viewport img {
+  display: block;
+  width: 1440px;
+  height: 900px;
+}
+.ring {
+  position: absolute;
+  border: 3px solid var(--accent);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgb(63 208 234 / 40%),
+    0 0 26px rgb(63 208 234 / 45%),
+    inset 0 0 18px rgb(63 208 234 / 12%);
+}
+.term {
+  height: 700px;
+  padding: 34px 38px;
+  font-family: var(--mono);
+  font-size: 25px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre;
+}
+.term .prompt {
+  color: var(--accent);
+}
+.term .dim {
+  color: var(--muted);
+}
+
+/* The layout menu the motion opens on the logs of several applications, drawn in the screen's own pixels. */
+.dropdown {
+  position: absolute;
+  width: 150px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px #27315a,
+    0 16px 44px rgb(0 0 0 / 60%);
+  font-family: var(--sans);
+  font-size: 15px;
+  color: var(--text);
+}
+.dropdown div {
+  position: relative;
+  height: 28px;
+  padding: 0 10px;
+  line-height: 28px;
+}
+.dropdown .highlight {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 4px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgb(63 208 234 / 28%);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.note code {
+  font-family: var(--mono);
+  color: var(--accent);
+}

@@ -132,6 +132,8 @@ pnpm build          # static site in dist/
 pnpm spike:node     # checks @clevercloud/client from Node, without a browser
 pnpm docs:dev       # the user documentation (VitePress), from docs/
 pnpm docs:build     # the documentation in dist/docs/, beside the site
+pnpm motion:shots   # the screens of the motion design, from the demo data (vite on port 5175)
+pnpm motion:render  # the motion design itself, as MP4, in scripts/motion/out/
 ```
 
 `pnpm dev:cli` enables a Vite middleware that serves the API token of `CVC_DEV_API_TOKEN` (from the environment or a git-ignored `.env.local`, created once with `clever tokens create clever-visual-cli-dev`) on `/__cvc/dev-profile`. It is a development convenience, never part of the build, to enable on a trusted machine only.
@@ -170,7 +172,8 @@ src/core/      vault (crypto, profiles), session, router, palette model, actions
 src/data/      the only module that imports the @clevercloud/client commands
 src/i18n/      message dictionaries (en.ts is the reference, fr.ts must match its keys)
 src/ui/        Lit components: shell, sign-in, unlock, palette, pages, dialogs
-scripts/       checks outside the browser, and the screenshots of the documentation (scripts/screenshots/)
+scripts/       checks outside the browser, the screenshots of the documentation (scripts/screenshots/)
+               and the motion design (scripts/motion/), both from anonymised demo data
 docs/          the user documentation (VitePress), published under docs/ beside the site
 ```
 

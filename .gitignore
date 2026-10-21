@@ -28,3 +28,6 @@ docs/.vitepress/cache
 # Raw API answers recorded for the screenshots, and the real names to record: never committed
 scripts/screenshots/.raw
 scripts/screenshots/targets.local.json
+
+# The motion design, rendered from the demo data: never committed
+scripts/motion/out
