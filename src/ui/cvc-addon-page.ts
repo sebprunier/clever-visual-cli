@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { BACKUP_PROVIDERS, VERSIONED_PROVIDERS } from '../core/addons/database.js';
 import { operatorKind } from '../core/addons/operator.js';
 import { describeError } from '../core/clever-client.js';
+import { addonDocsPath } from '../core/docs.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
 import type { CostStore } from '../core/home/cost-store.js';
@@ -37,6 +38,7 @@ import './addon/cvc-addon-backups.js';
 import './addon/cvc-addon-buckets.js';
 import './addon/cvc-addon-env.js';
 import './addon/cvc-addon-logs.js';
+import './shared/cvc-doc-link.js';
 import './addon/cvc-addon-overview.js';
 import './app/cvc-app-nav.js';
 import './shared/cvc-resource-tags.js';
@@ -293,6 +295,7 @@ export class CvcAddonPage extends CvcElement {
         <div class="row title">
           <img src=${summary.logoUrl} alt="" width="36" height="36" title=${summary.providerId} />
           <h1>${summary.name}</h1>
+          <cvc-doc-link path=${addonDocsPath(summary.providerId, tab)} topic=${t('docs.topic.addon')}></cvc-doc-link>
           ${
             state == null
               ? nothing

@@ -6,6 +6,7 @@ import { describeError } from '../core/clever-client.js';
 import type { Credentials } from '../core/credentials.js';
 import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
+import { docsUrl } from '../core/docs.js';
 import { appMark } from './shared/brand.js';
 import './shared/cvc-cli.js';
 import './shared/cvc-locale-switch.js';
@@ -153,7 +154,11 @@ export class CvcLogin extends CvcElement {
         <header>
           <div class="title">
             <h1>${appMark(26)}clever-visual-cli</h1>
-            <cvc-locale-switch></cvc-locale-switch>
+            <span class="row small">
+              <a href=${docsUrl()} target="_blank" rel="noopener">${t('docs.menu')}</a>
+              <span class="muted" aria-hidden="true">·</span>
+              <cvc-locale-switch></cvc-locale-switch>
+            </span>
           </div>
           <p class="muted">${this.adding ? t('login.addAccount') : t('login.tagline')}</p>
         </header>
@@ -206,6 +211,9 @@ export class CvcLogin extends CvcElement {
         <h2>${t('login.apiToken.title')}</h2>
         <p class="muted small">
           ${t('login.apiToken.before')} <cvc-cli command="clever tokens create clever-visual-cli"></cvc-cli>
+          <a href=${docsUrl('guide/getting-started.html#api-token')} target="_blank" rel="noopener"
+            >${t('login.apiToken.howTo')}</a
+          >
         </p>
         <form class="row" @submit=${this.onApiTokenSubmit}>
           <input

@@ -13,6 +13,7 @@ import { clearCliReleaseStorage, isNewerRelease, latestRelease, releaseNotesUrl 
 import { clearClientCaches } from '../core/clever-client.js';
 import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
 import { CLI_VERSION } from '../core/constants.js';
+import { docsUrl } from '../core/docs.js';
 import { markEnvChanged } from '../core/env-pending.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
@@ -433,6 +434,14 @@ export class CvcApp extends CvcElement {
       }
     }
     commands.push({
+      id: 'session:docs',
+      title: t('docs.menu'),
+      subtitle: t('docs.open'),
+      group: 'Session',
+      keywords: ['documentation', 'help', 'aide', 'doc'],
+      run: () => void window.open(docsUrl(), '_blank', 'noopener'),
+    });
+    commands.push({
       id: 'session:add',
       title: t('shell.addAccount'),
       group: 'Session',
@@ -591,6 +600,9 @@ export class CvcApp extends CvcElement {
             <hr />
             <a class="item" href=${routeToHash({ kind: 'account' })} @click=${() => this.closeMenu(false)}
               >${t('account.accountsInBrowser')}</a
+            >
+            <a class="item" href=${docsUrl()} target="_blank" rel="noopener" @click=${() => this.closeMenu(false)}
+              >${t('docs.menu')} ↗</a
             >
             ${
               session.vault.mode === 'encrypted'

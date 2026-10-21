@@ -68,6 +68,14 @@ export const fr: Record<MessageKey, string> = {
 
   'login.tagline':
     'Une interface visuelle du CLI Clever Cloud, avec quelques bonus. Pas une nouvelle Console : tout se passe entre ce navigateur et les API.',
+  'docs.menu': 'Documentation',
+  'docs.open': 'Ouvrir la documentation dans un nouvel onglet',
+  'docs.about': 'Documentation : {topic}',
+  'docs.topic.home': 'l’accueil de l’organisation',
+  'docs.topic.app': 'cette page de l’application',
+  'docs.topic.addon': 'cet add-on',
+  'docs.topic.logs': 'les logs de plusieurs applications',
+  'login.apiToken.howTo': 'Comment en créer un',
   'login.addAccount': 'Ajouter un compte Clever Cloud.',
   'login.devProfile.title': 'Token API de développement',
   'login.devProfile.before': 'Mode développement : le serveur Vite fournit le token API de',

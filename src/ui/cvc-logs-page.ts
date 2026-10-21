@@ -26,6 +26,7 @@ import {
   type OrganisationSummary,
 } from '../data/api.js';
 import './shared/cvc-cli.js';
+import './shared/cvc-doc-link.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { formatTime } from './shared/format.js';
 import { ICON_REFRESH } from './shared/icons.js';
@@ -321,6 +322,10 @@ export class CvcLogsPage extends CvcElement {
       <header class="head">
         <a class="back" href=${this.href({ kind: 'orga', ownerId: this.orga.id })}>← ${t('nav.back')}</a>
         <h1>${t('multilogs.title', { count: this.apps.length })}</h1>
+        <cvc-doc-link
+          path=${this.restartedAt == null ? 'guide/logs.html' : 'guide/logs.html#restarts'}
+          topic=${t('docs.topic.logs')}
+        ></cvc-doc-link>
         ${
           commands.length > 0
             ? html`<cvc-cli .command=${commands[0]} .script=${commands.join('\n')} .count=${commands.length}></cvc-cli>`

@@ -5,6 +5,7 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { indexActivity, isInProgress, type AppActivity } from '../core/home/activity.js';
+import { appDocsPath } from '../core/docs.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import type { AddonStore } from '../core/home/addon-store.js';
 import type { CostStore } from '../core/home/cost-store.js';
@@ -34,6 +35,7 @@ import './app/cvc-app-domains.js';
 import './app/cvc-app-env.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
+import './shared/cvc-doc-link.js';
 import './shared/cvc-resource-tags.js';
 import { openAction } from './shared/events.js';
 import { ICON_RESTART, ICON_START, ICON_STOP } from './shared/icons.js';
@@ -208,6 +210,10 @@ ${t('activity.logsHint')}"
         <div class="row title">
           ${logo ? html`<img src=${logo} alt="" width="36" height="36" title=${variant ?? nothing} />` : nothing}
           <h1>${name}</h1>
+          <cvc-doc-link
+            path=${appDocsPath(this.tab, this.deploymentId !== '')}
+            topic=${t('docs.topic.app')}
+          ></cvc-doc-link>
           ${
             /* The overview spells out the state, runtime and zone; the title keeps the state icon for the other tabs. */
             status == null

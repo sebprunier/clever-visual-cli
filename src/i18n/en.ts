@@ -73,6 +73,14 @@ export const en = {
   // --- sign-in
   'login.tagline':
     'A visual interface for the Clever Cloud CLI, with a few extras. Not a new Console: everything happens between this browser and the APIs.',
+  'docs.menu': 'Documentation',
+  'docs.open': 'Open the documentation in a new tab',
+  'docs.about': 'Documentation: {topic}',
+  'docs.topic.home': 'the organisation home',
+  'docs.topic.app': 'this page of the application',
+  'docs.topic.addon': 'this add-on',
+  'docs.topic.logs': 'the logs of several applications',
+  'login.apiToken.howTo': 'How to create one',
   'login.addAccount': 'Add a Clever Cloud account.',
   'login.devProfile.title': 'Development API token',
   'login.devProfile.before': 'Development mode: the Vite server hands over the API token of',

@@ -75,6 +75,7 @@ import './cvc-platform-status.js';
 import './shared/cvc-cli.js';
 import './cvc-favorites-menu.js';
 import type { FavoriteNameDetail, FavoriteRenameDetail, FavoriteViewDetail } from './cvc-favorites-menu.js';
+import './shared/cvc-doc-link.js';
 import './shared/cvc-dropdown.js';
 import './shared/cvc-menu-button.js';
 import type { MenuSelectDetail } from './shared/cvc-menu-button.js';
@@ -622,6 +623,7 @@ export class CvcOrgaPage extends CvcElement {
           <header class="head">
             <div class="row head-row">
               <h1>${this.orga.name}</h1>
+              <cvc-doc-link path="guide/organisation-home.html" topic=${t('docs.topic.home')}></cvc-doc-link>
               <span class="grow"></span>
               <cvc-favorites-menu
                 ownerId=${this.orga.id}
