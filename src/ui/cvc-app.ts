@@ -12,7 +12,7 @@ import {
 import { isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
-import { CLI_VERSION } from '../core/constants.js';
+import { APP_RELEASE_URL, APP_VERSION, CLI_VERSION } from '../core/constants.js';
 import { docsUrl } from '../core/docs.js';
 import { markEnvChanged } from '../core/env-pending.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
@@ -638,6 +638,10 @@ export class CvcApp extends CvcElement {
               ${t('shell.logout')}
             </button>
             <hr />
+            <p class="app-release muted">
+              ${t('app.version', { version: APP_VERSION })} ·
+              <a href=${APP_RELEASE_URL} target="_blank" rel="noopener noreferrer">${t('cli.notes')} ↗</a>
+            </p>
             ${this.renderCliRelease()}
           </div>
         </details>
@@ -1038,11 +1042,15 @@ export class CvcApp extends CvcElement {
         border: none;
         border-top: 1px solid var(--cvc-border);
       }
+      .menu-items .app-release,
       .menu-items .cli-release {
         margin: 0;
         padding: 0.3rem 0.6rem 0.35rem;
         font-size: 0.8rem;
         line-height: 1.35;
+      }
+      .menu-items .app-release a {
+        white-space: nowrap;
       }
       .menu-items .cli-release.warn {
         border-left: 3px solid var(--cvc-warn);

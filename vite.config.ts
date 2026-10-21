@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
@@ -87,10 +88,14 @@ function productionCsp(): Plugin {
   };
 }
 
+/** The version of clever-visual-cli, from package.json: the interface shows it (#25). */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+
 export default defineConfig({
   // GitHub Pages serves the site under /clever-visual-cli/ ; other hosts at the root.
   base: process.env.CVC_BASE ?? '/',
   plugins: [devCliProfile(), productionCsp()],
+  define: { __CVC_VERSION__: JSON.stringify(version) },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],

@@ -74,6 +74,7 @@ The button at the top right, with your name and e-mail, opens the account menu:
 - **Documentation**: opens this documentation in a new tab.
 - **Lock**: with an encrypted vault only. The key leaves the tab and the unlock page shows; your accounts stay, encrypted.
 - **Sign out**: removes the active account from this browser. The next account becomes active; after the last one, the sign-in page shows. The token itself stays valid on Clever Cloud: revoke it in the Console or with `clever tokens revoke` if you no longer need it.
+- **The version of clever-visual-cli**: "clever-visual-cli 1.0.0", with a "Release notes" link to its GitHub release.
 - **The clever-tools release line**: "Commands checked with clever‑tools 5.2.0". When npm has a newer release, a dot appears on the account button and the line reads "clever‑tools … is out; the commands are checked with 5.2.0.", with a "Release notes" link. The latest release is read from the npm registry at most once a day.
 
 ### Erase everything from this browser {#erase}

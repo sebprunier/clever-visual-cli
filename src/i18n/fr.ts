@@ -340,6 +340,7 @@ export const fr: Record<MessageKey, string> = {
   'env.copyDotenv': 'Copier en .env',
   'env.pending': 'Ces variables ont changé depuis le dernier déploiement : elles s’appliqueront au prochain.',
   'env.restart': 'Redémarrer…',
+  'app.version': 'clever-visual-cli {version}',
   'cli.checked': 'Commandes vérifiées avec clever‑tools {version}',
   'cli.newer': 'clever‑tools {latest} est sorti ; les commandes sont vérifiées avec la {current}.',
   'cli.notes': 'Notes de version',
