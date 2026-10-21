@@ -135,16 +135,20 @@ describe('home grouping', () => {
       'sans project[1/1]',
       '  sans env[1/1]: lonely,bucket',
     ]);
+    // Applications first, as the hint says (#21), unless the expression gives its own order.
     expect(outline(buildTree(parseGrouping('type > runtime'), apps, addons, context))).toEqual([
+      'Applications[5/0]',
+      '  Java + Maven[1/0]: api',
+      '  Node.js[4/0]: blog,lonely,dev,web',
       'Add-ons[0/4]',
       '  cellar-addon[0/1]: bucket',
       '  config-provider[0/1]: config',
       '  postgresql-addon[0/1]: pg',
       '  redis-addon[0/1]: redis',
-      'Applications[5/0]',
-      '  Java + Maven[1/0]: api',
-      '  Node.js[4/0]: blog,lonely,dev,web',
     ]);
+    expect(
+      outline(buildTree(parseGrouping('type(add-ons)'), apps, addons, context)).map((line) => line.split('[')[0]),
+    ).toEqual(['Add-ons', 'Applications']);
     expect(outline(buildTree(parseGrouping('state'), apps, [], context))).toEqual([
       'arrêtée[1/0]: api',
       'démarrée[4/0]: blog,lonely,dev,web',

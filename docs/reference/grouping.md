@@ -57,7 +57,7 @@ Groups come in alphabetical order. To put some values first, list them in parent
 
 The order applies to its level, wherever it is: `project > env(prod,dev)` orders the environments inside each project.
 
-With `type`, "Add-ons" comes before "Applications" in alphabetical order; `type(applications)` puts the applications first.
+With `type`, "Applications" comes before "Add-ons", as the hint under the field says; `type(add-ons)` puts the add-ons first.
 
 Sorting the list by its Cost column also orders the groups, by their total; see [Sorting](/guide/organisation-home#sorting).
 
@@ -120,8 +120,8 @@ A key holds no space and no parenthesis; spaces around `>`, `,` and before `(` d
 | `project > env(prod,dev)`         | the same, production first in each project                    |
 | `env(prod,staging,dev) > project` | per environment first, then per project                       |
 | `team > project > env`            | three levels                                                  |
-| `type > runtime`                  | add-ons and applications, then their providers and runtimes   |
-| `type(applications) > runtime`    | the same, applications first                                  |
+| `type > runtime`                  | applications and add-ons, then their runtimes and providers   |
+| `type(add-ons) > runtime`         | the same, add-ons first                                       |
 | `provider`                        | the add-ons by provider, with a filter such as `is:addon`     |
 | `state`                           | running, starting, stopped…                                   |
 | `project > state`                 | what runs and what is stopped, project by project             |

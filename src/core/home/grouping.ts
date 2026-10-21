@@ -221,7 +221,8 @@ function build(
   inherited: ReadonlySet<string>,
   context: GroupingContext,
 ): GroupNode[] {
-  const { key, order } = keys[level - 1];
+  const { key } = keys[level - 1];
+  const order = keys[level - 1].order.length > 0 ? keys[level - 1].order : defaultOrder(key);
   const buckets = new Map<string, { label: string; items: Item[]; inferred: Set<string> }>();
   const missing: Item[] = [];
   for (const item of items) {
@@ -325,6 +326,11 @@ function leaf(
     appCount: apps.length,
     addonCount: addons.length,
   };
+}
+
+/** The order of a key's first groups when the expression gives none: applications before add-ons. */
+function defaultOrder(key: string): string[] {
+  return key === 'type' ? [normalise(t('grouping.applications')), normalise(t('grouping.addons'))] : [];
 }
 
 function valuesOf(item: Item, key: string, context: GroupingContext): Values {
