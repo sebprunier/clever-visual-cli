@@ -170,7 +170,7 @@ src/core/      vault (crypto, profiles), session, router, palette model, actions
 src/data/      the only module that imports the @clevercloud/client commands
 src/i18n/      message dictionaries (en.ts is the reference, fr.ts must match its keys)
 src/ui/        Lit components: shell, sign-in, unlock, palette, pages, dialogs
-scripts/       checks outside the browser
+scripts/       checks outside the browser, and the screenshots of the documentation (scripts/screenshots/)
 docs/          the user documentation (VitePress), published under docs/ beside the site
 ```
 

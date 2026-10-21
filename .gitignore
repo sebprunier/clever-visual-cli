@@ -25,3 +25,6 @@ dist-ssr
 
 # VitePress cache of the documentation
 docs/.vitepress/cache
+# Raw API answers recorded for the screenshots, and the real names to record: never committed
+scripts/screenshots/.raw
+scripts/screenshots/targets.local.json

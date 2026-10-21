@@ -1,0 +1,10 @@
+{
+  "organisation": "My organisation",
+  "resources": {
+    "app": "an-application-that-runs",
+    "failedApp": "an-application-whose-last-deployment-failed",
+    "database": "a-postgresql-add-on-with-backups",
+    "cellar": "a-cellar-add-on",
+    "logsApps": ["an-application-that-runs", "another-one", "a-third-one"]
+  }
+}

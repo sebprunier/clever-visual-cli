@@ -1,0 +1,14 @@
+{
+  "orga": "orga_60b0b979-01a8-40ae-819a-b6fc6a8ce0e8",
+  "app": "app_abcd21cb-b6eb-4df6-85d0-91990bbe271f",
+  "failedApp": "app_08cdf809-8d11-4cbb-8158-9d01357de577",
+  "database": "addon_9818fdcf-f67b-49bf-88ea-dea9f6afe8c3",
+  "cellar": "addon_6671c6c3-aa78-4986-81ee-52eeca9332b8",
+  "logsApps": [
+    "app_abcd21cb-b6eb-4df6-85d0-91990bbe271f",
+    "app_f537cfed-a6b2-4ff4-87b5-46a4dbf1f6b6",
+    "app_139d7185-af24-403d-8ee0-142f31d29c67"
+  ],
+  "failedDeployment": "deployment_731f50f1-c1e2-4d30-8dfe-a0017fc8091a",
+  "recordedAt": "2026-10-21T09:02:49.503Z"
+}
