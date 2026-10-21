@@ -9,8 +9,8 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { fetchAddonInstances, type AddonInstance, type AddonSummary, type ApplicationSummary } from '../../data/api.js';
 import { operatorKind, operatorState } from '../addons/operator.js';
 import { addonState, type AddonState } from './addon-state.js';
-import { clearDbVersionStorage, DbVersionStore } from './db-version-store.js';
-import { clearOperatorVersionStorage, OperatorVersionStore } from './operator-version-store.js';
+import { DbVersionStore } from './db-version-store.js';
+import { OperatorVersionStore } from './operator-version-store.js';
 
 const FRESH_FOR = 60_000;
 const SHARED_FOR = 24 * 60 * 60_000;
@@ -202,18 +202,5 @@ function readMarks(ownerId: string): Record<string, number> {
     );
   } catch {
     return {};
-  }
-}
-
-/** For "Erase everything from this browser". */
-export function clearAddonStorage(): void {
-  clearDbVersionStorage();
-  clearOperatorVersionStorage();
-  try {
-    for (const key of Object.keys(localStorage).filter((key) => key.startsWith('cvc.addon-instances.'))) {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Not essential.
   }
 }

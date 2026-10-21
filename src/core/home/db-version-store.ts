@@ -151,14 +151,3 @@ function readFresh<T>(key: string, valid: (value: unknown) => boolean): Record<s
     return {};
   }
 }
-
-/** For "Erase everything from this browser". */
-export function clearDbVersionStorage(): void {
-  try {
-    for (const key of Object.keys(localStorage).filter((key) => key.startsWith(PREFIX))) {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Not essential.
-  }
-}

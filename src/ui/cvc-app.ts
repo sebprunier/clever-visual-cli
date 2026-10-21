@@ -9,7 +9,7 @@ import {
   type ActionResult,
   type ActionValues,
 } from '../core/actions.js';
-import { clearCliReleaseStorage, isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
+import { isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
 import { CLI_VERSION } from '../core/constants.js';
@@ -18,9 +18,10 @@ import { markEnvChanged } from '../core/env-pending.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
-import { AddonStore, clearAddonStorage } from '../core/home/addon-store.js';
-import { clearCostStorage, CostStore } from '../core/home/cost-store.js';
-import { clearHomeStorage, HomeStore } from '../core/home/home-store.js';
+import { AddonStore } from '../core/home/addon-store.js';
+import { CostStore } from '../core/home/cost-store.js';
+import { HomeStore } from '../core/home/home-store.js';
+import { eraseLocalData } from '../core/local-data.js';
 import { recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
 import {
@@ -289,11 +290,7 @@ export class CvcApp extends CvcElement {
     this.syncStore.detach();
     this.session?.deactivate();
     this.session?.vault.destroy();
-    clearClientCaches();
-    clearHomeStorage();
-    clearCliReleaseStorage();
-    clearCostStorage();
-    clearAddonStorage();
+    eraseLocalData();
     this.costStore.forget();
     this.addonStore.forget();
     void this.syncPhase();

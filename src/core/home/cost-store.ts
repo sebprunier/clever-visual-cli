@@ -337,13 +337,3 @@ function writeStored(ownerId: string, data: OwnerCosts): void {
     // Not essential.
   }
 }
-
-export function clearCostStorage(): void {
-  try {
-    for (const key of Object.keys(localStorage).filter((key) => key.startsWith('cvc.costs.'))) {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Not essential.
-  }
-}

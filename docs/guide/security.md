@@ -95,12 +95,12 @@ object-src 'none'
 
 ## Erase everything {#erase}
 
-"Erase everything from this browser", on the "Accounts in this browser" page, acts at once and removes:
+"Erase everything from this browser", on the "Accounts in this browser" page, acts at once and removes every key of clever-visual-cli, all starting with `cvc.`, from `localStorage` and `sessionStorage`:
 
 - the vault and every account in it, encrypted or not, with the key of the tab;
-- the cache of `@clevercloud/client` (`cvc.resource-ids`);
-- the home page data: `cvc.links.*`, `cvc.home.*`, `cvc.favorites.*`, `cvc.recents`, `cvc.side.folded`, `cvc.sync.*`, `cvc.costs.*`, `cvc.addon-instances.*`, `cvc.db-versions.*`, `cvc.operator-versions.*` and `cvc.cli-release`.
+- the cache of `@clevercloud/client`, the home page data, the costs, the add-on caches and the clever-tools release;
+- the language, the theme, the organisation opened last, the folded list, the two logs layouts and `cvc.env-changed`.
 
-It leaves your language and theme, the organisation opened last, the folded list and the two logs layouts, and `cvc.env-changed` until the tab closes. Nothing changes on Clever Cloud's side: your tokens stay valid, and the views sync add-on stays. To remove everything, clear the site data of the page in your browser's settings.
+The page keeps its language and theme until it is loaded again; the next visit starts from the settings of the browser. Nothing changes on Clever Cloud's side: your tokens stay valid, and the views sync add-on stays.
 
 On the unlock page, "Forget this vault" erases the vault alone.

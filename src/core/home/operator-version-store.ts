@@ -131,14 +131,3 @@ function readFresh(key: string): Record<string, Dated> {
     return {};
   }
 }
-
-/** For "Erase everything from this browser". */
-export function clearOperatorVersionStorage(): void {
-  try {
-    for (const key of Object.keys(localStorage).filter((key) => key.startsWith(PREFIX))) {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Not essential.
-  }
-}

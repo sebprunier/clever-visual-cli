@@ -219,23 +219,3 @@ function writeLinks(ownerId: string, stored: StoredLinks): void {
     // Not essential.
   }
 }
-
-/** Removes everything the home page keeps in localStorage: link caches, preferences, recent visits. */
-export function clearHomeStorage(): void {
-  try {
-    const keys = Object.keys(localStorage).filter(
-      (key) =>
-        key.startsWith('cvc.links.') ||
-        key.startsWith('cvc.home.') ||
-        key.startsWith('cvc.favorites.') ||
-        key === 'cvc.recents' ||
-        key === 'cvc.side.folded' ||
-        key.startsWith('cvc.sync.'),
-    );
-    for (const key of keys) {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Not essential.
-  }
-}

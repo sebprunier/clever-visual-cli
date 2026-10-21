@@ -76,11 +76,3 @@ export async function latestRelease(fetcher: typeof fetch = fetch, now = Date.no
     return stored?.version ?? null;
   }
 }
-
-export function clearCliReleaseStorage(): void {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // Nothing to clear.
-  }
-}
