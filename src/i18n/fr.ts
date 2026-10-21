@@ -43,6 +43,11 @@ export const fr: Record<MessageKey, string> = {
   'account.active': 'actif',
   'account.use': 'Utiliser',
   'account.eraseAll': 'Tout effacer de ce navigateur',
+  'account.eraseWarning':
+    'Cela retire les {count} comptes de ce navigateur, avec leurs tokens, et tout ce que clever-visual-cli y garde : préférences, vues favorites, caches. Les tokens restent valides côté Clever Cloud, de même que l’add-on de synchronisation des vues, s’il existe.',
+  'account.eraseWarning_one':
+    'Cela retire le compte de ce navigateur, avec son token, et tout ce que clever-visual-cli y garde : préférences, vues favorites, caches. Le token reste valide côté Clever Cloud, de même que l’add-on de synchronisation des vues, s’il existe.',
+  'account.eraseConfirm': 'Tout effacer',
   'palette.keys': '↑↓ naviguer · ↵ ouvrir · esc fermer',
   'palette.refreshData': 'Rafraîchir les données',
   'palette.switchAccount': 'Passer au compte {name}',

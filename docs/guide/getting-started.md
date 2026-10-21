@@ -78,7 +78,7 @@ The button at the top right, with your name and e-mail, opens the account menu:
 
 ### Erase everything from this browser {#erase}
 
-This button, on the "Accounts in this browser" page, removes every account and token, encrypted or not, and everything else clever-visual-cli keeps in this browser: preferences, favourite views, caches. It acts at once, without asking for confirmation. Nothing changes on Clever Cloud's side: your tokens stay valid, and so does the views sync add-on if you have one. [Security and privacy](/guide/security#erase) lists what it removes.
+This button, on the "Accounts in this browser" page, removes every account and token, encrypted or not, and everything else clever-visual-cli keeps in this browser: preferences, favourite views, caches. It asks first: a red box says what goes, with **Erase everything** to confirm and **Cancel**. Nothing changes on Clever Cloud's side: your tokens stay valid, and so does the views sync add-on if you have one. [Security and privacy](/guide/security#erase) lists what it removes.
 
 ## Why not sign in through the Console {#oauth}
 

@@ -47,6 +47,11 @@ export const en = {
   'account.active': 'active',
   'account.use': 'Use',
   'account.eraseAll': 'Erase everything from this browser',
+  'account.eraseWarning':
+    'This removes the {count} accounts of this browser, with their tokens, and everything clever-visual-cli keeps here: preferences, favourite views, caches. The tokens stay valid on Clever Cloud’s side, and so does the add-on of the views sync, if there is one.',
+  'account.eraseWarning_one':
+    'This removes the account of this browser, with its token, and everything clever-visual-cli keeps here: preferences, favourite views, caches. The token stays valid on Clever Cloud’s side, and so does the add-on of the views sync, if there is one.',
+  'account.eraseConfirm': 'Erase everything',
   'palette.keys': '↑↓ move · ↵ open · esc close',
   'palette.refreshData': 'Refresh data',
   'palette.switchAccount': 'Switch to account {name}',

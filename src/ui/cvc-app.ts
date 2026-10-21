@@ -75,6 +75,8 @@ export class CvcApp extends CvcElement {
   @state() private currentApp: Application | null = null;
   @state() private pendingAction: PendingAction | null = null;
   @state() private revision = 0;
+  /** "Erase everything from this browser" asks first (#17). */
+  @state() private confirmErase = false;
   /** The latest clever-tools release on npm, null while unknown. */
   @state() private latestCli: string | null = null;
 
@@ -150,6 +152,7 @@ export class CvcApp extends CvcElement {
     window.addEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
+      this.confirmErase = false;
       const owner = routeOwner(route);
       if (owner != null) {
         rememberOwner(owner);
@@ -287,6 +290,7 @@ export class CvcApp extends CvcElement {
   }
 
   private destroyEverything(): void {
+    this.confirmErase = false;
     this.syncStore.detach();
     this.session?.deactivate();
     this.session?.vault.destroy();
@@ -817,10 +821,30 @@ export class CvcApp extends CvcElement {
             <button type="button" @click=${() => (this.phase = 'adding')}>${t('shell.addAccount')}</button>
             ${vault.mode === 'encrypted' ? html`<button type="button" @click=${this.lock}>${t('shell.lock')}</button>` : nothing}
             <button type="button" @click=${this.forgetActiveAccount}>${t('shell.logout')}</button>
-            <button type="button" class="ghost danger" @click=${this.destroyEverything}>
+            <button
+              type="button"
+              class="ghost danger"
+              aria-expanded=${this.confirmErase ? 'true' : 'false'}
+              @click=${() => (this.confirmErase = true)}
+            >
               ${t('account.eraseAll')}
             </button>
           </div>
+          ${
+            this.confirmErase
+              ? html`<div class="erase-confirm stack" role="alert">
+                  <p class="small">${t('account.eraseWarning', { count: vault.profiles.length })}</p>
+                  <div class="row">
+                    <button type="button" class="danger-solid" @click=${this.destroyEverything}>
+                      ${t('account.eraseConfirm')}
+                    </button>
+                    <button type="button" class="ghost" @click=${() => (this.confirmErase = false)}>
+                      ${t('common.cancel')}
+                    </button>
+                  </div>
+                </div>`
+              : nothing
+          }
         </section>
         ${this.renderSync()}
         <section class="card stack">
@@ -1065,6 +1089,18 @@ export class CvcApp extends CvcElement {
       button.danger {
         color: var(--cvc-danger);
         border-color: var(--cvc-danger);
+      }
+      .erase-confirm {
+        gap: 0.6rem;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid var(--cvc-danger);
+        border-radius: var(--cvc-radius);
+        background: color-mix(in srgb, var(--cvc-danger) 6%, transparent);
+      }
+      button.danger-solid {
+        background: var(--cvc-danger);
+        color: var(--cvc-accent-text);
+        border-color: transparent;
       }
       @media (max-width: 720px) {
         main {

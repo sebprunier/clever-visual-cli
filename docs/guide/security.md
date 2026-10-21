@@ -95,7 +95,7 @@ object-src 'none'
 
 ## Erase everything {#erase}
 
-"Erase everything from this browser", on the "Accounts in this browser" page, acts at once and removes every key of clever-visual-cli, all starting with `cvc.`, from `localStorage` and `sessionStorage`:
+"Erase everything from this browser", on the "Accounts in this browser" page, asks for a confirmation, then removes every key of clever-visual-cli, all starting with `cvc.`, from `localStorage` and `sessionStorage`:
 
 - the vault and every account in it, encrypted or not, with the key of the tab;
 - the cache of `@clevercloud/client`, the home page data, the costs, the add-on caches and the clever-tools release;
