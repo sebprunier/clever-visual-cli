@@ -5,9 +5,6 @@ hero:
   name: clever-visual-cli
   text: A visual interface of clever-tools, with a few extras
   tagline: Not a new Console. A static page that lays the clever-tools commands out on screen; everything happens between your browser and the Clever Cloud APIs.
-  image:
-    src: /logo.svg
-    alt: ''
   actions:
     - theme: brand
       text: Get started

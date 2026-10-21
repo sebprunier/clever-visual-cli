@@ -9,6 +9,7 @@
  *   CVC_MOTION_WIDTH=1280 CVC_MOTION_BITRATE=700000 CVC_MOTION_NAME=clever-visual-cli-720p \
  *     node scripts/motion/render.mjs                  # a lighter one, 720p, under 10 MB
  *   node scripts/motion/render.mjs --stills 1,9.5,47  # a few moments, as PNG, into out/stills/
+ *   node scripts/motion/render.mjs --poster 3.2       # the picture shown before the video plays, out/poster.jpg
  *   node scripts/motion/render.mjs --preview          # a link to play it in a browser
  */
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -81,6 +82,16 @@ async function render() {
       await page.screenshot({ path });
       console.log('still', path);
     }
+    await browser.close();
+    return;
+  }
+
+  if (args[0] === '--poster') {
+    // The picture a page shows before the video plays: one moment, as JPEG.
+    await seek(Number(args[1]));
+    const path = join(OUT, 'poster.jpg');
+    await page.screenshot({ path, type: 'jpeg', quality: 82 });
+    console.log('poster', path);
     await browser.close();
     return;
   }
