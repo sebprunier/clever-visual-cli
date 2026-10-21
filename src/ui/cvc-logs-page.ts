@@ -100,7 +100,27 @@ export class CvcLogsPage extends CvcElement {
 
   private readonly onChange = () => this.requestUpdate();
 
+  /** What the URL asks for: the applications, and the restarts to follow. */
+  #requested = '';
+  /**
+   * The same page with another set of applications, or back from the restarts to the live logs
+   * ("Back to the live logs"): the shell keeps this element, so the URL is read again here.
+   */
+  private readonly onHashChange = () => {
+    const params = readHashParams();
+    const requested = ['apps', 'deployments', 'from'].map((key) => params.get(key) ?? '').join('|');
+    if (requested !== this.#requested) {
+      this.openFromUrl();
+    }
+  };
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener('hashchange', this.onHashChange);
+  }
+
   override disconnectedCallback(): void {
+    window.removeEventListener('hashchange', this.onHashChange);
     this.closeAll();
     this.store?.removeEventListener('change', this.onChange);
     super.disconnectedCallback();
@@ -134,6 +154,7 @@ export class CvcLogsPage extends CvcElement {
     }
     const byId = new Map(this.orga.applications.filter((app) => !app.isArchived).map((app) => [app.id, app]));
     const params = readHashParams();
+    this.#requested = ['apps', 'deployments', 'from'].map((key) => params.get(key) ?? '').join('|');
     const restarts = parseRestarts(params.get('deployments'));
     const from = parseFrom(params.get('from'));
     this.restarts = from == null ? new Map() : restarts;
