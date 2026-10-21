@@ -370,6 +370,8 @@ Beside the list, a column holds three cards. It stays in view while you scroll, 
 
 The state of the platform, read from the public status page, [clevercloudstatus.com](https://www.clevercloudstatus.com/), and read again every five minutes and on **Refresh**. While all is well, it is one line, "Clever Cloud operational", with a link to the status page whose tooltip gives the last incident resolved. During an incident, the card says how many are in progress, names each one with when it started and the components it affects, and links to it.
 
+The maintenances not closed yet show too, in blue where an incident is orange: in progress first, then delayed, then planned by date. Each one has its name, linking to its page on the status page, its state ("in progress", "delayed", "planned for Oct 30, 2026, 2:45 PM"), the components under maintenance and the regions concerned when the page names some. During an incident, they come after it under a "Maintenances" heading. Their message and the updates posted along the way stay on the status page, one click away.
+
 ### To watch {#to-watch}
 
 The applications and add-ons that deserve a look, whatever the filter, with their count:

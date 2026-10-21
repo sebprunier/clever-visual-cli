@@ -6,18 +6,20 @@ import {
   platformStatusChanges,
   STATUS_PAGE_URL,
   type PlatformIncident,
+  type PlatformMaintenance,
   type PlatformStatus,
 } from '../core/home/platform-status.js';
 import { t } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
-import { formatRelative } from './shared/format.js';
+import { formatDateTime, formatRelative } from './shared/format.js';
 import { sharedStyles } from './shared/styles.js';
 
 const REFRESH_EVERY = 5 * 60_000;
 
 /**
  * Card with the state of the Clever Cloud platform, read from the public
- * status page and refreshed every five minutes while displayed.
+ * status page and refreshed every five minutes while displayed: incidents
+ * in progress and open maintenances.
  */
 @customElement('cvc-platform-status')
 export class CvcPlatformStatus extends CvcElement {
@@ -42,9 +44,17 @@ export class CvcPlatformStatus extends CvcElement {
         border-left-color: var(--cvc-warn);
         background: color-mix(in srgb, var(--cvc-warn) 8%, var(--cvc-surface));
       }
+      .card.maintenance {
+        border-left-color: var(--cvc-info);
+        background: color-mix(in srgb, var(--cvc-info) 6%, var(--cvc-surface));
+      }
       h2 {
         margin: 0;
         font-size: 0.95rem;
+      }
+      h3 {
+        margin: 0.25rem 0 0;
+        font-size: 0.85rem;
       }
       .headline {
         display: flex;
@@ -64,6 +74,9 @@ export class CvcPlatformStatus extends CvcElement {
       }
       .incident .dot {
         background: var(--cvc-warn);
+      }
+      .maintenance .dot {
+        background: var(--cvc-info);
       }
       ul {
         list-style: none;
@@ -133,7 +146,7 @@ export class CvcPlatformStatus extends CvcElement {
   override render() {
     const status = this.status;
     const state = status?.state ?? 'unknown';
-    // All is well: one line, the last incident in the link's tooltip. The full card is for incidents.
+    // All is well: one line, the last incident in the link's tooltip. The full card is for incidents and maintenances.
     if (status != null && status.state === 'operational' && status.active.length === 0) {
       const resolved = status.lastResolved;
       return html`<section class="card operational compact" aria-live="polite">
@@ -166,6 +179,7 @@ export class CvcPlatformStatus extends CvcElement {
             </ul>`
           : nothing
       }
+      ${this.renderMaintenances(status)}
       <p class="muted small foot">
         ${this.lastResolved(status)}
         <a href=${STATUS_PAGE_URL} target="_blank" rel="noopener">clevercloudstatus.com</a>
@@ -180,6 +194,12 @@ export class CvcPlatformStatus extends CvcElement {
     switch (status.state) {
       case 'operational':
         return t('status.operational');
+      case 'maintenance': {
+        const count = status.maintenances.filter((maintenance) => maintenance.phase === 'in-progress').length;
+        return count > 0
+          ? t('status.maintenancesInProgress', { count })
+          : t('status.maintenancesPlanned', { count: status.maintenances.length });
+      }
       case 'incident':
         return status.active.length > 0 ? t('status.incidents', { count: status.active.length }) : status.label;
       case 'unknown':
@@ -192,6 +212,35 @@ export class CvcPlatformStatus extends CvcElement {
     return html`<li>
       <a href=${incident.url} target="_blank" rel="noopener">${incident.name}</a>
       <span class="muted small">${detail.join(' · ')}</span>
+    </li>`;
+  }
+
+  /** Under the incidents with a heading of their own; without incident, the headline says enough. */
+  private renderMaintenances(status: PlatformStatus | null) {
+    if (status == null || status.maintenances.length === 0) {
+      return nothing;
+    }
+    return html`${status.state === 'maintenance' ? nothing : html`<h3>${t('status.maintenances')}</h3>`}
+      <ul>
+        ${status.maintenances.map((maintenance) => this.renderMaintenance(maintenance))}
+      </ul>`;
+  }
+
+  private renderMaintenance(maintenance: PlatformMaintenance) {
+    const phase =
+      maintenance.phase === 'in-progress'
+        ? t('status.maintenance.inProgress')
+        : maintenance.phase === 'delayed'
+          ? t('status.maintenance.delayed')
+          : t('status.maintenance.planned', { when: formatDateTime(maintenance.scheduledAt) });
+    const detail = [phase, ...maintenance.components, ...maintenance.regions];
+    return html`<li>
+      <a href=${maintenance.url} target="_blank" rel="noopener">${maintenance.name}</a>
+      <span
+        class="muted small"
+        title=${maintenance.phase === 'planned' ? formatRelative(maintenance.scheduledAt) : nothing}
+        >${detail.join(' · ')}</span
+      >
     </li>`;
   }
 
