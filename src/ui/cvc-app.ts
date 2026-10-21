@@ -753,10 +753,7 @@ export class CvcApp extends CvcElement {
                 html`<li class="row">
                   <span>
                     <strong>${profile.name ?? profile.email}</strong>
-                    <span class="muted small"
-                      >${profile.email} ·
-                      ${profile.credentials.type === 'api-token' ? t('account.apiToken') : 'OAuth'}</span
-                    >
+                    <span class="muted small">${profile.email} · ${t('account.apiToken')}</span>
                   </span>
                   ${
                     profile.id === session.profile?.id

@@ -1,5 +1,5 @@
 import { t } from '../i18n.js';
-import type { Credentials } from '../credentials.js';
+import { isAcceptedCredentials, type Credentials } from '../credentials.js';
 import {
   decryptJson,
   deriveKey,
@@ -58,6 +58,7 @@ export class Vault extends EventTarget {
   #data: VaultData = EMPTY_DATA;
   #derived: DerivedKey | null = null;
   #blob: EncryptedBlob | null = null;
+  #retired = 0;
 
   get state(): VaultState {
     return this.#state;
@@ -69,6 +70,14 @@ export class Vault extends EventTarget {
 
   get profiles(): readonly StoredProfile[] {
     return this.#data.profiles;
+  }
+
+  /**
+   * How many stored accounts were dropped at this load because they signed in
+   * with OAuth v1, no longer accepted (#14); the sign-in page says so once.
+   */
+  get retired(): number {
+    return this.#retired;
   }
 
   get activeProfile(): StoredProfile | null {
@@ -94,6 +103,9 @@ export class Vault extends EventTarget {
           removeItem(sessionStorage, SESSION_KEY_KEY);
         }
       }
+      if (vault.#state === 'unlocked') {
+        await vault.#dropRetired();
+      }
       return vault;
     }
 
@@ -102,6 +114,7 @@ export class Vault extends EventTarget {
       vault.#data = sessionData;
       vault.#mode = 'session';
       vault.#state = 'unlocked';
+      await vault.#dropRetired();
     }
     return vault;
   }
@@ -115,6 +128,7 @@ export class Vault extends EventTarget {
     this.#derived = derived;
     this.#state = 'unlocked';
     writeString(sessionStorage, SESSION_KEY_KEY, await exportKey(derived.key));
+    await this.#dropRetired();
     this.#emit();
   }
 
@@ -188,6 +202,29 @@ export class Vault extends EventTarget {
     this.#data = EMPTY_DATA;
     this.#state = 'empty';
     this.#emit();
+  }
+
+  /**
+   * Drops the accounts that signed in with OAuth v1 (the Console flow, or the
+   * pair `clever login` stores): they would borrow the identity of clever-tools.
+   * The vault goes when nothing is left.
+   */
+  async #dropRetired(): Promise<void> {
+    const kept = this.#data.profiles.filter((profile) => isAcceptedCredentials(profile.credentials));
+    const dropped = this.#data.profiles.length - kept.length;
+    if (dropped === 0) {
+      return;
+    }
+    this.#retired += dropped;
+    if (kept.length === 0) {
+      this.destroy();
+      return;
+    }
+    const activeProfileId = kept.some((profile) => profile.id === this.#data.activeProfileId)
+      ? this.#data.activeProfileId
+      : kept[0].id;
+    this.#data = { ...this.#data, profiles: kept, activeProfileId };
+    await this.#persist();
   }
 
   async #persist(): Promise<void> {

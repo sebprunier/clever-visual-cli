@@ -1,32 +1,15 @@
 import { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { LocalStorageStore } from '@clevercloud/client/cc-api-local-storage-store.js';
-import { OAUTH_CONSUMER_KEY, OAUTH_CONSUMER_SECRET, RESOURCE_ID_CACHE_KEY } from './constants.js';
+import { RESOURCE_ID_CACHE_KEY } from './constants.js';
 import type { Credentials } from './credentials.js';
 
-type CcApiClientConfig = NonNullable<ConstructorParameters<typeof CcApiClient>[0]>;
-type CcApiAuth = NonNullable<CcApiClientConfig['authMethod']>;
-
 /**
- * Builds the `@clevercloud/client` command client for a set of credentials.
- * The client picks the right host by itself: api-bridge for API tokens,
- * api.clever-cloud.com for OAuth v1.
+ * Builds the `@clevercloud/client` command client for an API token: the client
+ * sends every call to api-bridge.clever-cloud.com with it as a Bearer header.
  */
 export function createClient(credentials: Credentials): CcApiClient {
-  const authMethod: CcApiAuth =
-    credentials.type === 'api-token'
-      ? { type: 'api-token', apiToken: credentials.apiToken }
-      : {
-          type: 'oauth-v1',
-          oauthTokens: {
-            consumerKey: OAUTH_CONSUMER_KEY,
-            consumerSecret: OAUTH_CONSUMER_SECRET,
-            token: credentials.token,
-            secret: credentials.secret,
-          },
-        };
-
   return new CcApiClient({
-    authMethod,
+    authMethod: { type: 'api-token', apiToken: credentials.apiToken },
     // The client defaults to `mode: 'same-origin'` on fetch, which a browser
     // rejects for a cross-origin URL before any request leaves. Both API hosts
     // answer CORS preflights for any origin, so opt in explicitly.

@@ -3,7 +3,6 @@ import { t } from '../core/i18n.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
-import { loginViaConsole } from '../core/console-login.js';
 import type { Credentials } from '../core/credentials.js';
 import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
@@ -11,19 +10,19 @@ import { appMark } from './shared/brand.js';
 import './shared/cvc-cli.js';
 import { sharedStyles } from './shared/styles.js';
 
+/** What `pnpm dev:cli` serves: the API token of `CVC_DEV_API_TOKEN`. */
 interface DevProfile {
-  alias: string;
-  email?: string;
-  credentials: Credentials;
+  apiToken: string;
 }
 
 type Step = { kind: 'credentials' } | { kind: 'save'; credentials: Credentials; account: AccountInfo };
 
 /**
- * Sign-in in two steps: get credentials (token, Console flow, OAuth pair),
- * verify them against the API, then decide how to keep them (encrypted vault
- * or session only). When the vault already holds accounts, the second step is
- * skipped and the account is simply added.
+ * Sign-in in two steps: an API token, verified against the API, then how to
+ * keep it (encrypted vault or session only). When the vault already holds
+ * accounts, the second step is skipped and the account is simply added. API
+ * tokens only: the Console flow and the OAuth pair of `clever login` would
+ * borrow the identity of clever-tools (#14).
  */
 @customElement('cvc-login')
 export class CvcLogin extends CvcElement {
@@ -34,7 +33,6 @@ export class CvcLogin extends CvcElement {
   @state() private step: Step = { kind: 'credentials' };
   @state() private busy = false;
   @state() private error: string | null = null;
-  @state() private consoleStatus: string | null = null;
   @state() private devProfile: DevProfile | null = null;
 
   override connectedCallback(): void {
@@ -63,25 +61,6 @@ export class CvcLogin extends CvcElement {
     if (apiToken) {
       void this.verify({ type: 'api-token', apiToken });
     }
-  }
-
-  private onOauthSubmit(event: SubmitEvent): void {
-    event.preventDefault();
-    const token = readField(event, 'token');
-    const secret = readField(event, 'secret');
-    if (token && secret) {
-      void this.verify({ type: 'oauth-v1', token, secret });
-    }
-  }
-
-  private onConsoleLogin(): void {
-    this.error = null;
-    this.consoleStatus = t('login.console.status');
-    // No `await` before `loginViaConsole`: the popup must open inside the click.
-    loginViaConsole({ onStatus: (status) => (this.consoleStatus = status) })
-      .then((credentials) => this.verify(credentials))
-      .catch((error) => (this.error = describeError(error)))
-      .finally(() => (this.consoleStatus = null));
   }
 
   private async verify(credentials: Credentials): Promise<void> {
@@ -174,6 +153,11 @@ export class CvcLogin extends CvcElement {
           <h1>${appMark(26)}clever-visual-cli</h1>
           <p class="muted">${this.adding ? t('login.addAccount') : t('login.tagline')}</p>
         </header>
+        ${
+          this.session.vault.retired > 0
+            ? html`<p class="notice small">${t('login.retired', { count: this.session.vault.retired })}</p>`
+            : nothing
+        }
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
         ${this.step.kind === 'credentials' ? this.renderCredentials() : this.renderSave(this.step.account)}
         ${
@@ -200,14 +184,13 @@ export class CvcLogin extends CvcElement {
           ? html`<section class="card dev">
               <h2>${t('login.devProfile.title')}</h2>
               <p class="muted small">
-                ${t('login.devProfile.before')} <code>${this.devProfile.alias}</code>
-                ${this.devProfile.email ? html`(${this.devProfile.email})` : nothing} ${t('login.devProfile.after')}
+                ${t('login.devProfile.before')} <code>CVC_DEV_API_TOKEN</code>${t('login.devProfile.after')}
               </p>
               <button
                 type="button"
                 class="primary"
                 ?disabled=${this.busy}
-                @click=${() => this.verify(this.devProfile!.credentials)}
+                @click=${() => this.verify({ type: 'api-token', apiToken: this.devProfile!.apiToken })}
               >
                 ${t('login.devProfile.use')}
               </button>
@@ -228,33 +211,6 @@ export class CvcLogin extends CvcElement {
             placeholder=${t('login.apiToken.placeholder')}
             required
           />
-          <button type="submit" class="primary" ?disabled=${this.busy}>${t('login.signIn')}</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>${t('login.console.title')}</h2>
-        <p class="muted small">${t('login.console.before')} <code>clever login</code>${t('login.console.after')}</p>
-        <button
-          type="button"
-          class="primary"
-          ?disabled=${this.busy || this.consoleStatus != null}
-          @click=${this.onConsoleLogin}
-        >
-          ${t('login.console.button')}
-        </button>
-        ${this.consoleStatus ? html`<p class="muted small">${this.consoleStatus}</p>` : nothing}
-      </section>
-
-      <section class="card">
-        <h2>${t('login.oauth.title')}</h2>
-        <p class="muted small">
-          ${t('login.oauth.before')} <code>clever login</code> ${t('login.oauth.middle')}
-          <code>clever-tools.json</code>.
-        </p>
-        <form class="row" @submit=${this.onOauthSubmit}>
-          <input name="token" type="password" autocomplete="off" placeholder=${t('login.oauth.token')} required />
-          <input name="secret" type="password" autocomplete="off" placeholder=${t('login.oauth.secret')} required />
           <button type="submit" class="primary" ?disabled=${this.busy}>${t('login.signIn')}</button>
         </form>
       </section>
@@ -316,6 +272,12 @@ export class CvcLogin extends CvcElement {
         display: flex;
         align-items: center;
         gap: 0.6rem;
+      }
+      .notice {
+        padding: 0.6rem 0.8rem;
+        border: 1px solid color-mix(in srgb, var(--cvc-info) 40%, var(--cvc-border));
+        border-radius: var(--cvc-radius);
+        background: color-mix(in srgb, var(--cvc-info) 8%, transparent);
       }
       section.card h2 {
         margin-bottom: 0.25rem;

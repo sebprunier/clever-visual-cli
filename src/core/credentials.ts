@@ -1,49 +1,19 @@
 /**
- * What the user hands us to talk to the API.
+ * What the user hands us to talk to the API: an API token, created in the
+ * Console (Profile → API tokens) or with `clever tokens create`, sent as a
+ * Bearer header to api-bridge.clever-cloud.com. Revocable, expirable, and
+ * created for this purpose, so the calls carry an identity of their own.
  *
- * - `api-token`: a token created in the Console (or with `clever tokens create`),
- *   sent as a Bearer header to api-bridge.clever-cloud.com. Revocable, expirable.
- * - `oauth-v1`: the token/secret pair `clever login` stores in
- *   ~/.config/clever-cloud/clever-tools.json, used against api.clever-cloud.com
- *   with the public clever-tools consumer.
+ * OAuth v1 (the Console flow and the token/secret pair `clever login` stores)
+ * is not accepted: it would borrow the identity of clever-tools (#14).
  */
-export type Credentials =
-  | { type: 'api-token'; apiToken: string }
-  | { type: 'oauth-v1'; token: string; secret: string; expirationDate?: string };
-
-export interface CredentialsStore {
-  read(): Credentials | null;
-  write(credentials: Credentials): void;
-  clear(): void;
+export interface Credentials {
+  type: 'api-token';
+  apiToken: string;
 }
 
-const SESSION_KEY = 'cvc.credentials';
-
-/**
- * Phase 0 store: sessionStorage only. Survives a reload, dies with the tab.
- * Phase 1 replaces it with an encrypted localStorage store (passphrase / passkey).
- */
-export const sessionCredentialsStore: CredentialsStore = {
-  read() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      return raw == null ? null : (JSON.parse(raw) as Credentials);
-    } catch {
-      return null;
-    }
-  },
-  write(credentials) {
-    try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(credentials));
-    } catch {
-      // Private mode or blocked storage: the session simply won't survive a reload.
-    }
-  },
-  clear() {
-    try {
-      sessionStorage.removeItem(SESSION_KEY);
-    } catch {
-      // Nothing to clear.
-    }
-  },
-};
+/** True for credentials still accepted; older stored accounts may hold OAuth v1 ones. */
+export function isAcceptedCredentials(value: unknown): value is Credentials {
+  const credentials = value as Partial<Credentials> | null;
+  return credentials?.type === 'api-token' && typeof credentials.apiToken === 'string' && credentials.apiToken !== '';
+}

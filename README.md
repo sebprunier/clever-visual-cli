@@ -28,12 +28,12 @@ Then come the extras, the few things a screen does better than a terminal:
 
 ## Why it was easy
 
-clever-tools and the Clever Cloud APIs are well designed and well documented. [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the Console are built on, runs in a browser as it is: the same commands, API token and OAuth authentication, log streams, and the APIs answer any origin. So this project is mostly interface work, a static page without a backend; the platform did the hard part. Thanks to the Clever Cloud teams for that.
+clever-tools and the Clever Cloud APIs are well designed and well documented. [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the Console are built on, runs in a browser as it is: the same commands, API token authentication, log streams, and the APIs answer any origin. So this project is mostly interface work, a static page without a backend; the platform did the hard part. Thanks to the Clever Cloud teams for that.
 
 ## Principles
 
 - **Front-end only.** A static page that talks to the Clever Cloud API from the browser. Nothing in between, nothing to host, no telemetry.
-- **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but `api.clever-cloud.com`, `api-bridge.clever-cloud.com`, `console.clever-cloud.com`, and read-only calls to the public status page and to the npm registry (the latest clever-tools release, once a day).
+- **Your token stays with you.** Credentials live in your browser, encrypted, or for the tab only. Nothing goes anywhere but the Clever Cloud API (`api-bridge.clever-cloud.com`, where API tokens go, and `api.clever-cloud.com`), and read-only calls to the public status page and to the npm registry (the latest clever-tools release, once a day).
 - **Same foundation as the CLI.** All API logic comes from [`@clevercloud/client`](https://github.com/CleverCloud/clever-client.js), the library clever-tools and the official Console are built on.
 - **Every screen names its command.** What the page does, clever-tools can do; the command is on screen with the real identifiers, and one click copies it. Commands are checked against one clever-tools release (5.2.0 today, named in the account menu); when npm has a newer one, the menu says so with its release notes, and a weekly workflow opens an issue to check the commands again.
 - **English and French**, picked from the browser, switchable from the account menu.
@@ -44,7 +44,7 @@ clever-tools and the Clever Cloud APIs are well designed and well documented. [`
 
 ### Sign in
 
-With an API token, through the Console (the `clever login` flow in a popup), or with an OAuth token/secret pair. Several accounts, kept encrypted in the browser (AES-256-GCM under a passphrase) or for the tab only.
+With an API token, created in the Console (Profile → API tokens) or with `clever tokens create clever-visual-cli`: an identity of its own, which its user can revoke. Signing in through the Console or with the OAuth pair `clever login` stores is not offered, as it would borrow the identity of clever-tools; accounts stored that way by an earlier version are removed, and the sign-in page says so. Several accounts, kept encrypted in the browser (AES-256-GCM under a passphrase) or for the tab only.
 
 ### Organisation home
 
@@ -122,20 +122,20 @@ Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, n
 ```sh
 pnpm install
 pnpm dev            # http://localhost:5173
-pnpm dev:cli        # same, with a sign-in button that reads the machine's clever-tools profile
+pnpm dev:cli        # same, with a sign-in button using the API token of CVC_DEV_API_TOKEN
 pnpm test           # unit tests (crypto, router, palette, actions, home page logic, i18n)
 pnpm typecheck
 pnpm build          # static site in dist/
 pnpm spike:node     # checks @clevercloud/client from Node, without a browser
 ```
 
-`pnpm dev:cli` enables a Vite middleware that serves the first profile of `~/.config/clever-cloud/clever-tools.json` on `/__cvc/dev-profile`. It is a development convenience, never part of the build, to enable on a trusted machine only.
+`pnpm dev:cli` enables a Vite middleware that serves the API token of `CVC_DEV_API_TOKEN` (from the environment or a git-ignored `.env.local`, created once with `clever tokens create clever-visual-cli-dev`) on `/__cvc/dev-profile`. It is a development convenience, never part of the build, to enable on a trusted machine only.
 
 ## How it holds together
 
 ### The client
 
-The clever-tools commands are bound to Node (argument parsing, file system, git, prompts). All the API logic, however, lives in `@clevercloud/client`, which runs in the browser and exposes a "command pattern" client that natively handles API token authentication (Bearer, through `api-bridge.clever-cloud.com`), OAuth v1 authentication (the token/secret pair `clever login` stores), log streams over Server-Sent Events with reconnection, and a resource id cache. The Clever Cloud APIs send CORS headers for any origin, so a static page can talk to them directly.
+The clever-tools commands are bound to Node (argument parsing, file system, git, prompts). All the API logic, however, lives in `@clevercloud/client`, which runs in the browser and exposes a "command pattern" client that natively handles API token authentication (Bearer, through `api-bridge.clever-cloud.com`), log streams over Server-Sent Events with reconnection, and a resource id cache. The Clever Cloud APIs send CORS headers for any origin, so a static page can talk to them directly.
 
 Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin'` by default, which a browser refuses for a cross-origin URL. `CcApiClient` needs `defaultRequestConfig: { isCorsEnabled: true }` (see `src/core/clever-client.ts`). Only `src/data/api.ts` imports the client's commands; the rest of the code never sees them.
 
@@ -145,7 +145,6 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 - **Session only**: plain JSON in `sessionStorage`, gone with the tab.
 - **Home page data, not sensitive**: the links between applications and add-ons (`cvc.links.*`), the display preferences and favourite views per organisation (`cvc.home.*`, `cvc.favorites.*`), the folded side cards (`cvc.side.folded`), whether the sync offer was declined (`cvc.sync.declined`), the recently opened applications (`cvc.recents`), the daily consumptions and invoice lines already read (`cvc.costs.*`), the add-ons known to be on a shared plan, the database versions and the operators' version checks, kept a day (`cvc.addon-instances.*`, `cvc.db-versions.*`, `cvc.operator-versions.*`), the language (`cvc.locale`) and the latest clever-tools release, kept a day (`cvc.cli-release`), stay in `localStorage`; "Erase everything from this browser" removes them too. The time of the last change made to an application's variables (`cvc.env-changed`), for the reminder until its next deployment, stays in `sessionStorage`, gone with the tab.
 - Threat model: the clever-tools configuration file sits in clear on disk. A static SPA without third-party scripts is no more exposed. The real risk is an XSS through displayed content (logs, names, variables), hence Lit (escaping by default), never `innerHTML`, and a strict CSP in production: no inline script but the theme one in `index.html`, allowed by its hash, and no `style` attribute (styles computed at render time go through the CSSOM, a test keeps it that way).
-- The embedded OAuth consumer key is the clever-tools one, public by design (see `src/core/constants.ts`).
 
 ### Deployment
 
@@ -162,7 +161,7 @@ The site is published on GitHub Pages on every push to `main` by the `.github/wo
 ### Code layout
 
 ```
-src/core/      vault (crypto, profiles), session, router, palette model, actions, Console flow, i18n, home page logic
+src/core/      vault (crypto, profiles), session, router, palette model, actions, i18n, home page logic
 src/data/      the only module that imports the @clevercloud/client commands
 src/i18n/      message dictionaries (en.ts is the reference, fr.ts must match its keys)
 src/ui/        Lit components: shell, sign-in, unlock, palette, pages, dialogs
