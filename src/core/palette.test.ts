@@ -29,6 +29,17 @@ describe('palette filtering', () => {
     expect(filterCommands(commands, 'agw').map((c) => c.id)).toEqual(['app-1']);
   });
 
+  it('keeps each group in one block, the group of the best result first', () => {
+    const mixed: PaletteCommand[] = [
+      { id: 'restart', title: 'Restart', group: 'Actions', run: noop },
+      { id: 'refresh', title: 'Refresh data', group: 'Session', run: noop },
+      { id: 'stop', title: 'Stop', group: 'Actions', keywords: ['rest'], run: noop },
+      { id: 'theme', title: 'Theme: Dark', group: 'Session', keywords: ['apparence'], run: noop },
+    ];
+    // By score alone: restart, refresh, stop, theme, so Actions and Session twice each.
+    expect(filterCommands(mixed, 're').map((c) => c.id)).toEqual(['restart', 'stop', 'refresh', 'theme']);
+  });
+
   it('requires every term to match', () => {
     expect(filterCommands(commands, 'api maif')).toEqual([]);
     expect(filterCommands(commands, 'front maif').map((c) => c.id)).toEqual(['app-2']);

@@ -134,7 +134,7 @@ export class CvcCommandPalette extends CvcElement {
             },
           )}
         </ul>
-        <footer class="muted small">↑↓ naviguer · ↵ ouvrir · esc fermer</footer>
+        <footer class="muted small">${t('palette.keys')}</footer>
       </div>
     `;
   }

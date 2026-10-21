@@ -43,6 +43,7 @@ export const fr: Record<MessageKey, string> = {
   'account.active': 'actif',
   'account.use': 'Utiliser',
   'account.eraseAll': 'Tout effacer de ce navigateur',
+  'palette.keys': '↑↓ naviguer · ↵ ouvrir · esc fermer',
   'palette.refreshData': 'Rafraîchir les données',
   'palette.switchAccount': 'Passer au compte {name}',
   'palette.lockVault': 'Verrouiller le coffre',

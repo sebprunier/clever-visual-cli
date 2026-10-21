@@ -26,7 +26,10 @@ export function filterCommands(commands: readonly PaletteCommand[], query: strin
     .map((command) => ({ command, score: score(command, terms) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || GROUP_ORDER.indexOf(a.command.group) - GROUP_ORDER.indexOf(b.command.group));
-  return scored.slice(0, limit).map(({ command }) => command);
+  const best = scored.slice(0, limit).map(({ command }) => command);
+  // One block per group, the group of the best result first: a group never shows twice.
+  const groups = [...new Set(best.map((command) => command.group))];
+  return groups.flatMap((group) => best.filter((command) => command.group === group));
 }
 
 function score(command: PaletteCommand, terms: string[]): number {

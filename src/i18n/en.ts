@@ -47,6 +47,7 @@ export const en = {
   'account.active': 'active',
   'account.use': 'Use',
   'account.eraseAll': 'Erase everything from this browser',
+  'palette.keys': '↑↓ move · ↵ open · esc close',
   'palette.refreshData': 'Refresh data',
   'palette.switchAccount': 'Switch to account {name}',
   'palette.lockVault': 'Lock the vault',
