@@ -353,6 +353,9 @@ export const fr: Record<MessageKey, string> = {
   'multilogs.layout.3': '3 colonnes',
   'multilogs.layout.merged': 'Fusionné',
   'multilogs.overflow': 'Seules les {max} premières applications sont suivies, sur {count} demandées.',
+  'multilogs.queued': 'Les redémarrages sont en file d’attente : leurs lignes s’afficheront dès qu’ils démarreront.',
+  'multilogs.restarts': 'Redémarrages lancés à {time}',
+  'multilogs.restartsHint': 'chaque application sur son nouveau déploiement, suivi en direct',
   'multilogs.none':
     'Aucune application à suivre. Sélectionnez des applications sur l’accueil, puis « Voir les logs » dans le menu Applications.',
   'multilogs.noCli':
@@ -874,5 +877,6 @@ export const fr: Record<MessageKey, string> = {
   'bulk.restart.done_one': '{count} application redémarrée.',
   'bulk.stop.done': '{count} applications arrêtées.',
   'bulk.stop.done_one': '{count} application arrêtée.',
+  'bulk.followLogs': 'Suivre les logs',
   'bulk.partial': '{done} faites, {failed} en échec : {error}',
 };

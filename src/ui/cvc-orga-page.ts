@@ -1,7 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { getLocale, t, type MessageKey } from '../core/i18n.js';
-import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
+import { deploymentLogsHash, restartsLogsHash } from '../core/logs/deployment-logs.js';
 import {
   buildCostExport,
   costExportCsv,
@@ -551,16 +551,25 @@ export class CvcOrgaPage extends CvcElement {
   }
 
   private onBulkDone(event: CustomEvent<BulkDoneDetail>): void {
-    const { kind, result } = event.detail;
+    const { kind, result, restarts, startedAt } = event.detail;
     this.bulkDialog = null;
     const done = result.done.length;
     const failed = result.failed.length;
+    const ownerId = this.orga.id;
     pushToast(this, {
       kind: failed === 0 ? 'success' : 'error',
       message:
         failed === 0
           ? t(kind === 'restart' ? 'bulk.restart.done' : 'bulk.stop.done', { count: done })
           : t('bulk.partial', { done, failed, error: result.failed[0].error }),
+      // The restarts followed together, each application on its new deployment (#13).
+      action:
+        restarts.length === 0
+          ? undefined
+          : {
+              label: t('bulk.followLogs'),
+              run: () => (window.location.hash = restartsLogsHash(ownerId, restarts, startedAt)),
+            },
     });
     this.selected = new Set();
     requestSummaryRefresh(this);

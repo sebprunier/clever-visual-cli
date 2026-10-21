@@ -14,6 +14,7 @@ import { clearClientCaches } from '../core/clever-client.js';
 import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
 import { CLI_VERSION } from '../core/constants.js';
 import { markEnvChanged } from '../core/env-pending.js';
+import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
 import { AddonStore, clearAddonStorage } from '../core/home/addon-store.js';
@@ -24,6 +25,7 @@ import type { PaletteCommand } from '../core/palette.js';
 import {
   navigate,
   readHashParams,
+  readListView,
   routeOwner,
   routeToHash,
   watchRoute,
@@ -35,6 +37,7 @@ import { Vault, type StoredProfile } from '../core/vault/vault.js';
 import type { Application } from '../data/api.js';
 import './cvc-action-dialog.js';
 import './cvc-app-page.js';
+import type { DeploymentEndedDetail } from './app/cvc-app-logs.js';
 import { APP_TAB_LABELS } from './cvc-app-page.js';
 import './cvc-command-palette.js';
 import type { CvcCommandPalette } from './cvc-command-palette.js';
@@ -111,6 +114,22 @@ export class CvcApp extends CvcElement {
   private readonly onRefreshSummary = () => {
     void this.session?.refreshSummary();
   };
+  /** A deployment followed in the logs ended: the states and last deployments of the organisation move. */
+  private readonly onDeploymentEnded = (event: Event) => {
+    const { ownerId } = (event as CustomEvent<DeploymentEndedDetail>).detail;
+    const session = this.session;
+    const client = session?.client;
+    const orga = session?.findOrganisation(ownerId);
+    void session?.refreshSummary();
+    if (client != null && orga != null) {
+      void this.homeStore.refresh(
+        client,
+        ownerId,
+        orga.applications.map((app) => app.id),
+        { force: true },
+      );
+    }
+  };
   /** A click anywhere but in the account menu closes it. */
   private readonly onPointerDown = (event: PointerEvent) => {
     if (this.menu?.open && !event.composedPath().includes(this.menu)) {
@@ -125,6 +144,7 @@ export class CvcApp extends CvcElement {
     this.addEventListener('cvc-open-action', this.onOpenAction);
     this.addEventListener('cvc-toast', this.onToast);
     this.addEventListener('cvc-refresh-summary', this.onRefreshSummary);
+    this.addEventListener('cvc-deployment-ended', this.onDeploymentEnded);
     window.addEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute = watchRoute((route) => {
       this.route = route;
@@ -149,6 +169,7 @@ export class CvcApp extends CvcElement {
     this.removeEventListener('cvc-open-action', this.onOpenAction);
     this.removeEventListener('cvc-toast', this.onToast);
     this.removeEventListener('cvc-refresh-summary', this.onRefreshSummary);
+    this.removeEventListener('cvc-deployment-ended', this.onDeploymentEnded);
     window.removeEventListener(THEME_EVENT, this.onChange);
     this.unwatchRoute?.();
     this.session?.removeEventListener('change', this.onSessionChange);
@@ -309,7 +330,15 @@ export class CvcApp extends CvcElement {
       this.revision += 1;
       void this.session?.refreshSummary();
     }
-    if (result.navigateTo != null && this.route.kind === 'app') {
+    if (result.deploymentId != null && this.route.kind === 'app') {
+      // The deployment just started, followed in the Logs tab until it ends, as `clever restart` does.
+      window.location.hash = deploymentLogsHash(
+        this.route.ownerId,
+        this.route.appId,
+        result.deploymentId,
+        readListView(window.location.hash),
+      );
+    } else if (result.navigateTo != null && this.route.kind === 'app') {
       navigate({ kind: 'app', ownerId: this.route.ownerId, appId: this.route.appId, tab: result.navigateTo });
     }
   }

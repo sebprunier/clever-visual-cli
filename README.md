@@ -76,6 +76,7 @@ The favourite views and display preferences of every space can follow you from o
 - **Overview**, arranged by use: a band with the state, the running instances, the last deployment, the cost of yesterday and of the last 30 days, and the primary domain; scaling (dedicated build included), the options, the first domains and the recent activity; aside, the runtime, deployment and identifiers to read or copy. Changes go through "Edit", which shows the `clever` command.
 - **Domains**: all of them, the primary first, with a filter for applications that have dozens.
 - **Logs**: the application's, the access logs (status, method, path, duration, size, client), or both interleaved by date, the requests on a light tint; with filter, pause and a replay window.
+- **Logs of a deployment** (`?deployment=` on the Logs tab, `clever logs --deployment-id … --since …`): every deployment of the Activity tab has a "Logs" button, so a failed one tells why; the lines start with the deployment, and while it is queued or running its state is followed until it ends. A restart from the page or the palette opens the logs of the deployment it started, as `clever restart` streams them. Wherever a failure or a deployment in progress shows (the state and the activity of the home list, "To watch", the title and the overview of the application), it leads to the logs of that deployment.
 - **Activity**, **environment variables** (hidden values, copy, `.env` export; after a change, a reminder with a restart button until the next deployment, since Clever Cloud applies them only then), and **dependencies**: the linked add-ons and applications, each opening its page, link and unlink, and the applications that depend on this one.
 - Exposed configuration, TCP redirections, metrics and network groups stay with the Console.
 
@@ -98,6 +99,8 @@ The same list column as on the application page sits beside it, and goes from ap
 ### Logs of several applications
 
 From the selection of the home page ("Applications" › "View logs"), the live logs of up to twelve applications on one page, addressed by its URL: side by side in one to three columns, each panel with its own pause, filter and close, or merged into one feed interleaved by date, each application's name in its own colour (a click on it hides or shows it). The replay window, a filter and the pause apply to all of them; the `clever logs` commands copy together.
+
+After a restart of a selection, the notification offers to follow the logs: the same page, each application on the deployment its restart started, from the time of the restart.
 
 ### Actions
 

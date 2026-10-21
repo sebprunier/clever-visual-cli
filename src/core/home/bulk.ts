@@ -39,10 +39,16 @@ export function describeBulkStep(step: BulkStep): string {
   return `clever ${step.kind} --app ${step.app.id}`;
 }
 
-export function bulkExecutor(client: CcApiClient, ownerId: string): StepExecutor<BulkStep> {
+/** `onRestarted` hears the deployment each restart started, for its logs to be followed (#13). */
+export function bulkExecutor(
+  client: CcApiClient,
+  ownerId: string,
+  onRestarted?: (appId: string, deploymentId: string) => void,
+): StepExecutor<BulkStep> {
   return async (step) => {
     if (step.kind === 'restart') {
-      await redeployApplication(client, ownerId, step.app.id);
+      const { deploymentId } = await redeployApplication(client, ownerId, step.app.id);
+      onRestarted?.(step.app.id, deploymentId);
     } else {
       await undeployApplication(client, ownerId, step.app.id);
     }

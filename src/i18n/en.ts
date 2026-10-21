@@ -357,6 +357,9 @@ export const en = {
   'multilogs.layout.3': '3 columns',
   'multilogs.layout.merged': 'Merged',
   'multilogs.overflow': 'Only the first {max} applications are followed, of the {count} asked for.',
+  'multilogs.queued': 'The restarts are queued: their lines will show as soon as they start.',
+  'multilogs.restarts': 'Restarts sent at {time}',
+  'multilogs.restartsHint': 'each application on its new deployment, followed as it goes',
   'multilogs.none':
     'No application to follow. Select applications on the home page, then "View logs" in the Applications menu.',
   'multilogs.noCli':
@@ -874,6 +877,7 @@ export const en = {
   'bulk.restart.done_one': '{count} application restarted.',
   'bulk.stop.done': '{count} applications stopped.',
   'bulk.stop.done_one': '{count} application stopped.',
+  'bulk.followLogs': 'Follow the logs',
   'bulk.partial': '{done} done, {failed} failed: {error}',
 } as const;
 

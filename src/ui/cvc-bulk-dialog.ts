@@ -12,6 +12,7 @@ import {
 } from '../core/home/bulk.js';
 import { runSteps, type RunResult } from '../core/home/tagging.js';
 import { t } from '../core/i18n.js';
+import type { Restart } from '../core/logs/deployment-logs.js';
 import { CvcElement } from './shared/cvc-element.js';
 import { APP_STATE_LABELS, stateLabel } from './shared/format.js';
 import './shared/cvc-cli.js';
@@ -21,6 +22,9 @@ export interface BulkDoneDetail {
   kind: BulkKind;
   steps: BulkStep[];
   result: RunResult<BulkStep>;
+  /** The deployments the restarts started, and when they were sent. */
+  restarts: Restart[];
+  startedAt: Date;
 }
 
 const MAX_PREVIEW = 40;
@@ -69,14 +73,19 @@ export class CvcBulkDialog extends CvcElement {
     this.busy = true;
     this.progress = 0;
     this.error = null;
+    const restarts: Restart[] = [];
+    const startedAt = new Date();
     try {
-      const result = await runSteps(steps, bulkExecutor(this.client, this.ownerId), {
+      const executor = bulkExecutor(this.client, this.ownerId, (appId, deploymentId) =>
+        restarts.push({ appId, deploymentId }),
+      );
+      const result = await runSteps(steps, executor, {
         onProgress: (done) => (this.progress = done),
         describe: describeError,
       });
       this.dispatchEvent(
         new CustomEvent<BulkDoneDetail>('cvc-bulk-done', {
-          detail: { kind: this.kind, steps, result },
+          detail: { kind: this.kind, steps, result, restarts, startedAt },
           bubbles: true,
           composed: true,
         }),

@@ -7,9 +7,18 @@ import type { HomeStore } from '../core/home/home-store.js';
 import { appStatus } from '../core/home/status.js';
 import { t, type MessageKey } from '../core/i18n.js';
 import { distinctHues, hueColor, hueTint, mergeLines, type MergedLine } from '../core/logs/merge.js';
+import { deploymentLogsCommand, deploymentSince, parseFrom, parseRestarts } from '../core/logs/deployment-logs.js';
 import { LogStream } from '../core/logs/stream.js';
-import { keepListView, readHashParams, routeToHash, writeHashParams, type Route } from '../core/router.js';
 import {
+  keepListView,
+  readHashParams,
+  routeToHash,
+  withHashParams,
+  writeHashParams,
+  type Route,
+} from '../core/router.js';
+import {
+  fetchDeploymentProgress,
   openRuntimeLogs,
   type ApplicationRuntimeLog,
   type ApplicationSummary,
@@ -40,6 +49,8 @@ type Layout = '1' | '2' | '3' | 'merged';
 const MAX_APPS = 12;
 /** Lines the merged view keeps, all applications together. */
 const MAX_MERGED = 4000;
+/** How often a restart still queued is asked about. */
+const QUEUE_POLL_MS = 5000;
 const LAYOUT_KEY = 'cvc.logs.layout';
 const LAYOUTS: ReadonlyArray<{ value: Layout; label: MessageKey }> = [
   { value: '1', label: 'multilogs.layout.1' },
@@ -54,6 +65,10 @@ const LAYOUTS: ReadonlyArray<{ value: Layout; label: MessageKey }> = [
  * own pause, filter and close, or merged into one feed interleaved by date
  * with the application's name in its colour. The toolbar sets the replay
  * window, a filter and the pause for all of them.
+ *
+ * After a restart of the selection (`?deployments=<app>:<deployment>,…&from=`,
+ * #13), each application shows the lines of its new deployment only, from
+ * the time of the restart: the restarts followed together.
  */
 @customElement('cvc-logs-page')
 export class CvcLogsPage extends CvcElement {
@@ -70,6 +85,13 @@ export class CvcLogsPage extends CvcElement {
   @state() private panelFilters: ReadonlyMap<string, string> = new Map();
   @state() private hiddenApps: ReadonlySet<string> = new Set();
   @state() private autoscroll = true;
+
+  /** Application → the deployment its restart started, with when the restarts were sent; empty for live logs. */
+  @state() private restarts: ReadonlyMap<string, string> = new Map();
+  @state() private restartedAt: Date | null = null;
+  /** The restarts still queued: their streams open once they start. */
+  @state() private queued: ReadonlySet<string> = new Set();
+  #waitGeneration = 0;
 
   #streams = new Map<string, LogStream<ApplicationRuntimeLog>>();
   #merged: { key: string; lines: MergedLine<ApplicationRuntimeLog>[] } = { key: '', lines: [] };
@@ -111,26 +133,80 @@ export class CvcLogsPage extends CvcElement {
       return;
     }
     const byId = new Map(this.orga.applications.filter((app) => !app.isArchived).map((app) => [app.id, app]));
-    const wanted = [...new Set((readHashParams().get('apps') ?? '').split(',').filter(Boolean))]
+    const params = readHashParams();
+    const restarts = parseRestarts(params.get('deployments'));
+    const from = parseFrom(params.get('from'));
+    this.restarts = from == null ? new Map() : restarts;
+    this.restartedAt = from == null || restarts.size === 0 ? null : from;
+    const wanted = [...new Set((params.get('apps') ?? '').split(',').filter(Boolean))]
       .map((id) => byId.get(id))
       .filter((app): app is ApplicationSummary => app != null);
     this.apps = wanted.slice(0, MAX_APPS);
     this.overflow = wanted.length - this.apps.length;
     for (const app of this.apps) {
-      this.openStream(app.id);
+      const deploymentId = this.restartedAt == null ? undefined : this.restarts.get(app.id);
+      if (deploymentId == null) {
+        this.openStream(app.id);
+      } else {
+        void this.openWhenStarted(app.id, deploymentId, this.#waitGeneration);
+      }
     }
+  }
+
+  /**
+   * A restart's lines once it has left the queue: before, the logs API does not know its deployment.
+   * Its state is read every few seconds meanwhile.
+   */
+  private async openWhenStarted(appId: string, deploymentId: string, generation: number): Promise<void> {
+    const { client } = this;
+    const ownerId = this.orga.id;
+    this.queued = new Set(this.queued).add(appId);
+    while (generation === this.#waitGeneration) {
+      try {
+        const progress = await fetchDeploymentProgress(client, ownerId, appId, deploymentId);
+        if (progress.state !== 'QUEUED') {
+          break;
+        }
+      } catch {
+        // Asked again at the next turn.
+      }
+      await new Promise((resolve) => setTimeout(resolve, QUEUE_POLL_MS));
+    }
+    if (generation !== this.#waitGeneration || !this.apps.some((app) => app.id === appId)) {
+      return;
+    }
+    const queued = new Set(this.queued);
+    queued.delete(appId);
+    this.queued = queued;
+    this.openStream(appId);
   }
 
   private openStream(appId: string): void {
     const { client } = this;
     const ownerId = this.orga.id;
-    const stream = new LogStream<ApplicationRuntimeLog>((since) => openRuntimeLogs(client, ownerId, appId, { since }));
+    const deploymentId = this.restartedAt == null ? undefined : this.restarts.get(appId);
+    const stream = new LogStream<ApplicationRuntimeLog>((since) =>
+      openRuntimeLogs(client, ownerId, appId, { since: this.streamSince ?? since, deploymentId }),
+    );
     stream.addEventListener('change', this.onChange);
     this.#streams.set(appId, stream);
-    void stream.start(sinceMinutes(this.since));
+    void stream.start(this.startMinutes);
+  }
+
+  /** Where the lines of the restarts start, null for live logs. */
+  private get streamSince(): Date | null {
+    return this.restartedAt == null ? null : deploymentSince(this.restartedAt.toISOString());
+  }
+
+  /** The replay window: from the restarts, or the one chosen. */
+  private get startMinutes(): number {
+    const since = this.streamSince;
+    return since == null ? sinceMinutes(this.since) : Math.max(1, Math.ceil((Date.now() - since.getTime()) / 60_000));
   }
 
   private closeAll(): void {
+    this.#waitGeneration += 1;
+    this.queued = new Set();
     for (const stream of this.#streams.values()) {
       stream.stop();
       stream.removeEventListener('change', this.onChange);
@@ -145,7 +221,14 @@ export class CvcLogsPage extends CvcElement {
     stream?.removeEventListener('change', this.onChange);
     this.#streams.delete(appId);
     this.apps = this.apps.filter((app) => app.id !== appId);
-    writeHashParams({ apps: this.apps.map((app) => app.id).join(',') });
+    const restarts = new Map(this.restarts);
+    restarts.delete(appId);
+    this.restarts = restarts;
+    writeHashParams({
+      apps: this.apps.map((app) => app.id).join(','),
+      deployments:
+        this.restartedAt == null ? null : [...restarts].map(([app, deployment]) => `${app}:${deployment}`).join(','),
+    });
   }
 
   private setLayout(layout: Layout): void {
@@ -206,7 +289,13 @@ export class CvcLogsPage extends CvcElement {
     if (this.orga == null) {
       return nothing;
     }
-    const commands = this.apps.map((app) => `clever logs --app ${app.id}${sinceFlag(this.since)}`);
+    const since = this.streamSince;
+    const commands = this.apps.map((app) => {
+      const deploymentId = this.restarts.get(app.id);
+      return since != null && deploymentId != null
+        ? deploymentLogsCommand(app.id, deploymentId, since)
+        : `clever logs --app ${app.id}${sinceFlag(this.since)}`;
+    });
     return html`
       <header class="head">
         <a class="back" href=${this.href({ kind: 'orga', ownerId: this.orga.id })}>← ${t('nav.back')}</a>
@@ -217,6 +306,18 @@ export class CvcLogsPage extends CvcElement {
             : nothing
         }
       </header>
+      ${
+        this.restartedAt == null
+          ? nothing
+          : html`<div class="restarts card row">
+              <strong>${t('multilogs.restarts', { time: formatTime(this.restartedAt.toISOString()) })}</strong>
+              <span class="muted small">${t('multilogs.restartsHint')}</span>
+              <span class="grow"></span>
+              <a class="small" href=${withHashParams(window.location.hash, { deployments: null, from: null })}
+                >${t('logs.deployment.back')}</a
+              >
+            </div>`
+      }
       ${
         this.overflow > 0
           ? html`<p class="warning small" role="status">
@@ -245,17 +346,21 @@ export class CvcLogsPage extends CvcElement {
           </select>
         </label>
         <span class="grow"></span>
-        <label class="row small">
-          ${t('logs.since')}
-          <select @change=${(event: Event) => this.setSince((event.currentTarget as HTMLSelectElement).value)}>
-            ${SINCE_OPTIONS.map(
-              (option) =>
-                html`<option value=${option.value} ?selected=${option.value === this.since}>
-                  ${t(option.label)}
-                </option>`,
-            )}
-          </select>
-        </label>
+        ${
+          this.restartedAt != null
+            ? nothing
+            : html`<label class="row small">
+                ${t('logs.since')}
+                <select @change=${(event: Event) => this.setSince((event.currentTarget as HTMLSelectElement).value)}>
+                  ${SINCE_OPTIONS.map(
+                    (option) =>
+                      html`<option value=${option.value} ?selected=${option.value === this.since}>
+                        ${t(option.label)}
+                      </option>`,
+                  )}
+                </select>
+              </label>`
+        }
         <input
           type="search"
           placeholder=${t('logs.filter')}
@@ -311,7 +416,9 @@ export class CvcLogsPage extends CvcElement {
   private renderPanel(app: ApplicationSummary) {
     const stream = this.#streams.get(app.id);
     const lines = (stream?.lines ?? []).filter((log) => this.lineMatches(log, app.id));
-    const status = streamStatusLabel(stream?.status ?? 'idle');
+    const status = this.queued.has(app.id)
+      ? { label: t('state.deployment.QUEUED'), tone: 'neutral' }
+      : streamStatusLabel(stream?.status ?? 'idle');
     const appState = appStatus(app.state, this.lastDeployment(app.id));
     const error = streamError(stream?.error ?? null, stream?.retries ?? 0);
     return html`<section class="panel card">
@@ -355,7 +462,9 @@ export class CvcLogsPage extends CvcElement {
       <div class="lines" role="log" aria-live="off">
         ${
           lines.length === 0
-            ? html`<p class="empty">${stream?.status === 'open' ? t('logs.waiting') : ''}</p>`
+            ? html`<p class="empty">
+                ${this.queued.has(app.id) ? t('logs.deployment.queued') : stream?.status === 'open' ? t('logs.waiting') : ''}
+              </p>`
             : repeat(
                 lines,
                 (log) => log.id,
@@ -408,7 +517,9 @@ export class CvcLogsPage extends CvcElement {
       <div class="lines merged card" role="log" aria-live="off">
         ${
           lines.length === 0
-            ? html`<p class="empty">${t('logs.waiting')}</p>`
+            ? html`<p class="empty">
+                ${this.queued.size > 0 && this.queued.size === this.apps.length ? t('multilogs.queued') : t('logs.waiting')}
+              </p>`
             : repeat(
                 lines,
                 (entry) => `${entry.appId}/${entry.line.id}`,
@@ -435,6 +546,15 @@ export class CvcLogsPage extends CvcElement {
         flex-direction: column;
         gap: 0.75rem;
         min-height: 0;
+      }
+      .restarts {
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        margin-bottom: 0.6rem;
+        padding: 0.6rem 0.9rem;
+      }
+      .restarts .grow {
+        flex: 1;
       }
       .head {
         display: flex;

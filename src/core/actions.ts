@@ -55,6 +55,8 @@ export interface ActionResult {
   refresh?: boolean;
   /** The application's own variables changed: they wait for its next deployment. */
   envChanged?: boolean;
+  /** The deployment the action started: its logs are followed, as `clever restart` does (#13). */
+  deploymentId?: string;
 }
 
 export interface ActionDefinition {
@@ -108,6 +110,7 @@ export const ACTIONS: ActionDefinition[] = [
         message: t('action.restart.done', { id: deploymentId.slice(0, 19) }),
         navigateTo: 'logs',
         refresh: true,
+        deploymentId,
       };
     },
   },
