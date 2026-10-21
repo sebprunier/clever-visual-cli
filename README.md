@@ -8,7 +8,7 @@ A visual interface for [clever-tools](https://github.com/CleverCloud/clever-tool
 
 **Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token; everything stays in your browser. The user documentation, with screenshots: <https://sebprunier.github.io/clever-visual-cli/docs/>.
 
-Status: usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
+Status: 1.0.0, the first release ([release notes](https://github.com/sebprunier/clever-visual-cli/releases/tag/v1.0.0)), usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
 
 ## Who we are
 
@@ -112,13 +112,12 @@ From the palette or the page: restart, stop, cancel a deployment, scale, set the
 
 ## What comes next
 
-Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec. Open now:
+Features, bugs and questions start as [issues](https://github.com/sebprunier/clever-visual-cli/issues); the issue is the spec, and the discussion happens there. The [releases](https://github.com/sebprunier/clever-visual-cli/releases) tell what each version brings.
 
-- [#1](https://github.com/sebprunier/clever-visual-cli/issues/1) Named favourite views and their sync through a personal configuration provider: both are there, the sync to be tried on real accounts before the issue closes.
+Ideas for after 1.0.0, each to become an issue first:
 
-Add-ons ([#5](https://github.com/sebprunier/clever-visual-cli/issues/5), closed) cover the databases, Elasticsearch, configuration providers, Cellar and the Keycloak and Otoroshi operators; Matomo, Metabase and the rest will get their own issues.
-
-Further out: PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
+- more add-ons: after the databases, Elasticsearch, configuration providers, Cellar and the Keycloak and Otoroshi operators ([#5](https://github.com/sebprunier/clever-visual-cli/issues/5)), Matomo, Metabase and the others;
+- PWA and shortcuts, static hosting on Clever Cloud itself, drains, network groups, API tokens, Kubernetes.
 
 ## Run
 
