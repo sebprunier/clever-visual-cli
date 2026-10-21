@@ -7,7 +7,7 @@
  *
  *   node scripts/motion/render.mjs                    # the video
  *   CVC_MOTION_WIDTH=1280 CVC_MOTION_BITRATE=1500000 CVC_MOTION_NAME=clever-visual-cli-720p \
- *     node scripts/motion/render.mjs                  # the 720p one of the documentation, about 17 MB
+ *     node scripts/motion/render.mjs                  # a lighter one, 720p, about 15 MB
  *
  * Text moving on screen needs bits: below about 1.4 Mb/s at 720p, H.264 turns it into blocks
  * while the camera moves. CVC_MOTION_CODEC=vp9 (a WebM file) holds as well at about 900 kb/s,
