@@ -77,6 +77,16 @@ describe('home filter', () => {
     expect(keep('NOT (is:app OR name:db)')).toEqual(['old-bucket']);
   });
 
+  it('negates a quoted term or a group with a dash stuck to it, as NOT does (#23)', () => {
+    expect(keep('-"api météo"')).toEqual(['meteo-db', 'old-bucket']);
+    expect(keep('-project:"meteo"')).toEqual(['old-bucket']);
+    expect(keep('-(is:app OR name:db)')).toEqual(['old-bucket']);
+    expect(keep('is:addon -(has:project)')).toEqual(['old-bucket']);
+    expect(parseFilter('-(is:app OR name:db)').error).toBeNull();
+    // A dash on its own is still a word to look for.
+    expect(keep('- bucket')).toEqual(['old-bucket']);
+  });
+
   it('reports syntax errors and falls back to the implicit AND of the terms', () => {
     const unclosed = parseFilter('(is:addon AND project:meteo');
     expect(unclosed.error).toBe('parenthèse non fermée');

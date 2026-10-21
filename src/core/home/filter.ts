@@ -8,7 +8,7 @@
  *   project:shop  env:prod         any `<key>:<value>` matches the tag `key:value` (or `key:value:…`)
  *   has:project                    has a tag with this key
  *   tag:env  runtime:java  state:arrêtée  name:api
- *   NOT env:prod   -env:prod       negation
+ *   NOT env:prod   -env:prod       negation, also -"two words" and -( … )
  *   a AND b   a b                  conjunction (implicit between terms)
  *   a OR b                         disjunction, lowest precedence
  *   ( … )                          grouping
@@ -133,6 +133,19 @@ function tokenize(raw: string): Token[] {
       index += 1;
       continue;
     }
+    // A dash stuck to a parenthesis negates the group, as NOT does: `-(a OR b)`.
+    if (char === '-' && raw[index + 1] === '(') {
+      tokens.push({ type: 'not' });
+      index += 1;
+      continue;
+    }
+    // A dash stuck to a quote negates the quoted term: `-"old stuff"`.
+    let negated = char === '-' && raw[index + 1] === '"';
+    if (negated) {
+      index += 1;
+    }
+    // A word that starts with a dash, quoted further on or not: `-env:prod`, `-project:"my project"`.
+    const dashed = !negated && char === '-';
     let word = '';
     let quoted = false;
     while (index < raw.length && !/[\s()]/.test(raw[index])) {
@@ -157,8 +170,7 @@ function tokenize(raw: string): Token[] {
       tokens.push({ type: lower });
       continue;
     }
-    let negated = false;
-    if (!quoted && word.startsWith('-') && word.length > 1) {
+    if (dashed && word.length > 1) {
       negated = true;
       word = word.slice(1);
     }

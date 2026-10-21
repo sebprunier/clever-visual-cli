@@ -98,7 +98,7 @@ All three look for the text anywhere: `runtime:java` finds `Java + Maven`, `runt
 
 - **AND** is implicit: `is:app env:prod` is `is:app AND env:prod`.
 - **OR** keeps either side: `env:prod OR env:staging`.
-- **NOT**, or a `-` stuck to a term, keeps the opposite: `NOT env:prod`, `-env:prod`.
+- **NOT**, or a `-` stuck to what follows, keeps the opposite: `NOT env:prod`, `-env:prod`, `-"old stuff"`, `-(env:prod OR env:staging)`.
 - **Parentheses** group conditions: `(env:prod OR env:staging) is:app`. A parenthesis needs no space around it.
 
 OR binds the weakest, then AND, then NOT, which applies to the term or the parentheses right after it:
@@ -110,7 +110,7 @@ OR binds the weakest, then AND, then NOT, which applies to the term or the paren
 | `NOT is:app OR name:db`            | `(NOT is:app) OR name:db`              |
 | `NOT (is:app OR name:db)`          | neither an application nor named `db`  |
 
-The `-` works on one term only. To negate a group, or a quoted term, use NOT: `NOT (env:prod OR env:staging)`, `NOT "old stuff"`.
+A `-` works as NOT on a term, a quoted term or parentheses, as long as nothing separates them: `-(env:prod OR env:staging)` is `NOT (env:prod OR env:staging)`. A `-` on its own, followed by a space, is a word to look for, and so is a dash inside quotes: `"-v2"`.
 
 ## Quotes {#quotes}
 
@@ -123,7 +123,7 @@ A quoted word is never an operator: `"or"` is the word "or". A quote left open t
 
 ## When an expression is incomplete {#errors}
 
-While you type, an expression may not hold together. The filter still applies: it keeps the AND of its terms, word by word, the ones negated with `-` included, and leaves `AND`, `OR`, `NOT` and the parentheses out. A line under the field says why:
+While you type, an expression may not hold together. The filter still applies: it keeps the AND of its terms, word by word, the ones negated with `-` included, and leaves `AND`, `OR`, `NOT`, a `-` before a parenthesis and the parentheses out. A line under the field says why:
 
 - "Incomplete filter (unclosed parenthesis), applied word by word." for `(is:addon AND project:shop`;
 - "extra closing parenthesis", for `is:app )`;
