@@ -43,6 +43,10 @@ export const fr: Record<MessageKey, string> = {
   'account.active': 'actif',
   'account.use': 'Utiliser',
   'account.eraseAll': 'Tout effacer de ce navigateur',
+  'shell.retired':
+    '{count} comptes connectés via la Console ou avec un couple OAuth ont été retirés de ce navigateur : ils utilisaient l’identité de clever-tools. Ajoute-les à nouveau avec un token API.',
+  'shell.retired_one':
+    'Un compte connecté via la Console ou avec un couple OAuth a été retiré de ce navigateur : il utilisait l’identité de clever-tools. Ajoute-le à nouveau avec un token API.',
   'account.eraseWarning':
     'Cela retire les {count} comptes de ce navigateur, avec leurs tokens, et tout ce que clever-visual-cli y garde : préférences, vues favorites, caches. Les tokens restent valides côté Clever Cloud, de même que l’add-on de synchronisation des vues, s’il existe.',
   'account.eraseWarning_one':

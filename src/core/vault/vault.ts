@@ -74,7 +74,8 @@ export class Vault extends EventTarget {
 
   /**
    * How many stored accounts were dropped at this load because they signed in
-   * with OAuth v1, no longer accepted (#14); the sign-in page says so once.
+   * with OAuth v1, no longer accepted (#14); the sign-in page says so once, or a toast when other
+   * accounts are left (#20).
    */
   get retired(): number {
     return this.#retired;

@@ -77,6 +77,8 @@ export class CvcApp extends CvcElement {
   @state() private revision = 0;
   /** "Erase everything from this browser" asks first (#17). */
   @state() private confirmErase = false;
+  /** Whether the accounts removed at this load (#14) were reported, on the sign-in page or by a toast (#20). */
+  private retiredReported = false;
   /** The latest clever-tools release on npm, null while unknown. */
   @state() private latestCli: string | null = null;
 
@@ -227,9 +229,23 @@ export class CvcApp extends CvcElement {
     if (active == null) {
       session.deactivate();
       this.phase = 'login';
+      // The sign-in page says it.
+      this.retiredReported ||= vault.retired > 0;
       return;
     }
     this.phase = 'workspace';
+    if (vault.retired > 0 && !this.retiredReported) {
+      // Other accounts are left: say it here, the sign-in page will not show (#20).
+      this.retiredReported = true;
+      const count = vault.retired;
+      void this.updateComplete.then(() =>
+        this.toaster?.push({
+          kind: 'info',
+          message: t('shell.retired', { count }),
+          action: { label: t('shell.addAccount'), run: () => (this.phase = 'adding') },
+        }),
+      );
+    }
     if (session.profile?.id !== active.id) {
       this.currentApp = null;
       this.homeStore.forget();

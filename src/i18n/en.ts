@@ -47,6 +47,10 @@ export const en = {
   'account.active': 'active',
   'account.use': 'Use',
   'account.eraseAll': 'Erase everything from this browser',
+  'shell.retired':
+    '{count} accounts signed in through the Console or with an OAuth pair were removed from this browser: they used the identity of clever-tools. Add them again with an API token.',
+  'shell.retired_one':
+    'An account signed in through the Console or with an OAuth pair was removed from this browser: it used the identity of clever-tools. Add it again with an API token.',
   'account.eraseWarning':
     'This removes the {count} accounts of this browser, with their tokens, and everything clever-visual-cli keeps here: preferences, favourite views, caches. The tokens stay valid on Clever Cloud’s side, and so does the add-on of the views sync, if there is one.',
   'account.eraseWarning_one':

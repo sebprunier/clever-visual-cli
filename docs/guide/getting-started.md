@@ -84,4 +84,4 @@ This button, on the "Accounts in this browser" page, removes every account and t
 
 Signing in through the Console, or with the token and secret pair `clever login` stores, is not offered. Both are OAuth credentials issued to clever-tools: the calls made with them would borrow the identity of clever-tools. An API token gives clever-visual-cli an identity of its own, which you can revoke on its own.
 
-Accounts stored that way by an earlier version are removed when the vault opens. When no account is left, the sign-in page says how many were removed and why: sign in again with an API token.
+Accounts stored that way by an earlier version are removed when the vault opens. When no account is left, the sign-in page says how many were removed and why: sign in again with an API token. When other accounts are left, the interface opens with one of them and a notice says the same, with an **Add an account** button.

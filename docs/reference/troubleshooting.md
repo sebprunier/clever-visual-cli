@@ -22,7 +22,7 @@ Sign in with it: **Add an account**, on the "Accounts in this browser" page of t
 
 ## Accounts removed after the switch to API tokens {#accounts-removed}
 
-clever-visual-cli signs in with an API token only. An earlier version also accepted signing in through the Console or with the OAuth pair of `clever login`; that borrowed the identity of clever-tools, so those accounts are now removed from the browser, and the sign-in page says so:
+clever-visual-cli signs in with an API token only. An earlier version also accepted signing in through the Console or with the OAuth pair of `clever login`; that borrowed the identity of clever-tools, so those accounts are now removed from the browser. The sign-in page says so when no account is left, and a notice when other accounts are:
 
 > An account signed in through the Console or with an OAuth pair was removed from this browser: it used the identity of clever-tools. Sign in again with an API token.
 
