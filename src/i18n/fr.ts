@@ -949,7 +949,7 @@ export const fr: Record<MessageKey, string> = {
   'smartTags.title': 'Tags intelligents',
   'smartTags.intro':
     'Lus dans les noms, la sélection prise comme un tout : les mots d’environnement, les mots que les noms partagent, les tags que l’organisation utilise déjà et les noms déjà tagués, les liens entre applications et add-ons. Uniquement des ajouts ; coche ce que tu veux appliquer.',
-  'smartTags.nothing': 'Rien n’a pu être lu dans ces noms.',
+  'smartTags.nothing': 'Rien n’a pu être lu dans ces noms : ajoute des tags à la main avec +.',
   'smartTags.proposed': 'Tags proposés',
   'smartTags.proposedSummary':
     '{count} tags, {picked} cochés : déplie pour les cocher ou les renommer pour toute la sélection',
@@ -962,7 +962,9 @@ export const fr: Record<MessageKey, string> = {
   'smartTags.count': '{picked}/{count}',
   'smartTags.byResource': 'Par ressource',
   'smartTags.conflict': 'a déjà {tag}',
-  'smartTags.nothingFor': 'Rien lu pour : {names}.',
+  'smartTags.nothingRead': 'rien lu',
+  'smartTags.addAria': 'Ajouter un tag à {name}',
+  'smartTags.alreadyThere': '{name} a déjà ce tag.',
   'smartTags.nothingPicked': 'Rien de coché : coche un tag pour voir les appels.',
   'smartTags.reason.env': '« {word} » dans le nom',
   'smartTags.reason.known': 'dans le nom, déjà utilisé dans l’organisation',
@@ -973,6 +975,7 @@ export const fr: Record<MessageKey, string> = {
   'smartTags.reason.rest': 'le reste du nom, une supposition',
   'smartTags.reason.linked': 'de {names}, lié à cette ressource',
   'smartTags.reason.project': 'comme le reste de {project} dans la sélection',
+  'smartTags.reason.added': 'ajouté à la main',
   'tags.applied': '{count} modifications de tags appliquées.',
   'tags.applied_one': '{count} modification de tags appliquée.',
   'tags.partial': '{done} appliquées, {failed} en échec : {error}',

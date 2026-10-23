@@ -50,6 +50,8 @@ function reasonText(reason: SmartTagReason): string {
       return t('smartTags.reason.linked', { names: reason.names.join(', ') });
     case 'project':
       return t('smartTags.reason.project', { project: reason.project });
+    case 'added':
+      return t('smartTags.reason.added');
   }
 }
 
@@ -59,7 +61,8 @@ const pickKey = (resourceId: string, tag: string) => `${resourceId}\n${tag}`;
  * Smart tags for the selected resources: tags read from their names, the
  * selection taken as a whole (see `core/home/smart-tags.ts`). Each proposed
  * tag can be dropped or renamed for the whole selection, or toggled resource
- * by resource; the exact additions and the HTTP calls show before applying.
+ * by resource, and a resource takes tags added by hand with its "+"; the
+ * exact additions and the HTTP calls show before applying.
  * Emits `cvc-tags-applied` with the result, as the tag dialog does, or
  * `cvc-tag-close`.
  */
@@ -75,6 +78,12 @@ export class CvcSmartTagsDialog extends CvcElement {
   @state() private picks: ReadonlyMap<string, boolean> = new Map();
   /** Proposed tags renamed for the whole selection. */
   @state() private renames: Readonly<Record<string, string>> = {};
+  /** Tags added by hand, by resource. */
+  @state() private added: Readonly<Record<string, readonly string[]>> = {};
+  /** The resource whose field to add a tag is open, what it holds, and why it was refused. */
+  @state() private adding: string | null = null;
+  @state() private draft = '';
+  @state() private draftError: string | null = null;
   @state() private busy = false;
   @state() private progress = 0;
   @state() private error: string | null = null;
@@ -98,9 +107,26 @@ export class CvcSmartTagsDialog extends CvcElement {
     return this.renames[tag] ?? tag;
   }
 
+  /** The tags read for each resource, then those added by hand. */
+  private get all(): SmartTagSuggestion[] {
+    return this.suggestions.map(({ resource, proposals }) => ({
+      resource,
+      proposals: [
+        ...proposals,
+        ...(this.added[resource.id] ?? []).map((tag): SmartTagProposal => ({
+          tag,
+          key: tag.includes(':') ? tag.slice(0, tag.indexOf(':')) : '',
+          reason: { kind: 'added' },
+          picked: true,
+          conflict: null,
+        })),
+      ],
+    }));
+  }
+
   private get proposed(): Proposed[] {
     const byTag = new Map<string, Proposed>();
-    for (const { resource, proposals } of this.suggestions) {
+    for (const { resource, proposals } of this.all) {
       for (const proposal of proposals) {
         const entry = byTag.get(proposal.tag) ?? { tag: proposal.tag, count: 0, picked: 0, reasons: [] };
         entry.count += 1;
@@ -116,13 +142,14 @@ export class CvcSmartTagsDialog extends CvcElement {
   }
 
   private get plan(): TagStep[] {
+    const all = this.all;
     const byKey = new Map(
-      this.suggestions.flatMap(({ resource, proposals }) =>
+      all.flatMap(({ resource, proposals }) =>
         proposals.map((proposal) => [pickKey(resource.id, proposal.tag), proposal] as const),
       ),
     );
     return planSmartTags(
-      this.suggestions,
+      all,
       (resourceId, tag) => {
         const proposal = byKey.get(pickKey(resourceId, tag));
         return proposal != null && this.isPicked(resourceId, proposal);
@@ -134,7 +161,7 @@ export class CvcSmartTagsDialog extends CvcElement {
   /** Picks or drops a proposed tag for every resource it is proposed to. */
   private pickAll(tag: string, picked: boolean): void {
     const next = new Map(this.picks);
-    for (const { resource, proposals } of this.suggestions) {
+    for (const { resource, proposals } of this.all) {
       if (proposals.some((proposal) => proposal.tag === tag)) {
         next.set(pickKey(resource.id, tag), picked);
       }
@@ -148,6 +175,54 @@ export class CvcSmartTagsDialog extends CvcElement {
 
   private rename(tag: string, value: string): void {
     this.renames = { ...this.renames, [tag]: value };
+  }
+
+  private async openAdd(resourceId: string): Promise<void> {
+    this.adding = resourceId;
+    this.draft = '';
+    this.draftError = null;
+    await this.updateComplete;
+    this.renderRoot.querySelector<HTMLInputElement>('input.add-tag')?.focus();
+  }
+
+  private closeAdd(): void {
+    this.adding = null;
+    this.draft = '';
+    this.draftError = null;
+  }
+
+  /** Adds the tag typed for a resource, picked; the field stays open for another one. */
+  private addTag(resource: SmartTagResource): void {
+    const tag = this.draft.trim();
+    const problem =
+      validateTag(tag) ?? (resource.tags.includes(tag) ? t('smartTags.alreadyThere', { name: resource.name }) : null);
+    if (problem != null) {
+      this.draftError = problem;
+      return;
+    }
+    const proposals = this.all.find((suggestion) => suggestion.resource.id === resource.id)?.proposals ?? [];
+    if (!proposals.some((proposal) => proposal.tag === tag)) {
+      this.added = { ...this.added, [resource.id]: [...(this.added[resource.id] ?? []), tag] };
+    }
+    this.picks = new Map(this.picks).set(pickKey(resource.id, tag), true);
+    this.draft = '';
+    this.draftError = null;
+  }
+
+  private onAddKeyDown(event: KeyboardEvent, resource: SmartTagResource): void {
+    if (event.key === 'Enter') {
+      // Not the form's submission: Apply stays a click away.
+      event.preventDefault();
+      this.addTag(resource);
+    } else if (event.key === 'Escape') {
+      // Closes the field, not the dialog.
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeAdd();
+      void this.updateComplete.then(() =>
+        this.renderRoot.querySelector<HTMLButtonElement>(`button.add[data-id="${resource.id}"]`)?.focus(),
+      );
+    }
   }
 
   private close(): void {
@@ -205,11 +280,11 @@ export class CvcSmartTagsDialog extends CvcElement {
             ${t('tagDialog.selected', { count: this.resources.length, apps, addons })} ${t('smartTags.intro')}
           </p>
         </header>
-        ${
-          proposed.length === 0
-            ? html`<p class="muted">${t('smartTags.nothing')}</p>`
-            : html`${this.renderProposed(proposed)} ${this.renderResources()} ${this.renderPlan(plan)}`
-        }
+        <datalist id="tag-suggestions">
+          ${tagsOf(this.context.resources).map((tag) => html`<option value=${tag}></option>`)}
+        </datalist>
+        ${proposed.length === 0 ? html`<p class="muted">${t('smartTags.nothing')}</p>` : this.renderProposed(proposed)}
+        ${this.renderResources()} ${this.renderPlan(plan)}
         ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
         <footer class="row">
           ${this.busy ? html`<span class="muted small">${this.progress}/${plan.length}</span>` : nothing}
@@ -233,9 +308,6 @@ export class CvcSmartTagsDialog extends CvcElement {
           })}
         </span>
       </summary>
-      <datalist id="tag-suggestions">
-        ${tagsOf(this.context.resources).map((tag) => html`<option value=${tag}></option>`)}
-      </datalist>
       <ul class="proposed">
         ${proposed.map(({ tag, count, picked, reasons }) => {
           const value = this.renamed(tag);
@@ -273,50 +345,88 @@ export class CvcSmartTagsDialog extends CvcElement {
   }
 
   private renderResources() {
-    const empty = this.suggestions.filter(({ proposals }) => proposals.length === 0);
     return html`<section>
       <h3>${t('smartTags.byResource')}</h3>
       <ul class="resources">
-        ${this.suggestions
-          .filter(({ proposals }) => proposals.length > 0)
-          .map(
-            ({ resource, proposals }) =>
-              html`<li>
-                <span class="muted small kind">
-                  ${resource.kind === 'app' ? t('tagDialog.app') : t('tagDialog.addon')}
-                </span>
-                <span class="name">${resource.name}</span>
-                <span class="chips">
-                  ${proposals.map((proposal) => {
-                    const picked = this.isPicked(resource.id, proposal);
-                    const reason = reasonText(proposal.reason);
-                    return html`<button
-                      type="button"
-                      class="chip ${picked ? 'on' : ''}"
-                      aria-pressed=${picked}
-                      title=${
-                        proposal.conflict == null
-                          ? reason
-                          : `${reason} · ${t('smartTags.conflict', { tag: proposal.conflict })}`
-                      }
-                      ?disabled=${this.busy}
-                      @click=${() => this.toggle(resource.id, proposal)}
-                    >
-                      ${this.renamed(proposal.tag)}${proposal.conflict != null ? html` <span aria-hidden="true">≠</span>` : nothing}
-                    </button>`;
-                  })}
-                </span>
-              </li>`,
-          )}
+        ${this.all.map(
+          ({ resource, proposals }) =>
+            html`<li>
+              <span class="muted small kind">
+                ${resource.kind === 'app' ? t('tagDialog.app') : t('tagDialog.addon')}
+              </span>
+              <span class="name">${resource.name}</span>
+              <span class="chips">
+                ${proposals.map((proposal) => this.renderChip(resource, proposal))}
+                ${
+                  proposals.length === 0 && this.adding !== resource.id
+                    ? html`<span class="muted small">${t('smartTags.nothingRead')}</span>`
+                    : nothing
+                }
+                ${this.adding === resource.id ? this.renderAddField(resource) : this.renderAddButton(resource)}
+              </span>
+              ${
+                this.adding === resource.id && this.draftError != null
+                  ? html`<span class="error small add-error" role="alert">${this.draftError}</span>`
+                  : nothing
+              }
+            </li>`,
+        )}
       </ul>
-      ${
-        empty.length > 0
-          ? html`<p class="muted small">
-              ${t('smartTags.nothingFor', { names: empty.map(({ resource }) => resource.name).join(', ') })}
-            </p>`
-          : nothing
-      }
     </section>`;
+  }
+
+  private renderChip(resource: SmartTagResource, proposal: SmartTagProposal) {
+    const picked = this.isPicked(resource.id, proposal);
+    const reason = reasonText(proposal.reason);
+    return html`<button
+      type="button"
+      class="chip ${picked ? 'on' : ''}"
+      aria-pressed=${picked}
+      title=${proposal.conflict == null ? reason : `${reason} · ${t('smartTags.conflict', { tag: proposal.conflict })}`}
+      ?disabled=${this.busy}
+      @click=${() => this.toggle(resource.id, proposal)}
+    >
+      ${this.renamed(proposal.tag)}${proposal.conflict != null ? html` <span aria-hidden="true">≠</span>` : nothing}
+    </button>`;
+  }
+
+  private renderAddButton(resource: SmartTagResource) {
+    return html`<button
+      type="button"
+      class="add"
+      data-id=${resource.id}
+      aria-label=${t('smartTags.addAria', { name: resource.name })}
+      title=${t('smartTags.addAria', { name: resource.name })}
+      ?disabled=${this.busy}
+      @click=${() => this.openAdd(resource.id)}
+    >
+      +
+    </button>`;
+  }
+
+  private renderAddField(resource: SmartTagResource) {
+    return html`<span class="add-field">
+      <input
+        type="text"
+        class="mono add-tag"
+        list="tag-suggestions"
+        placeholder="env:prod"
+        aria-label=${t('smartTags.addAria', { name: resource.name })}
+        autocomplete="off"
+        spellcheck="false"
+        ?disabled=${this.busy}
+        .value=${this.draft}
+        @input=${(event: Event) => {
+          this.draft = (event.currentTarget as HTMLInputElement).value;
+          this.draftError = null;
+        }}
+        @keydown=${(event: KeyboardEvent) => this.onAddKeyDown(event, resource)}
+        @blur=${() => this.draft.trim() === '' && this.closeAdd()}
+      />
+      <button type="button" class="add-confirm" ?disabled=${this.busy} @click=${() => this.addTag(resource)}>
+        ${t('common.add')}
+      </button>
+    </span>`;
   }
 
   private renderPlan(plan: TagStep[]) {
@@ -453,6 +563,41 @@ export class CvcSmartTagsDialog extends CvcElement {
         background: transparent;
         border: 1px dashed var(--cvc-border);
         text-decoration: line-through;
+      }
+      .add {
+        padding: 0 0.5rem;
+        font-size: 0.75rem;
+        line-height: 1.5;
+        border-radius: 999px;
+        color: var(--cvc-muted);
+        background: transparent;
+        border: 1px dashed var(--cvc-border);
+      }
+      .add:not(:disabled):hover,
+      .add:focus-visible {
+        color: var(--cvc-accent);
+        border-color: var(--cvc-accent);
+      }
+      .add-field {
+        display: inline-flex;
+        gap: 0.3rem;
+      }
+      .add-field input {
+        width: 13rem;
+        padding: 0.1rem 0.45rem;
+        font-size: 0.75rem;
+      }
+      .add-field button {
+        padding: 0.1rem 0.5rem;
+        font-size: 0.75rem;
+      }
+      /* A line under the field, not the framed message of the dialog. */
+      .add-error {
+        flex-basis: 100%;
+        text-align: right;
+        padding: 0;
+        border: none;
+        background: none;
       }
       .chip.on {
         color: var(--cvc-ok);

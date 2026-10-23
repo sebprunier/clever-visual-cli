@@ -62,7 +62,9 @@ export type SmartTagReason =
   /** From the applications the add-on is linked to. */
   | { kind: 'linked'; names: string[] }
   /** What the other resources of its project in the selection agree on. */
-  | { kind: 'project'; project: string };
+  | { kind: 'project'; project: string }
+  /** Added by hand in the dialog. */
+  | { kind: 'added' };
 
 export interface SmartTagProposal {
   tag: string;
@@ -219,7 +221,7 @@ const ROLE_WORDS: ReadonlySet<string> = new Set([
   'deno',
   'bun',
   'frankenphp',
-  'stack'
+  'stack',
 ]);
 
 /** Keys an organisation may use for the project, the first one by default. */
