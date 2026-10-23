@@ -68,7 +68,7 @@ import type { AddonStore } from '../core/home/addon-store.js';
 import { appStatus } from '../core/home/status.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
-import type { TagResource } from '../core/home/tagging.js';
+import type { SmartTagResource } from '../core/home/smart-tags.js';
 import { readHashParams, routeToHash, withHashParams, withListView, writeHashParams } from '../core/router.js';
 import type { AddonSummary, ApplicationSummary, Deployment, OrganisationSummary } from '../data/api.js';
 import './cvc-platform-status.js';
@@ -79,6 +79,7 @@ import './shared/cvc-doc-link.js';
 import './shared/cvc-dropdown.js';
 import './shared/cvc-menu-button.js';
 import type { MenuSelectDetail } from './shared/cvc-menu-button.js';
+import './cvc-smart-tags-dialog.js';
 import './cvc-tag-dialog.js';
 import type { TagOperationKind, TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './cvc-bulk-dialog.js';
@@ -206,7 +207,8 @@ export class CvcOrgaPage extends CvcElement {
   @state() private groupingText = '';
   @state() private prefs: HomePrefs = DEFAULT_PREFS;
   @state() private selected: ReadonlySet<string> = new Set();
-  @state() private tagDialog: TagOperationKind | null = null;
+  /** The open tag dialog: an operation, or the smart tags read from the names. */
+  @state() private tagDialog: TagOperationKind | 'smart' | null = null;
   @state() private bulkDialog: BulkKind | null = null;
   /** True when the side column is taller than the viewport: it then scrolls with the list instead of sticking. */
   @state() private sideTall = false;
@@ -536,14 +538,28 @@ export class CvcOrgaPage extends CvcElement {
     return this.orga.addons.filter((addon) => this.selected.has(addon.id)).length;
   }
 
-  private get selectedResources(): TagResource[] {
-    const apps = this.orga.applications
-      .filter((app) => this.selected.has(app.id))
-      .map((app): TagResource => ({ id: app.id, kind: 'app', name: app.name, tags: app.customerTags }));
-    const addons = this.orga.addons
-      .filter((addon) => this.selected.has(addon.id))
-      .map((addon): TagResource => ({ id: addon.id, kind: 'addon', name: addon.name, tags: addon.customerTags }));
-    return [...apps, ...addons];
+  /** Every application and add-on of the organisation, as the tag dialogs read them. */
+  private get tagResources(): SmartTagResource[] {
+    return [
+      ...this.orga.applications.map((app): SmartTagResource => ({
+        id: app.id,
+        kind: 'app',
+        name: app.name,
+        tags: app.customerTags,
+        type: app.instanceType,
+      })),
+      ...this.orga.addons.map((addon): SmartTagResource => ({
+        id: addon.id,
+        kind: 'addon',
+        name: addon.name,
+        tags: addon.customerTags,
+        type: addon.providerId,
+      })),
+    ];
+  }
+
+  private get selectedResources(): SmartTagResource[] {
+    return this.tagResources.filter((resource) => this.selected.has(resource.id));
   }
 
   private onTagsApplied(event: CustomEvent<TagsAppliedDetail>): void {
@@ -751,17 +767,26 @@ export class CvcOrgaPage extends CvcElement {
         </aside>
       </div>
       ${
-        this.tagDialog != null
-          ? html`<cvc-tag-dialog
+        this.tagDialog === 'smart'
+          ? html`<cvc-smart-tags-dialog
               .client=${this.client}
               ownerId=${this.orga.id}
               .resources=${this.selectedResources}
-              .suggestions=${allTags}
-              kind=${this.tagDialog}
+              .context=${{ resources: this.tagResources, links: data.links }}
               @cvc-tag-close=${() => (this.tagDialog = null)}
               @cvc-tags-applied=${this.onTagsApplied}
-            ></cvc-tag-dialog>`
-          : nothing
+            ></cvc-smart-tags-dialog>`
+          : this.tagDialog != null
+            ? html`<cvc-tag-dialog
+                .client=${this.client}
+                ownerId=${this.orga.id}
+                .resources=${this.selectedResources}
+                .suggestions=${allTags}
+                kind=${this.tagDialog}
+                @cvc-tag-close=${() => (this.tagDialog = null)}
+                @cvc-tags-applied=${this.onTagsApplied}
+              ></cvc-tag-dialog>`
+            : nothing
       }
       ${
         this.bulkDialog != null
@@ -847,9 +872,10 @@ export class CvcOrgaPage extends CvcElement {
                   { id: 'add', label: t('home.addTag') },
                   { id: 'remove', label: t('home.removeTag') },
                   { id: 'rename', label: t('home.renameTag') },
+                  { id: 'smart', label: t('home.smartTags'), title: t('home.smartTagsTitle') },
                 ]}
                 @cvc-menu-select=${(event: CustomEvent<MenuSelectDetail>) =>
-                  (this.tagDialog = event.detail.id as TagOperationKind)}
+                  (this.tagDialog = event.detail.id as TagOperationKind | 'smart')}
               ></cvc-menu-button>
               <cvc-menu-button
                 label=${t('home.menu.apps', { count: apps })}
