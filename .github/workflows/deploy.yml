@@ -14,9 +14,12 @@ permissions:
   pages: write
   id-token: write
 
+# One deployment at a time: a running one goes to the end, the next one waits (GitHub keeps a single
+# pending run). A release only starts the workflow again on main, so it stays out of the queue:
+# otherwise it cancels the run of the push before it, and is cancelled by the run it starts.
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: ${{ github.event_name == 'release' && 'pages-release' || 'pages' }}
+  cancel-in-progress: false
 
 jobs:
   # The github-pages environment deploys from main only, and a release runs on its tag:
