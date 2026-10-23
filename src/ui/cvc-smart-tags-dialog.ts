@@ -11,7 +11,7 @@ import {
   type SmartTagResource,
   type SmartTagSuggestion,
 } from '../core/home/smart-tags.js';
-import { apiExecutor, describeStep, runSteps, validateTag, type TagStep } from '../core/home/tagging.js';
+import { apiExecutor, describeStep, runSteps, tagsOf, validateTag, type TagStep } from '../core/home/tagging.js';
 import { t } from '../core/i18n.js';
 import type { TagsAppliedDetail } from './cvc-tag-dialog.js';
 import './shared/cvc-cli.js';
@@ -41,6 +41,11 @@ function reasonText(reason: SmartTagReason): string {
       return t('smartTags.reason.close', { words: reason.words });
     case 'rest':
       return t('smartTags.reason.rest');
+    case 'like':
+      return t('smartTags.reason.like', {
+        names: `${reason.names.join(', ')}${reason.count > reason.names.length ? ` +${reason.count - reason.names.length}` : ''}`,
+        count: reason.count,
+      });
     case 'linked':
       return t('smartTags.reason.linked', { names: reason.names.join(', ') });
     case 'project':
@@ -63,7 +68,7 @@ export class CvcSmartTagsDialog extends CvcElement {
   @property({ attribute: false }) client!: CcApiClient;
   @property() ownerId = '';
   @property({ attribute: false }) resources: SmartTagResource[] = [];
-  @property({ attribute: false }) context: SmartTagContext = { tagsInUse: [], apps: [], links: {} };
+  @property({ attribute: false }) context: SmartTagContext = { resources: [], links: {} };
 
   @state() private suggestions: SmartTagSuggestion[] = [];
   /** What the user changed from the default picks, by resource and proposed tag. */
@@ -219,6 +224,9 @@ export class CvcSmartTagsDialog extends CvcElement {
   private renderProposed(proposed: Proposed[]) {
     return html`<section>
       <h3>${t('smartTags.proposed')}</h3>
+      <datalist id="tag-suggestions">
+        ${tagsOf(this.context.resources).map((tag) => html`<option value=${tag}></option>`)}
+      </datalist>
       <ul class="proposed">
         ${proposed.map(({ tag, count, picked, reasons }) => {
           const value = this.renamed(tag);
@@ -235,6 +243,7 @@ export class CvcSmartTagsDialog extends CvcElement {
             <input
               type="text"
               class="mono value"
+              list="tag-suggestions"
               aria-label=${t('smartTags.renameAria', { tag })}
               title=${t('smartTags.renameTitle')}
               autocomplete="off"

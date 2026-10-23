@@ -538,26 +538,28 @@ export class CvcOrgaPage extends CvcElement {
     return this.orga.addons.filter((addon) => this.selected.has(addon.id)).length;
   }
 
-  private get selectedResources(): SmartTagResource[] {
-    const apps = this.orga.applications
-      .filter((app) => this.selected.has(app.id))
-      .map((app): SmartTagResource => ({
+  /** Every application and add-on of the organisation, as the tag dialogs read them. */
+  private get tagResources(): SmartTagResource[] {
+    return [
+      ...this.orga.applications.map((app): SmartTagResource => ({
         id: app.id,
         kind: 'app',
         name: app.name,
         tags: app.customerTags,
         type: app.instanceType,
-      }));
-    const addons = this.orga.addons
-      .filter((addon) => this.selected.has(addon.id))
-      .map((addon): SmartTagResource => ({
+      })),
+      ...this.orga.addons.map((addon): SmartTagResource => ({
         id: addon.id,
         kind: 'addon',
         name: addon.name,
         tags: addon.customerTags,
         type: addon.providerId,
-      }));
-    return [...apps, ...addons];
+      })),
+    ];
+  }
+
+  private get selectedResources(): SmartTagResource[] {
+    return this.tagResources.filter((resource) => this.selected.has(resource.id));
   }
 
   private onTagsApplied(event: CustomEvent<TagsAppliedDetail>): void {
@@ -770,16 +772,7 @@ export class CvcOrgaPage extends CvcElement {
               .client=${this.client}
               ownerId=${this.orga.id}
               .resources=${this.selectedResources}
-              .context=${{
-                tagsInUse: [...this.orga.applications, ...addons].flatMap((item) => item.customerTags),
-                apps: this.orga.applications.map((app) => ({
-                  id: app.id,
-                  kind: 'app' as const,
-                  name: app.name,
-                  tags: app.customerTags,
-                })),
-                links: data.links,
-              }}
+              .context=${{ resources: this.tagResources, links: data.links }}
               @cvc-tag-close=${() => (this.tagDialog = null)}
               @cvc-tags-applied=${this.onTagsApplied}
             ></cvc-smart-tags-dialog>`

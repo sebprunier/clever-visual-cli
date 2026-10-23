@@ -12,10 +12,16 @@
  *
  * The organisation's own tags come first: the keys it uses for the
  * environment and the project, the spelling of its values (`env:production`
- * rather than `env:prod`), and any `key:value` whose value shows in a name.
- * Then the selection fills its gaps: an add-on takes the project and the
- * environment of the applications it is linked to, and a resource without an
- * environment word takes the one the rest of its project agrees on.
+ * rather than `env:prod`), any `key:value` whose value shows in a name
+ * (separators aside: `dsmaif` and `ds-maif`), and the projects whose names
+ * already tagged look like this one (`ff-acme-api` tagged
+ * `project:feature-flipping` → `ff-acme-front` too).
+ * Then the links and the selection fill the gaps: a resource without an
+ * environment takes the one of the resources it is linked to (an application
+ * its add-ons' and the applications' it depends on or that depend on it, an
+ * add-on its applications'), and the project too between an application and
+ * its add-ons; a resource without an environment word also takes the one the
+ * rest of its project in the selection agrees on.
  *
  * Only additions are proposed, each picked or not by default: a guess, or a
  * tag whose key the resource already has with another value, is not picked.
@@ -31,10 +37,11 @@ export interface SmartTagResource extends TagResource {
 }
 
 export interface SmartTagContext {
-  /** The tags of every application and add-on of the organisation, once per resource: its conventions and known values. */
-  tagsInUse: readonly string[];
-  /** Every application of the organisation, for an add-on linked to one outside the selection. */
-  apps: readonly TagResource[];
+  /**
+   * Every application and add-on of the organisation: its conventions, the values it knows, the names
+   * already tagged, and the applications an add-on of the selection is linked to.
+   */
+  resources: readonly SmartTagResource[];
   /** The add-ons linked to each application, as far as they are known. */
   links: LinksIndex;
 }
@@ -46,6 +53,8 @@ export type SmartTagReason =
   | { kind: 'known' }
   /** The words that `count` names of the selection share. */
   | { kind: 'shared'; count: number }
+  /** The project of `count` names of the organisation that look like this one, the first of them in `names`. */
+  | { kind: 'like'; names: string[]; count: number }
   /** The only value of the organisation that holds the words read, `words`: a guess. */
   | { kind: 'close'; words: string }
   /** What is left of the name once the environment and the roles are set aside: a guess. */
@@ -358,16 +367,35 @@ function findRun(words: readonly string[], run: readonly string[]): number {
   return -1;
 }
 
-/** The longest known value found in the words, the most used first; null when none is. */
-function knownIn(words: readonly string[], values: readonly KnownValue[]): (KnownValue & { start: number }) | null {
-  let best: (KnownValue & { start: number }) | null = null;
-  for (const known of values) {
-    if (best != null && known.words.length <= best.words.length) {
-      continue;
+/** Where the words of `value` sit in `words` written together or apart (`dsmaif`, `ds-maif`), as a run of words, or null. */
+function findJoined(words: readonly string[], value: readonly string[]): { start: number; length: number } | null {
+  const joined = value.join('');
+  for (let start = 0; start < words.length; start++) {
+    let run = '';
+    for (let end = start; end < words.length && run.length < joined.length; end++) {
+      run += words[end];
+      if (run === joined) {
+        return { start, length: end - start + 1 };
+      }
     }
+  }
+  return null;
+}
+
+/**
+ * The known value found in the words that covers the most of them, the most used first; null when
+ * none is. `length` is the number of words of the name it covers.
+ */
+function knownIn(
+  words: readonly string[],
+  values: readonly KnownValue[],
+): (KnownValue & { start: number; length: number }) | null {
+  let best: (KnownValue & { start: number; length: number }) | null = null;
+  for (const known of values) {
     const start = findRun(words, known.words);
-    if (start !== -1) {
-      best = { ...known, start };
+    const found = start !== -1 ? { start, length: known.words.length } : findJoined(words, known.words);
+    if (found != null && (best == null || found.length > best.length)) {
+      best = { ...known, ...found };
     }
   }
   return best;
@@ -468,40 +496,58 @@ function effective(reading: Reading, key: string): string | null {
   );
 }
 
-function read(resource: SmartTagResource, conventions: Conventions): Reading {
+/** The words of a name, its environment, and the words left for the project. */
+function readName(
+  resource: SmartTagResource,
+  conventions: Conventions,
+): { words: string[]; core: string[]; env: Inference | null } {
   const words = nameWords(resource.name);
   const typeWords = new Set(nameWords(resource.type));
-  const inferred = new Map<string, Inference>();
   const envWords = new Set<number>();
+  let env: Inference | null = null;
   // An environment the organisation names its own way first (`env:rec7`), else an environment word.
   const knownEnv = knownIn(
     words,
     (conventions.known.get(conventions.envKey) ?? []).filter((known) => environmentOf(known.value) == null),
   );
   if (knownEnv != null) {
-    knownEnv.words.forEach((_, index) => envWords.add(knownEnv.start + index));
-    inferred.set(conventions.envKey, {
+    for (let index = knownEnv.start; index < knownEnv.start + knownEnv.length; index++) {
+      envWords.add(index);
+    }
+    env = {
       value: knownEnv.value,
-      reason: { kind: 'env', word: words.slice(knownEnv.start, knownEnv.start + knownEnv.words.length).join('-') },
+      reason: { kind: 'env', word: words.slice(knownEnv.start, knownEnv.start + knownEnv.length).join('-') },
       picked: true,
-    });
+    };
   }
   const found = new Map<string, string>();
   words.forEach((word, index) => {
-    const env = ENV_WORDS.get(word);
-    if (env != null && !envWords.has(index)) {
+    const environment = ENV_WORDS.get(word);
+    if (environment != null && !envWords.has(index)) {
       envWords.add(index);
-      found.set(env, found.get(env) ?? word);
+      found.set(environment, found.get(environment) ?? word);
     }
   });
   // Two environments in one name (`dev-to-prod-sync`) say none.
   if (knownEnv == null && found.size === 1) {
-    const [[env, word]] = found;
-    inferred.set(conventions.envKey, {
-      value: conventions.envSpelling.get(env) ?? env,
+    const [[environment, word]] = found;
+    env = {
+      value: conventions.envSpelling.get(environment) ?? environment,
       reason: { kind: 'env', word },
       picked: true,
-    });
+    };
+  }
+  const core = words.filter(
+    (word, index) => !envWords.has(index) && !ROLE_WORDS.has(word) && !typeWords.has(word) && !isNoise(word),
+  );
+  return { words, core, env };
+}
+
+function read(resource: SmartTagResource, conventions: Conventions): Reading {
+  const { words, core, env } = readName(resource, conventions);
+  const inferred = new Map<string, Inference>();
+  if (env != null) {
+    inferred.set(conventions.envKey, env);
   }
   // Values of the organisation's other keys found in the name (`client:maif`), unless they only name a role.
   for (const [key, values] of conventions.known) {
@@ -516,75 +562,207 @@ function read(resource: SmartTagResource, conventions: Conventions): Reading {
       inferred.set(key, { value: known.value, reason: { kind: 'known' }, picked: true });
     }
   }
-  const core = words.filter(
-    (word, index) => !envWords.has(index) && !ROLE_WORDS.has(word) && !typeWords.has(word) && !isNoise(word),
-  );
   return { resource, words, core, inferred };
 }
 
-function inferProjects(readings: readonly Reading[], conventions: Conventions): void {
+// --- names already tagged --------------------------------------------------
+
+interface Family {
+  value: string;
+  /** The words its names share, or the words of one of them when they share none. */
+  words: string[];
+  /** The names it was learnt from. */
+  names: string[];
+}
+
+/** The projects of the organisation as its names already tagged show them. */
+function projectFamilies(resources: readonly SmartTagResource[], conventions: Conventions): Family[] {
+  const members = new Map<string, Array<{ name: string; core: string[] }>>();
+  for (const resource of resources) {
+    const values = valuesFor(resource.tags, conventions.projectKey);
+    const core = values.length > 0 ? readName(resource, conventions).core : [];
+    if (core.length > 0) {
+      for (const value of values) {
+        members.set(value, [...(members.get(value) ?? []), { name: resource.name, core }]);
+      }
+    }
+  }
+  const families: Family[] = [];
+  for (const [value, named] of members) {
+    const common = [...new Set(named[0].core)].filter((word) => named.every(({ core }) => core.includes(word)));
+    if (common.length > 0) {
+      families.push({ value, words: common, names: named.map(({ name }) => name) });
+    } else {
+      families.push(...named.map(({ name, core }) => ({ value, words: [...new Set(core)], names: [name] })));
+    }
+  }
+  return families;
+}
+
+/**
+ * The project whose names look like this one: all its words are in the name, the most words first, then
+ * the most names. Ambiguous when another project has as many words in it.
+ */
+function familyOf(core: readonly string[], families: readonly Family[]): { family: Family; ambiguous: boolean } | null {
+  const words = new Set(core);
+  const matching = families
+    .filter((family) => family.words.every((word) => words.has(word)))
+    .sort((a, b) => b.words.length - a.words.length || b.names.length - a.names.length);
+  if (matching.length === 0) {
+    return null;
+  }
+  const [family] = matching;
+  return {
+    family,
+    ambiguous: matching.some((other) => other.value !== family.value && other.words.length === family.words.length),
+  };
+}
+
+/**
+ * The project of one resource: a project of the organisation found in its name, the project of the names
+ * already tagged it looks like, the words it shares with the selection (`run`), or the rest of its name.
+ */
+function projectOf(
+  reading: Reading,
+  run: { words: string[]; count: number } | null,
+  known: readonly KnownValue[],
+  families: readonly Family[],
+  single: boolean,
+): Inference | null {
+  const exact = knownIn(reading.words, known);
+  // Names already tagged are worth more than a guess, and as much as the words the selection shares when
+  // they hold them all; with fewer words, but two at least, they are offered without being picked.
+  const like = familyOf(reading.core, families);
+  const likeAll =
+    like != null && (run == null || run.count === 1 || run.words.every((word) => like.family.words.includes(word)));
+  const likeSome = like != null && !likeAll && like.family.words.length >= 2;
+  if (
+    exact != null &&
+    (run == null || exact.length >= run.words.length) &&
+    (!likeAll || exact.length >= like.family.words.length)
+  ) {
+    return { value: exact.value, reason: { kind: 'known' }, picked: true };
+  }
+  if (like != null && (likeAll || likeSome)) {
+    return {
+      value: like.family.value,
+      reason: { kind: 'like', names: like.family.names.slice(0, 2), count: like.family.names.length },
+      picked: likeAll && !like.ambiguous,
+    };
+  }
+  if (run == null) {
+    return null;
+  }
+  // A single word, or a name alone, may be a piece of a project the organisation already has.
+  const holding =
+    run.words.length === 1 || run.count === 1
+      ? known.filter(
+          (value) => value.words.length > run.words.length && run.words.every((word) => value.words.includes(word)),
+        )
+      : [];
+  if (holding.length === 1) {
+    return { value: holding[0].value, reason: { kind: 'close', words: run.words.join('-') }, picked: false };
+  }
+  return {
+    value: run.words.join('-'),
+    reason: run.count > 1 ? { kind: 'shared', count: run.count } : { kind: 'rest' },
+    // A name alone in a selection of several matches none of the others: a guess.
+    picked: run.count > 1 || single,
+  };
+}
+
+function inferProjects(readings: readonly Reading[], conventions: Conventions, families: readonly Family[]): void {
   const { projectKey } = conventions;
   const known = conventions.known.get(projectKey) ?? [];
-  const shared = sharedWords(new Map(readings.map((reading) => [reading.resource.id, reading.core])));
-  for (const reading of readings) {
-    const exact = knownIn(reading.words, known);
-    const run = shared.get(reading.resource.id) ?? (reading.core.length > 0 ? { words: reading.core, count: 1 } : null);
-    if (exact != null && (run == null || exact.words.length >= run.words.length)) {
-      reading.inferred.set(projectKey, { value: exact.value, reason: { kind: 'known' }, picked: true });
-      continue;
+  const decide = (among: readonly Reading[]) => {
+    const shared = sharedWords(new Map(among.map((reading) => [reading.resource.id, reading.core])));
+    for (const reading of among) {
+      const run =
+        shared.get(reading.resource.id) ?? (reading.core.length > 0 ? { words: reading.core, count: 1 } : null);
+      const project = projectOf(reading, run, known, families, readings.length === 1);
+      if (project == null) {
+        reading.inferred.delete(projectKey);
+      } else {
+        reading.inferred.set(projectKey, project);
+      }
     }
-    if (run == null) {
-      continue;
-    }
-    // A single word, or a name alone, may be a piece of a project the organisation already has.
-    const holding =
-      run.words.length === 1 || run.count === 1
-        ? known.filter(
-            (value) => value.words.length > run.words.length && run.words.every((word) => value.words.includes(word)),
-          )
-        : [];
-    if (holding.length === 1) {
-      reading.inferred.set(projectKey, {
-        value: holding[0].value,
-        reason: { kind: 'close', words: run.words.join('-') },
-        picked: false,
-      });
-    } else {
-      reading.inferred.set(projectKey, {
-        value: run.words.join('-'),
-        reason: run.count > 1 ? { kind: 'shared', count: run.count } : { kind: 'rest' },
-        // A name alone in a selection of several matches none of the others: a guess.
-        picked: run.count > 1 || readings.length === 1,
-      });
-    }
+  };
+  decide(readings);
+  // The names a project of the organisation explains no longer count among the words the others share.
+  const open = readings.filter(
+    (reading) => !['known', 'like'].includes(reading.inferred.get(projectKey)?.reason.kind ?? ''),
+  );
+  if (open.length > 0 && open.length < readings.length) {
+    decide(open);
   }
 }
 
-/** An add-on without a project or an environment of its own takes those of the applications linked to it. */
+/**
+ * The resources linked to one, that likely share its environment: the applications an add-on serves; the
+ * add-ons of an application (those shared across unrelated applications left out), the applications it
+ * depends on and those depending on it. Applications linked to each other may belong to different
+ * projects, so `project` leaves them out.
+ */
+function linkedTo(
+  resource: SmartTagResource,
+  resources: readonly SmartTagResource[],
+  links: LinksIndex,
+  project: boolean,
+): SmartTagResource[] {
+  if (resource.kind === 'addon') {
+    return WEAK_LINK_PROVIDERS.has(resource.type)
+      ? []
+      : resources.filter((other) => other.kind === 'app' && links[other.id]?.addonIds.includes(resource.id));
+  }
+  const own = links[resource.id];
+  return resources.filter((other) =>
+    other.kind === 'addon'
+      ? !WEAK_LINK_PROVIDERS.has(other.type) && (own?.addonIds.includes(other.id) ?? false)
+      : !project &&
+        other.id !== resource.id &&
+        ((own?.applicationIds.includes(other.id) ?? false) ||
+          (links[other.id]?.applicationIds.includes(resource.id) ?? false)),
+  );
+}
+
+/**
+ * A resource without a project or an environment of its own takes the one its linked resources agree
+ * on (see `linkedTo`), again and again so that it goes along a chain: an application, its database,
+ * another application on that database.
+ */
 function inferFromLinks(readings: readonly Reading[], conventions: Conventions, context: SmartTagContext): void {
   const byId = new Map(readings.map((reading) => [reading.resource.id, reading]));
-  for (const reading of readings) {
-    const { resource } = reading;
-    if (resource.kind !== 'addon' || WEAK_LINK_PROVIDERS.has(resource.type)) {
-      continue;
-    }
-    const linked = context.apps.filter((app) => context.links[app.id]?.addonIds.includes(resource.id));
-    for (const key of [conventions.projectKey, conventions.envKey]) {
-      if (valuesFor(resource.tags, key).length > 0 || reading.inferred.get(key)?.picked) {
-        continue;
-      }
-      const values = new Map<string, string[]>();
-      for (const app of linked) {
-        const selected = byId.get(app.id);
-        const value = selected != null ? effective(selected, key) : (valuesFor(app.tags, key)[0] ?? null);
-        if (value != null) {
-          values.set(value, [...(values.get(value) ?? []), app.name]);
+  const resources = [
+    ...new Map([...context.resources, ...readings.map((reading) => reading.resource)].map((r) => [r.id, r])).values(),
+  ];
+  const keys = [conventions.projectKey, conventions.envKey];
+  const linked = new Map(
+    readings.map((reading) => [
+      reading.resource.id,
+      keys.map((key) => linkedTo(reading.resource, resources, context.links, key === conventions.projectKey)),
+    ]),
+  );
+  for (let pass = 0, changed = true; changed && pass < 3; pass++) {
+    changed = false;
+    for (const reading of readings) {
+      keys.forEach((key, index) => {
+        if (valuesFor(reading.resource.tags, key).length > 0 || reading.inferred.get(key)?.picked) {
+          return;
         }
-      }
-      if (values.size === 1) {
-        const [[value, names]] = values;
-        reading.inferred.set(key, { value, reason: { kind: 'linked', names }, picked: true });
-      }
+        const values = new Map<string, string[]>();
+        for (const other of linked.get(reading.resource.id)![index]) {
+          const selected = byId.get(other.id);
+          const value = selected != null ? effective(selected, key) : (valuesFor(other.tags, key)[0] ?? null);
+          if (value != null) {
+            values.set(value, [...(values.get(value) ?? []), other.name]);
+          }
+        }
+        if (values.size === 1) {
+          const [[value, names]] = values;
+          reading.inferred.set(key, { value, reason: { kind: 'linked', names }, picked: true });
+          changed = true;
+        }
+      });
     }
   }
 }
@@ -643,9 +821,9 @@ export function suggestSmartTags(
   resources: readonly SmartTagResource[],
   context: SmartTagContext,
 ): SmartTagSuggestion[] {
-  const conventions = conventionsOf(context.tagsInUse);
+  const conventions = conventionsOf(context.resources.flatMap((resource) => resource.tags));
   const readings = resources.map((resource) => read(resource, conventions));
-  inferProjects(readings, conventions);
+  inferProjects(readings, conventions, projectFamilies(context.resources, conventions));
   inferFromLinks(readings, conventions, context);
   inferFromProjects(readings, conventions);
   const rank = (key: string) => (key === conventions.envKey ? 0 : key === conventions.projectKey ? 1 : 2);

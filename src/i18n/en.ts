@@ -947,7 +947,7 @@ export const en = {
   'tagDialog.addon': 'add-on',
   'smartTags.title': 'Smart tags',
   'smartTags.intro':
-    'Read from the names, the selection taken as a whole: environment words, the words the names share, the tags the organisation already uses, the links of the add-ons. Only additions; pick what to apply.',
+    'Read from the names, the selection taken as a whole: environment words, the words the names share, the tags the organisation already uses and the names already tagged, the links between applications and add-ons. Only additions; pick what to apply.',
   'smartTags.nothing': 'Nothing could be read from these names.',
   'smartTags.proposed': 'Proposed tags',
   'smartTags.pickAll': 'Apply {tag} to the {count} resources it is proposed for',
@@ -963,6 +963,8 @@ export const en = {
   'smartTags.reason.known': 'in the name, already used in the organisation',
   'smartTags.reason.shared': 'shared by {count} names of the selection',
   'smartTags.reason.close': 'the project of the organisation holding “{words}”, a guess',
+  'smartTags.reason.like': 'like {names}, already tagged so',
+  'smartTags.reason.like_one': 'like {names}, already tagged so',
   'smartTags.reason.rest': 'the rest of the name, a guess',
   'smartTags.reason.linked': 'from {names}, linked to it',
   'smartTags.reason.project': 'like the rest of {project} in the selection',
