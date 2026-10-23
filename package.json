@@ -1,6 +1,6 @@
 {
   "name": "clever-visual-cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A visual interface for clever-tools, the Clever Cloud CLI, with a few extras; front-end only, built on @clevercloud/client",
   "license": "Apache-2.0",
   "author": "Sébastien Prunier",
