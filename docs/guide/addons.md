@@ -28,7 +28,7 @@ The pencil right after the name opens "Rename the add-on" (also in the palette, 
 
 The tags sit under the name and are edited from the pencil, as on an [application page](/guide/application#tags), through `clever curl` calls since clever-tools has no tag command. For grouping, an add-on also takes the `key:value` tags of its linked applications, for every key it has no tag of its own: they show dashed, and their tooltip names the applications to edit them on.
 
-The tabs depend on the add-on: **Overview**, **Buckets** (Cellar), **Variables**, **Logs** (a dedicated plan), **Backups** (databases and Elasticsearch).
+The tabs depend on the add-on: first those of every add-on, **Overview**, **Variables** and **Logs** (a dedicated plan), then those of its family, **Buckets** (Cellar) or **Backups** (databases and Elasticsearch).
 
 The list you came from stays beside the page, as on an [application page](/guide/application#list), and goes from add-ons to applications and back.
 

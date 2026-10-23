@@ -52,11 +52,12 @@ import { sharedStyles } from './shared/styles.js';
 
 const CELLAR_PROVIDER = 'cellar-addon';
 
+/** What every add-on has comes first (logs when it has some), then the tabs of its family (#28). */
 const TABS: ReadonlyArray<{ tab: AddonTab; label: MessageKey }> = [
   { tab: 'overview', label: 'tab.overview' },
-  { tab: 'buckets', label: 'tab.buckets' },
   { tab: 'env', label: 'tab.env' },
   { tab: 'logs', label: 'tab.logs' },
+  { tab: 'buckets', label: 'tab.buckets' },
   { tab: 'backups', label: 'tab.backups' },
 ];
 

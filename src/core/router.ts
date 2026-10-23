@@ -8,7 +8,7 @@
 
 export const APP_TABS = ['overview', 'logs', 'deployments', 'domains', 'env', 'dependencies'] as const;
 export type AppTab = (typeof APP_TABS)[number];
-export const ADDON_TABS = ['overview', 'buckets', 'env', 'logs', 'backups'] as const;
+export const ADDON_TABS = ['overview', 'env', 'logs', 'buckets', 'backups'] as const;
 export type AddonTab = (typeof ADDON_TABS)[number];
 
 export type Route =
