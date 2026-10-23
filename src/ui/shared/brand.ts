@@ -4,7 +4,9 @@
  * lighter), so it sits on a light page as well as on a dark one. The browser
  * tab and the README keep the tiled icon.
  */
-import { html } from 'lit';
+import { html, nothing } from 'lit';
+import { IS_SNAPSHOT } from '../../core/constants.js';
+import { t } from '../../core/i18n.js';
 
 export function appMark(height: number) {
   return html`<svg
@@ -26,4 +28,9 @@ export function appMark(height: number) {
       <rect x="39.75" y="33.25" width="11" height="11" rx="2" />
     </g>
   </svg>`;
+}
+
+/** After the name, on a build of main (#27): a "snapshot" badge, styled by `.channel` of the shared styles. */
+export function channelBadge() {
+  return IS_SNAPSHOT ? html`<span class="channel" title=${t('app.snapshotTitle')}>snapshot</span>` : nothing;
 }

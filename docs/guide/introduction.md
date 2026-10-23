@@ -4,6 +4,8 @@ clever-visual-cli is a visual interface of [clever-tools](https://github.com/Cle
 
 There is nothing to install: open <https://sebprunier.github.io/clever-visual-cli/> and [sign in with an API token](/guide/getting-started).
 
+That address serves the latest release. The work in progress, built from `main` after each change, is at <https://sebprunier.github.io/clever-visual-cli/snapshot/>, with its own documentation under `snapshot/docs/`; its header shows a "snapshot" badge. A snapshot may break. It shares this browser's data (accounts, preferences, favourite views) with the release, so you sign in once for both.
+
 ## What it is {#what-it-is}
 
 The same CLI, visually. What a page does, clever-tools can do, and the page tells you how: using the interface teaches clever-tools along the way, and nothing it does is out of reach of a script.

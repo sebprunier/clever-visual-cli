@@ -6,13 +6,15 @@ import { defineConfig } from 'vitepress';
  * same `CVC_BASE`, into `dist/docs`.
  */
 const appBase = process.env.CVC_BASE ?? '/';
+/** The documentation of a snapshot (#27), built from main under /snapshot/docs/. */
+const snapshot = process.env.CVC_CHANNEL === 'snapshot';
 /** The interface the documentation describes, wherever the documentation is served from. */
-const APP_URL = 'https://sebprunier.github.io/clever-visual-cli/';
+const APP_URL = `https://sebprunier.github.io/clever-visual-cli/${snapshot ? 'snapshot/' : ''}`;
 const REPOSITORY = 'https://github.com/sebprunier/clever-visual-cli';
 
 export default defineConfig({
   lang: 'en-US',
-  title: 'clever-visual-cli',
+  title: snapshot ? 'clever-visual-cli snapshot' : 'clever-visual-cli',
   description:
     'User documentation of clever-visual-cli, a visual interface of clever-tools with a few extras. Not a new Console.',
   base: `${appBase}docs/`,
@@ -23,7 +25,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/introduction' },
       { text: 'Reference', link: '/reference/filters' },
-      { text: 'Open clever-visual-cli', link: APP_URL },
+      { text: snapshot ? 'Open the snapshot' : 'Open clever-visual-cli', link: APP_URL },
     ],
     sidebar: [
       {

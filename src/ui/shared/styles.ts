@@ -123,6 +123,17 @@ export const sharedStyles = css`
     align-items: center;
     gap: 0.4rem;
   }
+  /* The badge of a snapshot build, after the app's name (#27). */
+  .channel {
+    padding: 0 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
+    color: var(--cvc-warn);
+    border: 1px solid currentColor;
+  }
   /* A pencil beside what it edits (a name, tags): quiet until hovered. */
   button.edit {
     display: inline-flex;

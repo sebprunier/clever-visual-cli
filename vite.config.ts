@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { loadEnv, type Plugin } from 'vite';
@@ -90,12 +91,18 @@ function productionCsp(): Plugin {
 
 /** The version of clever-visual-cli, from package.json: the interface shows it (#25). */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+/**
+ * `CVC_CHANNEL=snapshot` builds main for /snapshot/ (#27): the version names the commit it was built
+ * from, and the interface links to that commit instead of a release.
+ */
+const commit = process.env.CVC_CHANNEL === 'snapshot' ? execSync('git rev-parse HEAD').toString().trim() : '';
+const appVersion = commit === '' ? version : `${version}-snapshot+${commit.slice(0, 7)}`;
 
 export default defineConfig({
   // GitHub Pages serves the site under /clever-visual-cli/ ; other hosts at the root.
   base: process.env.CVC_BASE ?? '/',
   plugins: [devCliProfile(), productionCsp()],
-  define: { __CVC_VERSION__: JSON.stringify(version) },
+  define: { __CVC_VERSION__: JSON.stringify(appVersion), __CVC_COMMIT__: JSON.stringify(commit) },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],

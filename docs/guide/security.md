@@ -90,7 +90,7 @@ object-src 'none'
 - **Compared with clever-tools.** clever-tools keeps its credentials in a configuration file, in clear on disk. A static page without third-party scripts, with your tokens encrypted, is no more exposed.
 - **Displayed content.** The real risk is a script injected through what the page displays: logs, names, variables. The interface is built with Lit, which escapes what it renders by default, never writes raw HTML, and runs under the strict policy above.
 - **An unlocked tab.** While a tab is unlocked, the key sits in its `sessionStorage`: a script running in the page's origin could read it, which is the same exposure as the unlocked state itself. Lock the vault when you step away, or choose "This tab only" on a computer you share.
-- **A shared origin.** Every page published under a GitHub account shares its `github.io` origin, so the `localStorage` of <https://sebprunier.github.io/clever-visual-cli/> is visible to the other projects published under that account. The vault is encrypted there; a custom domain gives an isolated origin.
+- **A shared origin.** Every page published under a GitHub account shares its `github.io` origin, so the `localStorage` of <https://sebprunier.github.io/clever-visual-cli/> is visible to the other projects published under that account, and shared with the snapshot under `/snapshot/`. The vault is encrypted there; a custom domain gives an isolated origin.
 - **Signing out is not revoking.** "Sign out" and "Erase everything from this browser" remove the token from this browser, not from Clever Cloud. Revoke a token you no longer use with `clever tokens revoke <api-token-id>` or from the Console.
 
 ## Erase everything {#erase}

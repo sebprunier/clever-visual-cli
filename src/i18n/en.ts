@@ -344,6 +344,8 @@ export const en = {
   'env.copyDotenv': 'Copy as .env',
   'env.pending': 'These variables changed since the last deployment: they apply at the next one.',
   'env.restart': 'Restart…',
+  'app.commit': 'Commit',
+  'app.snapshotTitle': 'A build of main, not a release: it may break. It shares this browser’s data with the release.',
   'app.version': 'clever-visual-cli {version}',
   'cli.checked': 'Commands checked with clever‑tools {version}',
   'cli.newer': 'clever‑tools {latest} is out; the commands are checked with {current}.',

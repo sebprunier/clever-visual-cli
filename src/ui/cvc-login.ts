@@ -7,7 +7,7 @@ import type { Credentials } from '../core/credentials.js';
 import type { AccountInfo, Session } from '../core/session.js';
 import { newProfileId, type StoredProfile } from '../core/vault/vault.js';
 import { docsUrl } from '../core/docs.js';
-import { appMark } from './shared/brand.js';
+import { appMark, channelBadge } from './shared/brand.js';
 import './shared/cvc-cli.js';
 import './shared/cvc-locale-switch.js';
 import { sharedStyles } from './shared/styles.js';
@@ -153,7 +153,7 @@ export class CvcLogin extends CvcElement {
       <main class="stack">
         <header>
           <div class="title">
-            <h1>${appMark(26)}clever-visual-cli</h1>
+            <h1>${appMark(26)}clever-visual-cli${channelBadge()}</h1>
             <span class="row small">
               <a href=${docsUrl()} target="_blank" rel="noopener">${t('docs.menu')}</a>
               <span class="muted" aria-hidden="true">·</span>

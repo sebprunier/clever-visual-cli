@@ -6,7 +6,7 @@ A visual interface for [clever-tools](https://github.com/CleverCloud/clever-tool
 
 > **This is not a new Console.** The [Clever Cloud Console](https://console.clever-cloud.com) remains the place to create, configure and explore, and this page often sends you there. clever-visual-cli is something extra, for the days spent in the CLI. A community project, not affiliated with Clever Cloud.
 
-**Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token; everything stays in your browser. The user documentation, with screenshots: <https://sebprunier.github.io/clever-visual-cli/docs/>.
+**Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token; everything stays in your browser. The user documentation, with screenshots: <https://sebprunier.github.io/clever-visual-cli/docs/>. That is the latest release; what `main` holds today is at <https://sebprunier.github.io/clever-visual-cli/snapshot/>, and may break.
 
 Status: 1.0.0, the first release ([release notes](https://github.com/sebprunier/clever-visual-cli/releases/tag/v1.0.0)), usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
 
@@ -154,7 +154,12 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 
 ### Deployment
 
-The site is published on GitHub Pages on every push to `main` by the `.github/workflows/deploy.yml` workflow (typecheck, tests, build, documentation build, publish): <https://sebprunier.github.io/clever-visual-cli/>, and its documentation under `docs/`.
+The site is published on GitHub Pages by the `.github/workflows/deploy.yml` workflow, on every push to `main` and every published release. A Pages deployment replaces the whole site, so each run builds both channels with `scripts/site/build.sh` (after typecheck and tests on `main`):
+
+- <https://sebprunier.github.io/clever-visual-cli/>, and its documentation under `docs/`: the latest published release, built from its tag;
+- <https://sebprunier.github.io/clever-visual-cli/snapshot/>, and `snapshot/docs/`: `main`, built with `CVC_CHANNEL=snapshot`, which names the commit in the version (`1.0.0-snapshot+<sha>`), links the account menu to that commit and shows a "snapshot" badge.
+
+A release goes live once its GitHub release is published: the workflow then runs again on `main` (the `github-pages` environment deploys from `main` only). `scripts/site/build.sh <out>` builds the same site locally.
 
 - `CVC_BASE=/clever-visual-cli/` at build time sets the base path; without it the build targets the root of any host (Clever Cloud static hosting, for instance).
 - The production build injects a Content Security Policy as a `meta` tag: scripts and styles from the site only, network limited to the Clever Cloud APIs, the status page and the npm registry, images from any https origin for the logos.
@@ -183,6 +188,7 @@ Stack: Vite, TypeScript, Lit, no UI library, `#` routing so the page runs on any
 - Features, bugs and questions start as an issue, in English; the issue is the spec, the discussion happens there.
 - Documentation, comments and commit messages are in English. Interface strings go through `t()` with an English and a French entry.
 - Work lands on `main`; the project learns by walking.
+- The release and the snapshot share the browser's storage. A stored format only grows (new optional fields); a change that an older release could not read goes under a new key.
 
 ## Licence
 

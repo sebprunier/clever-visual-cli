@@ -31,3 +31,6 @@ scripts/screenshots/targets.local.json
 
 # The motion design, rendered from the demo data: never committed
 scripts/motion/out
+
+# The site built by scripts/site/build.sh: the release and the snapshot
+/_site

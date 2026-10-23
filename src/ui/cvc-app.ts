@@ -12,7 +12,7 @@ import {
 import { isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
 import { isSyncAddon, SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
-import { APP_RELEASE_URL, APP_VERSION, CLI_VERSION } from '../core/constants.js';
+import { APP_RELEASE_URL, APP_VERSION, CLI_VERSION, IS_SNAPSHOT } from '../core/constants.js';
 import { docsUrl } from '../core/docs.js';
 import { markEnvChanged } from '../core/env-pending.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
@@ -50,7 +50,7 @@ import './cvc-orga-page.js';
 import './cvc-toaster.js';
 import type { CvcToaster, Toast } from './cvc-toaster.js';
 import './cvc-unlock.js';
-import { appMark } from './shared/brand.js';
+import { appMark, channelBadge } from './shared/brand.js';
 import './shared/cvc-cli.js';
 import type { OpenActionDetail } from './shared/events.js';
 import { formatRelative } from './shared/format.js';
@@ -562,7 +562,7 @@ export class CvcApp extends CvcElement {
     const actionContext = this.pendingAction != null ? this.actionContext() : null;
     return html`
       <header class="topbar">
-        <a class="brand" href="#/">${appMark(18)}clever-visual-cli</a>
+        <a class="brand" href="#/">${appMark(18)}clever-visual-cli${channelBadge()}</a>
         ${
           session.summary != null
             ? html`<select
@@ -661,7 +661,9 @@ export class CvcApp extends CvcElement {
             <hr />
             <p class="app-release muted">
               ${t('app.version', { version: APP_VERSION })} ·
-              <a href=${APP_RELEASE_URL} target="_blank" rel="noopener noreferrer">${t('cli.notes')} ↗</a>
+              <a href=${APP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
+                >${IS_SNAPSHOT ? t('app.commit') : t('cli.notes')} ↗</a
+              >
             </p>
             ${this.renderCliRelease()}
           </div>
