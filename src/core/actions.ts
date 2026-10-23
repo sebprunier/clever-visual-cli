@@ -63,6 +63,8 @@ export interface ActionResult {
   envChanged?: boolean;
   /** The deployment the action started: its logs are followed, as `clever restart` does (#13). */
   deploymentId?: string;
+  /** The deployment the action cancelled: its logs, when open, stay on screen to tell how it ended (#33). */
+  cancelledDeploymentId?: string;
   /** A next step offered in the notification: the action it opens, and its button. */
   followUp?: { actionId: string; label: string };
   /** On an add-on page, the tab to open next, with its query parameters (the new bucket, #29). */
@@ -176,7 +178,12 @@ export const ACTIONS: ActionDefinition[] = [
         deploymentId = running.id;
       }
       await api.cancelDeployment(ctx.client, ctx.ownerId, ctx.appId, deploymentId);
-      return { message: t('action.cancel.done'), navigateTo: 'deployments', refresh: true };
+      return {
+        message: t('action.cancel.done'),
+        navigateTo: 'deployments',
+        refresh: true,
+        cancelledDeploymentId: deploymentId,
+      };
     },
   },
   {

@@ -156,6 +156,7 @@ export const fr: Record<MessageKey, string> = {
   'buckets.empty': 'Ce dossier est vide.',
   'buckets.download': 'Télécharger',
   'buckets.more': 'Charger la suite',
+  'app.cancelDeploy': 'Annuler le déploiement',
   'app.restart': 'Redémarrer',
   'app.start': 'Démarrer',
   'app.stop': 'Arrêter',

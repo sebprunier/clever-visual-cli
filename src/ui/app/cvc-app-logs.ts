@@ -20,6 +20,7 @@ import {
 } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
+import { openAction } from '../shared/events.js';
 import {
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
@@ -217,10 +218,13 @@ export class CvcAppLogs extends CvcElement {
     void stream.start(minutesSince(since));
   }
 
-  /** The number and author of the deployment, which the v2 API knows once it has started. */
-  private async readDetails(): Promise<void> {
+  /**
+   * The number and author of the deployment, which the v2 API knows once it has started; read again
+   * when it ends (`again`), since only v2 tells a cancelled deployment: v4 says it succeeded.
+   */
+  private async readDetails(again = false): Promise<void> {
     const { client, ownerId, appId, deploymentId } = this;
-    if (this.details != null || this.deployment == null || this.deployment.state === 'QUEUED') {
+    if ((this.details != null && !again) || this.deployment == null || this.deployment.state === 'QUEUED') {
       return;
     }
     try {
@@ -247,7 +251,7 @@ export class CvcAppLogs extends CvcElement {
         }
         this.deployment = next;
         this.openDeploymentStream();
-        void this.readDetails();
+        void this.readDetails(!isUnderway(next));
         if (!isUnderway(next)) {
           // Over: the application's state and its last deployment change on every page.
           this.dispatchEvent(
@@ -521,7 +525,9 @@ export class CvcAppLogs extends CvcElement {
         <a class="small" href=${back}>${t('logs.deployment.back')}</a>
       </div>`;
     }
-    const state = stateLabel(DEPLOYMENT_STATE_LABELS, deployment.state);
+    // A cancelled deployment ends as SUCCEEDED in v4: v2 knows better (#33).
+    const ended = !isUnderway(deployment) && this.details?.state === 'CANCELLED' ? 'CANCELLED' : deployment.state;
+    const state = stateLabel(DEPLOYMENT_STATE_LABELS, ended);
     const facts = [
       deploymentActionLabel(deployment.origin.action),
       // Without its number yet, the title already gives the date.
@@ -541,6 +547,17 @@ export class CvcAppLogs extends CvcElement {
       <span class="muted small">${facts.join(' · ')}</span>
       ${isUnderway(deployment) ? html`<span class="muted small">${t('logs.deployment.following')}</span>` : nothing}
       <span class="grow"></span>
+      ${
+        isUnderway(deployment)
+          ? html`<button
+              type="button"
+              class="ghost small cancel"
+              @click=${() => openAction(this, 'cancel-deploy', { deploymentId: this.deploymentId })}
+            >
+              ${t('app.cancelDeploy')}
+            </button>`
+          : nothing
+      }
       <a class="small" href=${back}>${t('logs.deployment.back')}</a>
     </div>`;
   }
@@ -575,6 +592,9 @@ export class CvcAppLogs extends CvcElement {
       }
       .deployment .grow {
         flex: 1;
+      }
+      .deployment button.cancel {
+        color: var(--cvc-danger);
       }
       .danger {
         color: var(--cvc-danger);

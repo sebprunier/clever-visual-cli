@@ -204,6 +204,8 @@ ${t('activity.logsHint')}"
     const variant = this.app?.instance.variant.name ?? this.summaryApp?.variantName;
     const zone = this.app?.zone;
     const canStop = state != null && state !== 'SHOULD_BE_DOWN';
+    const last = this.lastDeployment();
+    const running = last != null && isInProgress(last) ? last : null;
 
     return html`
       <header>
@@ -233,6 +235,18 @@ ${t('activity.logsHint')}"
                 )
           }
           <span class="grow"></span>
+          ${
+            /* While a deployment is queued or running, cancelling it is one click away (#33). */
+            running == null
+              ? nothing
+              : html`<button
+                  type="button"
+                  class="stop"
+                  @click=${() => openAction(this, 'cancel-deploy', { deploymentId: running.id })}
+                >
+                  ${t('app.cancelDeploy')}
+                </button>`
+          }
           <button type="button" class="with-icon" @click=${() => openAction(this, 'restart')}>
             ${canStop ? ICON_RESTART : ICON_START} ${canStop ? t('app.restart') : t('app.start')}
           </button>

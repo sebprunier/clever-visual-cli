@@ -376,6 +376,12 @@ export class CvcApp extends CvcElement {
         result.deploymentId,
         readListView(window.location.hash),
       );
+    } else if (
+      result.cancelledDeploymentId != null &&
+      this.route.kind === 'app' &&
+      readHashParams().get('deployment') === result.cancelledDeploymentId
+    ) {
+      // Cancelled from its own logs: they stay, and say how it ended.
     } else if (result.navigateTo != null && this.route.kind === 'app') {
       navigate({ kind: 'app', ownerId: this.route.ownerId, appId: this.route.appId, tab: result.navigateTo });
     } else if (result.addonTab != null && this.route.kind === 'addon') {

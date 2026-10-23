@@ -163,6 +163,7 @@ export const en = {
   'buckets.empty': 'This folder is empty.',
   'buckets.download': 'Download',
   'buckets.more': 'Load more',
+  'app.cancelDeploy': 'Cancel deployment',
   'app.restart': 'Restart',
   'app.start': 'Start',
   'app.stop': 'Stop',

@@ -187,6 +187,12 @@ describe('actions', () => {
     expect(result.deploymentId).toBeUndefined();
   });
 
+  it('cancel a deployment and say which one, so its logs can stay', async () => {
+    const client = { send: async () => undefined } as unknown as CcApiClient;
+    const result = await findAction('cancel-deploy')!.run({ ...ctx, client }, { deploymentId: 'deployment_9' });
+    expect(result).toMatchObject({ cancelledDeploymentId: 'deployment_9', navigateTo: 'deployments' });
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");
