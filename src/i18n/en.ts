@@ -950,6 +950,8 @@ export const en = {
     'Read from the names, the selection taken as a whole: environment words, the words the names share, the tags the organisation already uses and the names already tagged, the links between applications and add-ons. Only additions; pick what to apply.',
   'smartTags.nothing': 'Nothing could be read from these names.',
   'smartTags.proposed': 'Proposed tags',
+  'smartTags.proposedSummary': '{count} tags, {picked} ticked: unfold to tick or rename them for the whole selection',
+  'smartTags.proposedSummary_one': '{count} tag, {picked} ticked: unfold to tick or rename it for the whole selection',
   'smartTags.pickAll': 'Apply {tag} to the {count} resources it is proposed for',
   'smartTags.pickAll_one': 'Apply {tag} to the resource it is proposed for',
   'smartTags.renameAria': 'Tag proposed instead of {tag}',

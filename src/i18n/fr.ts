@@ -951,6 +951,10 @@ export const fr: Record<MessageKey, string> = {
     'Lus dans les noms, la sélection prise comme un tout : les mots d’environnement, les mots que les noms partagent, les tags que l’organisation utilise déjà et les noms déjà tagués, les liens entre applications et add-ons. Uniquement des ajouts ; coche ce que tu veux appliquer.',
   'smartTags.nothing': 'Rien n’a pu être lu dans ces noms.',
   'smartTags.proposed': 'Tags proposés',
+  'smartTags.proposedSummary':
+    '{count} tags, {picked} cochés : déplie pour les cocher ou les renommer pour toute la sélection',
+  'smartTags.proposedSummary_one':
+    '{count} tag, {picked} coché : déplie pour le cocher ou le renommer pour toute la sélection',
   'smartTags.pickAll': 'Appliquer {tag} aux {count} ressources auxquelles il est proposé',
   'smartTags.pickAll_one': 'Appliquer {tag} à la ressource à laquelle il est proposé',
   'smartTags.renameAria': 'Tag proposé à la place de {tag}',

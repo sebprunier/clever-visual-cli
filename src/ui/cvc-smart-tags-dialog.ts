@@ -86,7 +86,8 @@ export class CvcSmartTagsDialog extends CvcElement {
   }
 
   override firstUpdated(): void {
-    this.renderRoot.querySelector<HTMLElement>('input, button.primary')?.focus();
+    // The first thing in the form, so that Escape reaches it; the proposed tags start folded.
+    this.renderRoot.querySelector<HTMLElement>('summary, button.ghost')?.focus();
   }
 
   private isPicked(resourceId: string, proposal: SmartTagProposal): boolean {
@@ -222,8 +223,16 @@ export class CvcSmartTagsDialog extends CvcElement {
   }
 
   private renderProposed(proposed: Proposed[]) {
-    return html`<section>
-      <h3>${t('smartTags.proposed')}</h3>
+    return html`<details class="proposed-tags">
+      <summary>
+        <h3>${t('smartTags.proposed')}</h3>
+        <span class="muted small">
+          ${t('smartTags.proposedSummary', {
+            count: proposed.length,
+            picked: proposed.filter(({ picked }) => picked > 0).length,
+          })}
+        </span>
+      </summary>
       <datalist id="tag-suggestions">
         ${tagsOf(this.context.resources).map((tag) => html`<option value=${tag}></option>`)}
       </datalist>
@@ -260,7 +269,7 @@ export class CvcSmartTagsDialog extends CvcElement {
           </li>`;
         })}
       </ul>
-    </section>`;
+    </details>`;
   }
 
   private renderResources() {
@@ -362,6 +371,17 @@ export class CvcSmartTagsDialog extends CvcElement {
         margin: 0 0 0.4rem;
         font-size: 0.9rem;
         font-weight: 500;
+      }
+      .proposed-tags summary {
+        cursor: pointer;
+        width: fit-content;
+      }
+      .proposed-tags summary h3 {
+        display: inline;
+        margin-right: 0.4rem;
+      }
+      .proposed-tags[open] summary {
+        margin-bottom: 0.4rem;
       }
       ul {
         margin: 0;
