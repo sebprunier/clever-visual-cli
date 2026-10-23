@@ -157,12 +157,14 @@ const ROLE_WORDS: ReadonlySet<string> = new Set([
   'bucket',
   'buckets',
   'data',
+  'datastore',
   'db',
   'database',
   'bdd',
   'sql',
   'shared',
   'common',
+  'backup',
   // add-ons
   'addon',
   'pg',
@@ -217,6 +219,7 @@ const ROLE_WORDS: ReadonlySet<string> = new Set([
   'deno',
   'bun',
   'frankenphp',
+  'stack'
 ]);
 
 /** Keys an organisation may use for the project, the first one by default. */
