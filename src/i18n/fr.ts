@@ -315,6 +315,10 @@ export const fr: Record<MessageKey, string> = {
   'overview.maxAllowed': '(max autorisé : {max})',
   'overview.size': 'Taille',
   'overview.dedicatedBuild': 'Build dédié',
+  'overview.cleverGit': 'git (Clever Cloud)',
+  'overview.repository': 'Dépôt',
+  'overview.githubBranch': 'Branche GitHub',
+  'overview.githubHint': 'Se déploie à chaque push sur cette branche, sur GitHub.',
   'overview.deployment': 'Déploiement',
   'overview.method': 'Méthode',
   'overview.branch': 'Branche',
@@ -541,6 +545,12 @@ export const fr: Record<MessageKey, string> = {
   'action.bucketCreate.invalid': 'Cellar refuse ce nom de bucket.',
   'action.bucketCreate.exists': 'Ce nom est déjà pris : choisissez-en un autre.',
   'action.bucketCreate.tooMany': 'Cet add-on a atteint le nombre de buckets autorisé.',
+  'action.branch.title': 'Branche GitHub',
+  'action.branch.description':
+    'La branche du dépôt GitHub que cette application déploie : chaque push sur elle déploie.',
+  'action.branch.branch': 'Branche',
+  'action.branch.done': 'Le prochain déploiement prend {branch} : un push sur elle côté GitHub, ou un redémarrage.',
+  'action.branch.notGithub': 'Seule une application liée à GitHub a une branche à choisir.',
   'action.config.title': 'Options de l’application',
   'action.config.description':
     'Les réglages de clever config update. Certains ne s’appliquent qu’au prochain déploiement.',

@@ -150,6 +150,43 @@ describe('actions', () => {
     expect(sent).toEqual(['CreateCellarBucketCommand']);
   });
 
+  it('change the branch of a GitHub-linked application only', () => {
+    const branch = findAction('branch')!;
+    const githubApp = {
+      branch: 'prod',
+      branches: ['dev', 'main', 'prod'],
+      deployment: { type: 'GIT', httpUrl: 'https://github.com/serli/ui-kit.git', url: '', repoState: 'NOT_NEEDED' },
+      oauthApp: { type: 'github', secret: '', webhookUrl: '' },
+    } as unknown as NonNullable<ActionContext['app']>;
+    const cleverApp = {
+      ...githubApp,
+      branch: 'master',
+      deployment: { type: 'GIT', url: 'git+ssh://push.clever-cloud.com/app_1.git', repoState: 'CREATED' },
+      oauthApp: undefined,
+    } as unknown as NonNullable<ActionContext['app']>;
+    const onGithub: ActionContext = { ...ctx, app: githubApp };
+    const [field] = branch.fields(onGithub, {});
+    expect(field.options?.map((option) => option.value)).toEqual(['dev', 'main', 'prod']);
+    expect(field.default).toBe('prod');
+    expect(branch.ready!(onGithub, { branch: 'prod' })).toBe(false);
+    expect(branch.ready!(onGithub, { branch: 'dev' })).toBe(true);
+    expect(branch.cli(onGithub, { branch: 'dev' })).toContain('/applications/app_1/branch');
+    expect(offersAction(branch, 'app', undefined, githubApp)).toBe(true);
+    expect(offersAction(branch, 'app', undefined, cleverApp)).toBe(false);
+  });
+
+  it('offer a restart after a branch change, which deploys nothing by itself', async () => {
+    const client = { send: async () => undefined } as unknown as CcApiClient;
+    const app = {
+      branch: 'prod',
+      deployment: { type: 'GIT', httpUrl: 'https://github.com/serli/ui-kit.git', url: '', repoState: 'NOT_NEEDED' },
+      oauthApp: { type: 'github', secret: '', webhookUrl: '' },
+    } as unknown as NonNullable<ActionContext['app']>;
+    const result = await findAction('branch')!.run({ ...ctx, client, app }, { branch: 'dev' });
+    expect(result.followUp?.actionId).toBe('restart');
+    expect(result.deploymentId).toBeUndefined();
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");

@@ -329,7 +329,8 @@ export class CvcApp extends CvcElement {
       route.kind === 'addon'
         ? this.session?.findOrganisation(route.ownerId)?.addons.find((addon) => addon.id === route.addonId)?.providerId
         : undefined;
-    if (!offersAction(action, route.kind, providerId)) {
+    const app = route.kind === 'app' && this.currentApp?.id === route.appId ? this.currentApp : null;
+    if (!offersAction(action, route.kind, providerId, app)) {
       return;
     }
     this.palette?.close();
@@ -357,7 +358,12 @@ export class CvcApp extends CvcElement {
     if (result.envChanged && this.route.kind === 'app') {
       markEnvChanged(this.route.appId);
     }
-    this.toaster?.push({ kind: 'success', message: result.message });
+    const followUp = result.followUp;
+    this.toaster?.push({
+      kind: 'success',
+      message: result.message,
+      action: followUp == null ? undefined : { label: followUp.label, run: () => this.openAction(followUp.actionId) },
+    });
     if (result.refresh) {
       this.revision += 1;
       void this.session?.refreshSummary();
@@ -403,7 +409,8 @@ export class CvcApp extends CvcElement {
           run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
         });
       }
-      for (const action of ACTIONS.filter((candidate) => offersAction(candidate, 'app'))) {
+      const loaded = this.currentApp?.id === route.appId ? this.currentApp : null;
+      for (const action of ACTIONS.filter((candidate) => offersAction(candidate, 'app', undefined, loaded))) {
         commands.push({
           id: `action:${action.id}`,
           title: t(action.title),

@@ -104,7 +104,7 @@ After a restart of a selection, the notification offers to follow the logs: the 
 
 ### Actions
 
-From the palette or the page: rename an application or an add-on (the pencil after its name), restart, stop, cancel a deployment, scale, set the options, set, delete or import variables, add, remove or pick the primary domain, link or unlink add-ons and applications. Every dialog shows the equivalent `clever` command live, ready to copy.
+From the palette or the page: rename an application or an add-on (the pencil after its name), choose the GitHub branch a GitHub-linked application deploys, restart, stop, cancel a deployment, scale, set the options, set, delete or import variables, add, remove or pick the primary domain, link or unlink add-ons and applications. Every dialog shows the equivalent `clever` command live, ready to copy.
 
 ### Command palette
 

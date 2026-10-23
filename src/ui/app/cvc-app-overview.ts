@@ -6,6 +6,7 @@ import { arrangeDomains, summarizeInstances } from '../../core/app/overview.js';
 import { describeError } from '../../core/clever-client.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { CONSOLE_URL } from '../../core/constants.js';
+import { deploymentSource } from '../../core/deployment-source.js';
 import { appStatus } from '../../core/home/status.js';
 import { isInProgress } from '../../core/home/activity.js';
 import { t } from '../../core/i18n.js';
@@ -377,24 +378,74 @@ export class CvcAppOverview extends CvcElement {
     </section>`;
   }
 
+  /** Where the code comes from (#32): GitHub deploys on a push to its branch, Clever Cloud's git on `git push clever`. */
   private renderDeployment() {
     const app = this.app;
-    const remote = app.deployment.httpUrl ?? app.deployment.url;
+    const source = deploymentSource(app);
+    const commit = shortCommit(app.commitId);
     return html`<section class="card">
-      <h3>${t('overview.deployment')}</h3>
+      <h3>
+        ${t('overview.deployment')}
+        ${
+          source.kind === 'github'
+            ? html`<button type="button" class="ghost small" @click=${() => openAction(this, 'branch')}>
+                ${t('common.edit')}
+              </button>`
+            : nothing
+        }
+      </h3>
       <dl>
         <dt>${t('overview.method')}</dt>
-        <dd>${app.deployment.type.toLowerCase()}</dd>
-        <dt>${t('overview.branch')}</dt>
-        <dd>${app.branch || html`<span class="muted">–</span>`}</dd>
+        <dd>
+          ${
+            source.kind === 'github'
+              ? 'GitHub'
+              : source.kind === 'clever-git'
+                ? t('overview.cleverGit')
+                : source.method.toLowerCase()
+          }
+        </dd>
+        ${
+          source.kind === 'github'
+            ? html`<dt>${t('overview.repository')}</dt>
+                <dd>
+                  <a href=${source.url} target="_blank" rel="noopener noreferrer">${source.repository} ↗</a>
+                </dd>`
+            : nothing
+        }
+        ${
+          source.kind === 'ftp'
+            ? nothing
+            : html`<dt>${source.kind === 'github' ? t('overview.githubBranch') : t('overview.branch')}</dt>
+                <dd class="mono">${source.branch || html`<span class="muted">–</span>`}</dd>`
+        }
         <dt>${t('overview.commit')}</dt>
-        <dd class="mono">${shortCommit(app.commitId) || html`<span class="muted">${t('common.none')}</span>`}</dd>
+        <dd class="mono">
+          ${
+            commit === ''
+              ? html`<span class="muted">${t('common.none')}</span>`
+              : source.kind === 'github'
+                ? html`<a href="${source.url}/commit/${app.commitId}" target="_blank" rel="noopener noreferrer"
+                    >${commit}</a
+                  >`
+                : commit
+          }
+        </dd>
         <dt>${t('overview.deployments')}</dt>
         <dd>
           ${app.lastDeployedAt > 0 ? t('overview.total', { count: app.lastDeployedAt }) : html`<span class="muted">${t('common.none')}</span>`}
         </dd>
       </dl>
-      ${remote ? html`<cvc-cli class="remote" command=${`git remote add clever ${remote}`}></cvc-cli>` : nothing}
+      ${
+        source.kind === 'github'
+          ? html`<p class="muted small source-hint">${t('overview.githubHint')}</p>`
+          : source.kind === 'clever-git' && source.remote
+            ? html`<div class="remote">
+                <cvc-cli command=${`git remote add clever ${source.remote}`}></cvc-cli>
+                <cvc-cli command=${`git push clever HEAD:${source.branch}`}></cvc-cli>
+              </div>`
+            : nothing
+      }
     </section>`;
   }
 
@@ -626,6 +677,12 @@ export class CvcAppOverview extends CvcElement {
 
       .remote {
         display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+      }
+      .source-hint {
         margin-top: 0.75rem;
       }
       .id-label {

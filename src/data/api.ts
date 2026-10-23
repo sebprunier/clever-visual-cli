@@ -154,8 +154,27 @@ export function fetchSummary(client: CcApiClient): Promise<Summary> {
   return client.send(new GetOrganisationSummaryCommand());
 }
 
+/** An application in full; a GitHub-linked one also lists its repository's branches (#32), at the cost of a call. */
 export function fetchApplication(client: CcApiClient, ownerId: string, applicationId: string): Promise<Application> {
-  return client.send(new GetApplicationCommand({ ownerId, applicationId }));
+  return client.send(new GetApplicationCommand({ ownerId, applicationId, withBranches: true }));
+}
+
+/**
+ * The branch a GitHub-linked application deploys (#32), alone: `UpdateApplicationCommand` would also
+ * send the application itself again. clever-tools has no command for it.
+ */
+export async function setApplicationBranch(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  branch: string,
+): Promise<void> {
+  await client.send(
+    new RawPutCommand(
+      `/v2/organisations/${encodeURIComponent(ownerId)}/applications/${encodeURIComponent(applicationId)}/branch`,
+      { branch },
+    ),
+  );
 }
 
 export function fetchInstances(client: CcApiClient, ownerId: string, applicationId: string): Promise<Instance[]> {
@@ -887,6 +906,36 @@ class RawGetCommand extends GetPriceSystemCommand {
 
   override transformCommandOutput(response: unknown): GetPriceSystemCommandOutput {
     return response as GetPriceSystemCommandOutput;
+  }
+}
+
+/** A JSON PUT the client has no public command for, on the same plumbing; the answer is dropped. */
+class RawPutCommand extends GetPriceSystemCommand {
+  readonly #url: string;
+  readonly #body: object;
+
+  constructor(url: string, body: object) {
+    super({});
+    this.#url = url;
+    this.#body = body;
+  }
+
+  override toRequestParams(): ReturnType<GetPriceSystemCommand['toRequestParams']> {
+    return {
+      method: 'PUT',
+      url: this.#url,
+      headers: new Headers({ Accept: 'application/json', 'Content-Type': 'application/json' }),
+      body: this.#body,
+    };
+  }
+
+  override transformCommandOutput(): GetPriceSystemCommandOutput {
+    return undefined as unknown as GetPriceSystemCommandOutput;
+  }
+
+  // Setting the same branch twice changes nothing.
+  override isIdempotent(): boolean {
+    return true;
   }
 }
 

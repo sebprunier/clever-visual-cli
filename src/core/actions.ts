@@ -7,6 +7,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
 import type { AddonSummary, Application, OrganisationSummary } from '../data/api.js';
 import { BUCKET_NAME_PATTERN, createBucketCurl } from './addons/cellar.js';
+import { branchCurl, deploymentSource } from './deployment-source.js';
 import { ENV_NAME_PATTERN } from './env.js';
 import { t, type MessageKey } from './i18n.js';
 import type { AddonTab, AppTab } from './router.js';
@@ -62,6 +63,8 @@ export interface ActionResult {
   envChanged?: boolean;
   /** The deployment the action started: its logs are followed, as `clever restart` does (#13). */
   deploymentId?: string;
+  /** A next step offered in the notification: the action it opens, and its button. */
+  followUp?: { actionId: string; label: string };
   /** On an add-on page, the tab to open next, with its query parameters (the new bucket, #29). */
   addonTab?: AddonTab;
   params?: Record<string, string | null>;
@@ -73,6 +76,8 @@ export interface ActionDefinition {
   target?: 'app' | 'addon';
   /** For an add-on action, the providers it is offered for; every add-on when absent. */
   providers?: readonly string[];
+  /** For an application action, whether it applies to this application once loaded; always when absent. */
+  appliesTo?: (app: Application) => boolean;
   /** Message key of the title. */
   title: MessageKey;
   /** Message key of the description. */
@@ -387,6 +392,54 @@ export const ACTIONS: ActionDefinition[] = [
         refresh: true,
         addonTab: 'buckets',
         params: { bucket: name, prefix: null },
+      };
+    },
+  },
+  {
+    id: 'branch',
+    appliesTo: (app) => deploymentSource(app).kind === 'github',
+    cliHint: 'clever curl -X PUT …/branch',
+    title: 'action.branch.title',
+    description: 'action.branch.description',
+    submitLabel: 'common.apply',
+    keywords: ['branch', 'branche', 'github', 'git', 'deploy', 'déployer'],
+    fields: (ctx) => {
+      const current = ctx.app?.branch ?? '';
+      const branches = ctx.app?.branches ?? [];
+      return [
+        branches.length === 0
+          ? {
+              name: 'branch',
+              label: t('action.branch.branch'),
+              type: 'text',
+              required: true,
+              mono: true,
+              default: current,
+            }
+          : {
+              name: 'branch',
+              label: t('action.branch.branch'),
+              type: 'select',
+              required: true,
+              mono: true,
+              options: branches.map((branch) => ({ value: branch, label: branch })),
+              default: current,
+            },
+      ];
+    },
+    ready: (ctx, v) => str(v.branch) !== '' && str(v.branch) !== (ctx.app?.branch ?? ''),
+    cli: (ctx, v) => branchCurl(ctx.ownerId, ctx.appId, str(v.branch)),
+    run: async (ctx, v) => {
+      if (ctx.app != null && deploymentSource(ctx.app).kind !== 'github') {
+        throw new Error(t('action.branch.notGithub'));
+      }
+      const branch = str(v.branch);
+      await api.setApplicationBranch(ctx.client, ctx.ownerId, ctx.appId, branch);
+      // The change deploys nothing by itself (checked on a test app): the next deployment takes the branch.
+      return {
+        message: t('action.branch.done', { branch }),
+        refresh: true,
+        followUp: { actionId: 'restart', label: t('action.restart.title') },
       };
     },
   },
@@ -721,11 +774,20 @@ const BUCKET_REFUSALS: Record<NonNullable<ReturnType<typeof api.bucketCreationRe
   tooMany: 'action.bucketCreate.tooMany',
 };
 
-/** Whether an action is offered on this page: its target, and for an add-on its provider. */
-export function offersAction(action: ActionDefinition, target: 'app' | 'addon', providerId?: string): boolean {
+/**
+ * Whether an action is offered on this page: its target, for an add-on its provider, and for an
+ * application, once loaded, whether it applies to it.
+ */
+export function offersAction(
+  action: ActionDefinition,
+  target: 'app' | 'addon',
+  providerId?: string,
+  app?: Application | null,
+): boolean {
   return (
     (action.target ?? 'app') === target &&
-    (action.providers == null || (providerId != null && action.providers.includes(providerId)))
+    (action.providers == null || (providerId != null && action.providers.includes(providerId))) &&
+    (action.appliesTo == null || app == null || action.appliesTo(app))
   );
 }
 
