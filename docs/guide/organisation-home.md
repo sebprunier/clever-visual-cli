@@ -161,7 +161,7 @@ A tag change, a restart or a stop opens a dialog that shows the exact list it ap
 
 ### Tags {#bulk-tags}
 
-The **Tags** menu offers "Add a tag", "Remove a tag" and "Rename a tag", for the applications and add-ons of the selection. The dialog lets you switch between the three, and says what you selected ("5 resources selected (3 apps, 2 add-ons)").
+The **Tags** menu offers "Add a tag", "Remove a tag", "Rename a tag" and "Smart tags…" (see [Smart tags](#smart-tags)), for the applications and add-ons of the selection. The dialog lets you switch between the three, and says what you selected ("5 resources selected (3 apps, 2 add-ons)").
 
 - **Add a tag**: type it; the tags of the organisation are suggested.
 - **Remove a tag**: pick it among the tags of the selection.
@@ -177,6 +177,22 @@ clever curl -X DELETE https://api.clever-cloud.com/v2/organisations/orga_…/add
 ```
 
 **Apply** sends the changes. The notification ("5 tag changes applied.") offers **Undo**, which reverts exactly what was applied.
+
+### Smart tags {#smart-tags}
+
+"Smart tags…" reads tags from the names of the selection, taken as a whole, and lets you pick which to apply. For `DEV-shop-api`, `shop-db-dev` and `ShopCellarDev`, it proposes `env:dev` and `project:shop` for all three.
+
+- **Words**: each name is cut into words, whatever the separators (`-`, `_`, `.`, spaces) and the case (`shopCellar`); `pre-prod` is one word.
+- **Environment**: an environment word anywhere in the name gives it, synonyms included: `dev`, `development` → `env:dev`; `prod`, `production`, `prd` → `env:prod`; also `preprod`, `staging`, `qua`, `recette`, `uat`, `qa`, `test`, `int`, `demo`, `sandbox`, `preview`. A name holding two of them (`dev-to-prod-sync`) gives none.
+- **Project**: role words (`api`, `front`, `worker`, `db`, `cellar`, `redis`…), the runtime or provider of the resource, numbers and versions are set aside; the project is what is left, read across the selection. When some words are in every name, they are the project of the whole selection, wherever they sit in each name. Across several projects, each resource takes the most words it shares with another one (`ff-shop-api` and `ff-shop-dev-data` → `project:ff-shop`, `blog-api` and `blog-db` → `project:blog`). A name that shares nothing is a guess, not ticked.
+- **The organisation first**: the keys it uses (`environment:` rather than `env:`), its spelling of an environment (`env:production` rather than `env:prod`), a project it already has when its words are in the name, and the values of its other keys found in a name (`client:acme` for `acme-shop-api`). When a single word is read and one project of the organisation holds it (`mcp` and `project:apps-mcp`), that project is proposed, not ticked.
+- **The selection fills its gaps**: an add-on takes the project and the environment of the applications it is linked to (configuration providers and the like left out); a resource without an environment word takes the one the rest of its project in the selection agrees on, and so do the other `key:value` tags of that project.
+
+Only additions are proposed. A tag the resource already has is left out; one whose key it already has with another value (`env:dev` proposed, `env:prod` there) is shown with "≠" and not ticked.
+
+The dialog lists the proposed tags with how many resources each goes to and why ("“dev” in the name", "shared by 3 names of the selection", "from shop-api, linked to it"). A box applies or drops a tag for every resource at once, and its text field edits it for the whole selection (`project:shop` → `project:boutique`). Below, each resource shows its tags as chips, ticked ones in green, that a click toggles. The API calls and the `clever curl` commands follow, as for the other tag changes, and **Apply** sends them, with **Undo** in the notification.
+
+Smart tags work best on one group at a time: group by what the names have in common, tick a group, and open "Smart tags…".
 
 ### Applications {#bulk-applications}
 
