@@ -16,6 +16,7 @@ import { fetchDeployments, fetchInstances, type Application, type Deployment, ty
 import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { openAction } from '../shared/events.js';
+import { ICON_EDIT } from '../shared/icons.js';
 import {
   deploymentActionLabel,
   DEPLOYMENT_STATE_LABELS,
@@ -384,16 +385,7 @@ export class CvcAppOverview extends CvcElement {
     const source = deploymentSource(app);
     const commit = shortCommit(app.commitId);
     return html`<section class="card">
-      <h3>
-        ${t('overview.deployment')}
-        ${
-          source.kind === 'github'
-            ? html`<button type="button" class="ghost small" @click=${() => openAction(this, 'branch')}>
-                ${t('common.edit')}
-              </button>`
-            : nothing
-        }
-      </h3>
+      <h3>${t('overview.deployment')}</h3>
       <dl>
         <dt>${t('overview.method')}</dt>
         <dd>
@@ -417,7 +409,23 @@ export class CvcAppOverview extends CvcElement {
           source.kind === 'ftp'
             ? nothing
             : html`<dt>${source.kind === 'github' ? t('overview.githubBranch') : t('overview.branch')}</dt>
-                <dd class="mono">${source.branch || html`<span class="muted">–</span>`}</dd>`
+                <dd class="branch">
+                  <span class="mono">${source.branch || html`<span class="muted">–</span>`}</span>
+                  ${
+                    /* The one thing of this card that can change: the branch a GitHub application deploys. */
+                    source.kind === 'github'
+                      ? html`<button
+                          type="button"
+                          class="edit"
+                          title=${t('action.branch.title')}
+                          aria-label=${t('action.branch.title')}
+                          @click=${() => openAction(this, 'branch')}
+                        >
+                          ${ICON_EDIT}
+                        </button>`
+                      : nothing
+                  }
+                </dd>`
         }
         <dt>${t('overview.commit')}</dt>
         <dd class="mono">
@@ -684,6 +692,11 @@ export class CvcAppOverview extends CvcElement {
       }
       .source-hint {
         margin-top: 0.75rem;
+      }
+      dd.branch {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
       }
       .id-label {
         margin: 0 0 0.2rem;
