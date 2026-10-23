@@ -169,11 +169,19 @@ The **Buckets** tab lists the buckets with their objects, size and last write; a
 
 The open bucket and folder live in the URL (`?bucket=…&prefix=…`), so the browser's back button and a shared link work.
 
-Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing is changed. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see:
+**New bucket**, above the list of buckets (also "New bucket" in the palette on a Cellar page), creates an empty bucket:
+
+- **Name**: 3 to 63 characters, lowercase letters, digits, dots and hyphens, a letter or a digit at both ends, not shaped like an IP address. A name already taken, or an add-on at its number of buckets, gets its own message.
+- **Keep previous versions of objects** (versioning), off by default: every overwritten or deleted object is then kept, and counts in the storage billed.
+
+Once created, the bucket opens. Deleting a bucket stays with the Console.
+
+Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see, and the dialog the call that creates the bucket:
 
 ```sh
 clever curl https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets
 clever curl 'https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets/<bucket>/objects?prefix=<folder>'
+clever curl -X POST -H 'Content-Type: application/json' -d '{"name":"<bucket>","versioning":false}' https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets
 ```
 
 ## Operators {#operators}

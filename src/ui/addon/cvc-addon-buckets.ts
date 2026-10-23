@@ -17,6 +17,7 @@ import {
 } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
+import { openAction } from '../shared/events.js';
 import { formatBytes, formatCount, formatDateTime, formatRelative } from '../shared/format.js';
 import { ICON_DOWNLOAD, ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
@@ -32,8 +33,8 @@ const VERSIONING_LABELS: Readonly<Record<CellarBucket['versioning'], MessageKey>
  * directories (common prefixes) first, then files, a page at a time. The open
  * bucket and directory live in the URL (`?bucket=&prefix=`), so the browser's
  * back button and a shared link work. Everything goes through the platform
- * API: no S3 credentials, and nothing is changed; a download URL is only
- * signed when asked for.
+ * API: no S3 credentials; a download URL is only signed when asked for, and
+ * "New bucket" (#29) is the one change, through the action dialog.
  */
 @customElement('cvc-addon-buckets')
 export class CvcAddonBuckets extends CvcElement {
@@ -42,6 +43,8 @@ export class CvcAddonBuckets extends CvcElement {
   @property() addonId = '';
   /** `cellar_…`: the platform routes want it. */
   @property() realId = '';
+  /** Bumped by the shell after an action (a new bucket): the list reloads. */
+  @property({ type: Number }) revision = 0;
 
   @state() private buckets: CellarBucketSummary[] | null = null;
   @state() private bucket = '';
@@ -75,6 +78,8 @@ export class CvcAddonBuckets extends CvcElement {
       this.buckets = null;
       void this.loadBuckets();
       this.followUrl(true);
+    } else if (changed.has('revision')) {
+      void this.loadBuckets();
     }
   }
 
@@ -202,6 +207,13 @@ export class CvcAddonBuckets extends CvcElement {
       <div class="row toolbar">
         <cvc-cli command=${cellarCurl(this.ownerId, this.realId, this.bucket, this.folder)}></cvc-cli>
         <span class="grow"></span>
+        ${
+          this.bucket === ''
+            ? html`<button type="button" @click=${() => openAction(this, 'cellar-bucket-create')}>
+                ${t('buckets.create')}
+              </button>`
+            : nothing
+        }
         <button type="button" class="ghost with-icon" @click=${this.refresh}>
           ${ICON_REFRESH} ${t('common.refresh')}
         </button>

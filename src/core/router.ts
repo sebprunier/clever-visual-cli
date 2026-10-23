@@ -79,9 +79,12 @@ export function routeOwner(route: Route): string | null {
     : null;
 }
 
-/** Navigates; within one organisation, the list the user comes from (`?q=&g=`) follows along. */
-export function navigate(route: Route): void {
-  const hash = keepListView(routeToHash(route), route, window.location.hash);
+/**
+ * Navigates; within one organisation, the list the user comes from (`?q=&g=`) follows along, with
+ * `params` set (or removed when `null`) on top.
+ */
+export function navigate(route: Route, params: Record<string, string | null> = {}): void {
+  const hash = withHashParams(keepListView(routeToHash(route), route, window.location.hash), params);
   if (window.location.hash === hash) {
     return;
   }

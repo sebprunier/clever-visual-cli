@@ -5,6 +5,7 @@
  * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
+import { isCcHttpErrorWithCode } from '@clevercloud/client/utils/error-utils.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
@@ -18,6 +19,10 @@ import type {
   CellarObjectItem,
   CellarObjectList,
 } from '@clevercloud/client/cc-api-commands/cellar/cellar.types.js';
+import {
+  CREATE_CELLAR_BUCKET_ERROR_CODES,
+  CreateCellarBucketCommand,
+} from '@clevercloud/client/cc-api-commands/cellar/create-cellar-bucket-command.js';
 import { GetCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-bucket-command.js';
 import { GetCellarInfoCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-info-command.js';
 import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-download-url-command.js';
@@ -361,6 +366,32 @@ export function fetchCellarInfo(client: CcApiClient, ownerId: string, realId: st
 
 export function fetchCellarBuckets(client: CcApiClient, ownerId: string, realId: string): Promise<CellarBucketList> {
   return client.send(new ListCellarBucketCommand({ ownerId, addonId: realId }));
+}
+
+/** A new, empty bucket (#29). */
+export function createCellarBucket(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  name: string,
+  versioning: boolean,
+): Promise<CellarBucket> {
+  return client.send(new CreateCellarBucketCommand({ ownerId, addonId: realId, name, versioning }));
+}
+
+/** Why Cellar refused a new bucket, when it said so with one of its codes. */
+export function bucketCreationRefusal(error: unknown): 'invalid' | 'exists' | 'tooMany' | null {
+  const codes = CREATE_CELLAR_BUCKET_ERROR_CODES;
+  if (isCcHttpErrorWithCode(error, codes.INVALID_BUCKET_NAME)) {
+    return 'invalid';
+  }
+  if (isCcHttpErrorWithCode(error, codes.BUCKET_ALREADY_EXISTS)) {
+    return 'exists';
+  }
+  if (isCcHttpErrorWithCode(error, codes.TOO_MANY_BUCKETS)) {
+    return 'tooMany';
+  }
+  return null;
 }
 
 /** One bucket, with its versioning status. */

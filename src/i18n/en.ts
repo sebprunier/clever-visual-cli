@@ -146,8 +146,9 @@ export const en = {
   'cellar.traffic': 'Traffic this period',
   'cellar.trafficValue': '{inbound} in · {outbound} out',
   'cellar.browse': 'Browse the buckets',
+  'buckets.create': 'New bucket',
   'buckets.hint':
-    'Read through the Clever Cloud API: no S3 credentials needed, nothing is changed. clever-tools has no Cellar command; the call above does the same.',
+    'Read through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create. clever-tools has no Cellar command; the call above does the same.',
   'buckets.none': 'No bucket.',
   'buckets.name': 'Name',
   'buckets.objects': 'Objects',
@@ -531,6 +532,20 @@ export const en = {
   'action.rename.submit': 'Rename',
   'action.rename.done': 'Renamed to {name}.',
   'action.rename.syncAddon': 'The views sync finds this add-on by its name: renaming it would switch the sync off.',
+  'action.bucketCreate.title': 'New bucket',
+  'action.bucketCreate.description':
+    'An empty bucket in this Cellar add-on. clever-tools has no Cellar command: the API call is below.',
+  'action.bucketCreate.submit': 'Create',
+  'action.bucketCreate.name': 'Name',
+  'action.bucketCreate.nameHelp':
+    '3 to 63 characters: lowercase letters, digits, dots and hyphens, a letter or a digit at both ends',
+  'action.bucketCreate.versioning': 'Keep previous versions of objects',
+  'action.bucketCreate.versioningHelp':
+    'Every overwritten or deleted object is kept, and counts in the storage billed.',
+  'action.bucketCreate.done': 'Bucket {name} created.',
+  'action.bucketCreate.invalid': 'Cellar refuses this name for a bucket.',
+  'action.bucketCreate.exists': 'This name is already taken: pick another one.',
+  'action.bucketCreate.tooMany': 'This add-on has reached the number of buckets it is allowed.',
   'action.config.title': 'Application options',
   'action.config.description': 'The settings of clever config update. Some apply from the next deployment only.',
   'action.config.nothing': 'No option changes.',

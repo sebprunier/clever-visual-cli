@@ -4,6 +4,7 @@ import { customElement, query, state } from 'lit/decorators.js';
 import {
   ACTIONS,
   findAction,
+  offersAction,
   type ActionContext,
   type ActionDefinition,
   type ActionResult,
@@ -320,7 +321,15 @@ export class CvcApp extends CvcElement {
 
   private openAction(actionId: string, prefill: ActionValues = {}): void {
     const action = findAction(actionId);
-    if (action == null || this.route.kind !== (action.target ?? 'app')) {
+    const route = this.route;
+    if (action == null || (route.kind !== 'app' && route.kind !== 'addon')) {
+      return;
+    }
+    const providerId =
+      route.kind === 'addon'
+        ? this.session?.findOrganisation(route.ownerId)?.addons.find((addon) => addon.id === route.addonId)?.providerId
+        : undefined;
+    if (!offersAction(action, route.kind, providerId)) {
       return;
     }
     this.palette?.close();
@@ -363,6 +372,11 @@ export class CvcApp extends CvcElement {
       );
     } else if (result.navigateTo != null && this.route.kind === 'app') {
       navigate({ kind: 'app', ownerId: this.route.ownerId, appId: this.route.appId, tab: result.navigateTo });
+    } else if (result.addonTab != null && this.route.kind === 'addon') {
+      navigate(
+        { kind: 'addon', ownerId: this.route.ownerId, addonId: this.route.addonId, tab: result.addonTab },
+        result.params,
+      );
     }
   }
 
@@ -389,7 +403,7 @@ export class CvcApp extends CvcElement {
           run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
         });
       }
-      for (const action of ACTIONS.filter((candidate) => (candidate.target ?? 'app') === 'app')) {
+      for (const action of ACTIONS.filter((candidate) => offersAction(candidate, 'app'))) {
         commands.push({
           id: `action:${action.id}`,
           title: t(action.title),
@@ -402,9 +416,14 @@ export class CvcApp extends CvcElement {
       }
     } else if (route.kind === 'addon') {
       const addon = session.findOrganisation(route.ownerId)?.addons.find((candidate) => candidate.id === route.addonId);
-      // The sync add-on keeps its name (#26).
-      if (addon != null && !isSyncAddon(route.ownerId, addon)) {
-        for (const action of ACTIONS.filter((candidate) => candidate.target === 'addon')) {
+      if (addon != null) {
+        // The sync add-on keeps its name (#26).
+        const offered = ACTIONS.filter(
+          (candidate) =>
+            offersAction(candidate, 'addon', addon.providerId) &&
+            !(candidate.id === 'addon-rename' && isSyncAddon(route.ownerId, addon)),
+        );
+        for (const action of offered) {
           commands.push({
             id: `action:${action.id}`,
             title: t(action.title),

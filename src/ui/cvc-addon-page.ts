@@ -364,6 +364,7 @@ export class CvcAddonPage extends CvcElement {
                 ownerId=${ownerId}
                 addonId=${summary.id}
                 realId=${summary.realId}
+                revision=${this.revision}
               ></cvc-addon-buckets>`
             : tab === 'backups'
               ? html`<cvc-addon-backups

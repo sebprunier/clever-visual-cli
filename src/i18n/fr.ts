@@ -139,8 +139,9 @@ export const fr: Record<MessageKey, string> = {
   'cellar.traffic': 'Trafic de la période',
   'cellar.trafficValue': '{inbound} entrants · {outbound} sortants',
   'cellar.browse': 'Parcourir les buckets',
+  'buckets.create': 'Nouveau bucket',
   'buckets.hint':
-    'Lu par l’API de Clever Cloud : pas besoin des clés S3, rien n’est modifié. clever-tools n’a pas de commande Cellar ; l’appel ci-dessus fait la même chose.',
+    'Lu par l’API de Clever Cloud : pas besoin des clés S3, et rien ne change hormis les buckets que vous créez. clever-tools n’a pas de commande Cellar ; l’appel ci-dessus fait la même chose.',
   'buckets.none': 'Aucun bucket.',
   'buckets.name': 'Nom',
   'buckets.objects': 'Objets',
@@ -526,6 +527,20 @@ export const fr: Record<MessageKey, string> = {
   'action.rename.submit': 'Renommer',
   'action.rename.done': 'Renommé en {name}.',
   'action.rename.syncAddon': 'La synchro des vues retrouve cet add-on par son nom : le renommer la couperait.',
+  'action.bucketCreate.title': 'Nouveau bucket',
+  'action.bucketCreate.description':
+    'Un bucket vide dans cet add-on Cellar. clever-tools n’a pas de commande Cellar : l’appel à l’API est ci-dessous.',
+  'action.bucketCreate.submit': 'Créer',
+  'action.bucketCreate.name': 'Nom',
+  'action.bucketCreate.nameHelp':
+    '3 à 63 caractères : minuscules, chiffres, points et tirets, une lettre ou un chiffre à chaque bout',
+  'action.bucketCreate.versioning': 'Garder les versions précédentes des objets',
+  'action.bucketCreate.versioningHelp':
+    'Chaque objet écrasé ou supprimé est conservé, et compte dans le stockage facturé.',
+  'action.bucketCreate.done': 'Bucket {name} créé.',
+  'action.bucketCreate.invalid': 'Cellar refuse ce nom de bucket.',
+  'action.bucketCreate.exists': 'Ce nom est déjà pris : choisissez-en un autre.',
+  'action.bucketCreate.tooMany': 'Cet add-on a atteint le nombre de buckets autorisé.',
   'action.config.title': 'Options de l’application',
   'action.config.description':
     'Les réglages de clever config update. Certains ne s’appliquent qu’au prochain déploiement.',

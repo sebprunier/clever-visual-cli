@@ -6,9 +6,10 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
 import type { AddonSummary, Application, OrganisationSummary } from '../data/api.js';
+import { BUCKET_NAME_PATTERN, createBucketCurl } from './addons/cellar.js';
 import { ENV_NAME_PATTERN } from './env.js';
 import { t, type MessageKey } from './i18n.js';
-import type { AppTab } from './router.js';
+import type { AddonTab, AppTab } from './router.js';
 import { shellQuote } from './shell.js';
 import { isSyncAddon } from './sync/sync-addon.js';
 
@@ -61,12 +62,17 @@ export interface ActionResult {
   envChanged?: boolean;
   /** The deployment the action started: its logs are followed, as `clever restart` does (#13). */
   deploymentId?: string;
+  /** On an add-on page, the tab to open next, with its query parameters (the new bucket, #29). */
+  addonTab?: AddonTab;
+  params?: Record<string, string | null>;
 }
 
 export interface ActionDefinition {
   id: string;
   /** What the action applies to: the application of the page (default) or the add-on. */
   target?: 'app' | 'addon';
+  /** For an add-on action, the providers it is offered for; every add-on when absent. */
+  providers?: readonly string[];
   /** Message key of the title. */
   title: MessageKey;
   /** Message key of the description. */
@@ -333,6 +339,55 @@ export const ACTIONS: ActionDefinition[] = [
       const name = str(v.name);
       await api.renameAddon(ctx.client, ctx.ownerId, addon.id, name);
       return { message: t('action.rename.done', { name }), refresh: true };
+    },
+  },
+  {
+    id: 'cellar-bucket-create',
+    target: 'addon',
+    providers: ['cellar-addon'],
+    cliHint: 'clever curl -X POST …/buckets',
+    title: 'action.bucketCreate.title',
+    description: 'action.bucketCreate.description',
+    submitLabel: 'action.bucketCreate.submit',
+    keywords: ['bucket', 'cellar', 's3', 'create', 'new', 'créer', 'nouveau'],
+    fields: () => [
+      {
+        name: 'name',
+        label: t('action.bucketCreate.name'),
+        type: 'text',
+        required: true,
+        mono: true,
+        pattern: BUCKET_NAME_PATTERN,
+        placeholder: 'my-bucket',
+        patternHelp: t('action.bucketCreate.nameHelp'),
+      },
+      {
+        name: 'versioning',
+        label: t('action.bucketCreate.versioning'),
+        type: 'checkbox',
+        default: false,
+        help: t('action.bucketCreate.versioningHelp'),
+      },
+    ],
+    cli: (ctx, v) => createBucketCurl(ctx.ownerId, ctx.addon?.realId ?? '', str(v.name), v.versioning === true),
+    run: async (ctx, v) => {
+      const addon = ctx.addon;
+      if (addon == null) {
+        throw new Error(t('addon.unknown'));
+      }
+      const name = str(v.name);
+      try {
+        await api.createCellarBucket(ctx.client, ctx.ownerId, addon.realId, name, v.versioning === true);
+      } catch (error) {
+        const refusal = api.bucketCreationRefusal(error);
+        throw refusal == null ? error : new Error(t(BUCKET_REFUSALS[refusal]));
+      }
+      return {
+        message: t('action.bucketCreate.done', { name }),
+        refresh: true,
+        addonTab: 'buckets',
+        params: { bucket: name, prefix: null },
+      };
     },
   },
   {
@@ -658,6 +713,20 @@ function changedOptions(ctx: ActionContext, values: ActionValues): Array<{ optio
   return CONFIG_OPTIONS.filter((option) => values[option.field] !== undefined)
     .map((option) => ({ option, enabled: values[option.field] === true }))
     .filter(({ option, enabled }) => ctx.app == null || ctx.app[option.field] !== enabled);
+}
+
+const BUCKET_REFUSALS: Record<NonNullable<ReturnType<typeof api.bucketCreationRefusal>>, MessageKey> = {
+  invalid: 'action.bucketCreate.invalid',
+  exists: 'action.bucketCreate.exists',
+  tooMany: 'action.bucketCreate.tooMany',
+};
+
+/** Whether an action is offered on this page: its target, and for an add-on its provider. */
+export function offersAction(action: ActionDefinition, target: 'app' | 'addon', providerId?: string): boolean {
+  return (
+    (action.target ?? 'app') === target &&
+    (action.providers == null || (providerId != null && action.providers.includes(providerId)))
+  );
 }
 
 /** The name of the application, from the page's copy or else the summary's. */

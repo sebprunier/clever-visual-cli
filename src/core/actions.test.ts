@@ -1,6 +1,6 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { ACTIONS, findAction, shellQuote, type ActionContext } from './actions.js';
+import { ACTIONS, findAction, offersAction, shellQuote, type ActionContext } from './actions.js';
 import { setLocale, t } from './i18n.js';
 
 beforeAll(() => setLocale('fr', false));
@@ -120,6 +120,34 @@ describe('actions', () => {
     await expect(findAction('addon-rename')!.run(personal, { name: 'other' })).rejects.toThrow(
       t('action.rename.syncAddon'),
     );
+  });
+
+  it('offer add-on actions for their providers only', () => {
+    const create = findAction('cellar-bucket-create')!;
+    expect(offersAction(create, 'addon', 'cellar-addon')).toBe(true);
+    expect(offersAction(create, 'addon', 'postgresql-addon')).toBe(false);
+    expect(offersAction(create, 'app')).toBe(false);
+    expect(offersAction(findAction('addon-rename')!, 'addon', 'postgresql-addon')).toBe(true);
+    expect(offersAction(findAction('restart')!, 'app')).toBe(true);
+  });
+
+  it('create a bucket, then open it', async () => {
+    const cellar = { id: 'addon_1', realId: 'cellar_2', name: 'files', providerId: 'cellar-addon' } as NonNullable<
+      ActionContext['addon']
+    >;
+    const sent: string[] = [];
+    const client = {
+      send: async (command: object) => {
+        sent.push(command.constructor.name);
+        return {};
+      },
+    } as unknown as CcApiClient;
+    const onCellar: ActionContext = { ...ctx, client, appId: '', addon: cellar };
+    const create = findAction('cellar-bucket-create')!;
+    expect(create.cli(onCellar, { name: 'assets', versioning: true })).toContain('/cellar/cellar_2/buckets');
+    const result = await create.run(onCellar, { name: ' assets ', versioning: true });
+    expect(result).toMatchObject({ addonTab: 'buckets', params: { bucket: 'assets', prefix: null }, refresh: true });
+    expect(sent).toEqual(['CreateCellarBucketCommand']);
   });
 
   it('quote shell arguments only when needed', () => {
