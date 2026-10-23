@@ -38,7 +38,7 @@ import './app/cvc-app-overview.js';
 import './shared/cvc-doc-link.js';
 import './shared/cvc-resource-tags.js';
 import { openAction } from './shared/events.js';
-import { ICON_RESTART, ICON_START, ICON_STOP } from './shared/icons.js';
+import { ICON_EDIT, ICON_RESTART, ICON_START, ICON_STOP } from './shared/icons.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -210,6 +210,15 @@ ${t('activity.logsHint')}"
         <div class="row title">
           ${logo ? html`<img src=${logo} alt="" width="36" height="36" title=${variant ?? nothing} />` : nothing}
           <h1>${name}</h1>
+          <button
+            type="button"
+            class="edit"
+            title=${t('action.rename.title')}
+            aria-label=${t('action.rename.title')}
+            @click=${() => openAction(this, 'rename')}
+          >
+            ${ICON_EDIT}
+          </button>
           <cvc-doc-link
             path=${appDocsPath(this.tab, this.deploymentId !== '')}
             topic=${t('docs.topic.app')}

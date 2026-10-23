@@ -17,7 +17,7 @@ Inside each tab, the command carries `--app <app_id>`. Exposed configuration, TC
 
 ## Title {#title}
 
-The header gives the runtime logo, the name of the application, its state icon and its two main actions. The small **?** beside the name opens the section of this documentation about the tab you are on.
+The header gives the runtime logo, the name of the application, its state icon and its two main actions. The pencil right after the name renames the application (see [Actions](#actions)). The small **?** beside it opens the section of this documentation about the tab you are on.
 
 The state icon combines the state of the application with its last deployment:
 
@@ -203,6 +203,7 @@ Every action opens a dialog with its fields and, under them, the "clever-tools e
 | ------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Restart                                     | **Restart** / **Start** in the title, **Restart…** of the Variables reminder | `clever restart --app <app_id>`, with `--commit <commit>` and `--without-cache` when chosen                                              |
 | Stop                                        | **Stop** in the title                                                        | `clever stop --app <app_id>`                                                                                                             |
+| Rename the application                      | the pencil after the name                                                    | `clever config set name <new name> --app <app_id>`                                                                                       |
 | Cancel the running deployment               | **Cancel** in Activity and Recent activity                                   | `clever cancel-deploy --app <app_id>`                                                                                                    |
 | Scale                                       | **Edit** on Scaling                                                          | `clever scale --app <app_id> --min-instances … --max-instances … --min-flavor … --max-flavor …`, with `--build-flavor …` when it changes |
 | Application options                         | **Edit** on Options                                                          | `clever config update --app <app_id>`, with `--enable-…` / `--disable-…` for each option changed                                         |

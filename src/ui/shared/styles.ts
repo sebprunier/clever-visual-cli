@@ -123,6 +123,25 @@ export const sharedStyles = css`
     align-items: center;
     gap: 0.4rem;
   }
+  /* A pencil beside what it edits (a name, tags): quiet until hovered. */
+  button.edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--cvc-muted);
+  }
+  button.edit:not(:disabled):hover,
+  button.edit:focus-visible {
+    color: var(--cvc-accent);
+    border-color: var(--cvc-border);
+  }
   button.link {
     background: none;
     border: none;

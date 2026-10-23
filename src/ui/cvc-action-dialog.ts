@@ -46,6 +46,10 @@ export class CvcActionDialog extends CvcElement {
   override firstUpdated(): void {
     const first = this.renderRoot.querySelector<HTMLElement>('input, select, textarea, button.primary, button.danger');
     first?.focus();
+    // A prefilled text (a name to change) is selected, so typing replaces it.
+    if (first instanceof HTMLInputElement && first.type === 'text') {
+      first.select();
+    }
   }
 
   private setValue(name: string, value: ActionValue): void {
@@ -139,7 +143,11 @@ export class CvcActionDialog extends CvcElement {
 
         <footer class="row">
           <button type="button" class="ghost" @click=${this.close} ?disabled=${this.busy}>${t('common.cancel')}</button>
-          <button type="submit" class=${action.danger ? 'danger' : 'primary'} ?disabled=${this.busy}>
+          <button
+            type="submit"
+            class=${action.danger ? 'danger' : 'primary'}
+            ?disabled=${this.busy || action.ready?.(this.context, this.values) === false}
+          >
             ${this.busy ? t('common.busy') : t(action.submitLabel ?? 'dialog.run')}
           </button>
         </footer>

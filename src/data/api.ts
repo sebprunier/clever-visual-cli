@@ -8,6 +8,7 @@ import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
+import { UpdateAddonCommand } from '@clevercloud/client/cc-api-commands/addon/update-addon-command.js';
 import type {
   CellarBucket,
   CellarBucketList,
@@ -229,6 +230,11 @@ export function openRuntimeLogs(
 /** An add-on in full: provider, plan, zone, creation date. */
 export function fetchAddon(client: CcApiClient, ownerId: string, addonId: string): Promise<Addon> {
   return client.send(new GetAddonCommand({ ownerId, addonId }));
+}
+
+/** `clever addon rename`: only the display name changes. */
+export function renameAddon(client: CcApiClient, ownerId: string, addonId: string, name: string): Promise<Addon> {
+  return client.send(new UpdateAddonCommand({ ownerId, addonId, name }));
 }
 
 /** `clever database backups`: the backups of a database add-on, most recent first. */

@@ -24,6 +24,8 @@ On the same row, the **Links** column shows the logos of the applications linked
 
 The header gives the provider logo, the name, and the state icon (or "shared"). The small **?** beside the name opens the section of this documentation about this kind of add-on.
 
+The pencil right after the name opens "Rename the add-on" (also in the palette, under "Actions"): one field, with the equivalent `clever addon rename <addon_id> <new name> --org <owner_id>`. **Rename** stays disabled while the name is empty or unchanged; only the display name changes, the add-on and its variables stay as they are. The add-on of the [views sync](/guide/views-sync) cannot be renamed: the sync finds it by its name.
+
 The tags sit under the name and are edited from the pencil, as on an [application page](/guide/application#tags), through `clever curl` calls since clever-tools has no tag command. For grouping, an add-on also takes the `key:value` tags of its linked applications, for every key it has no tag of its own: they show dashed, and their tooltip names the applications to edit them on.
 
 The tabs depend on the add-on: **Overview**, **Buckets** (Cellar), **Variables**, **Logs** (a dedicated plan), **Backups** (databases and Elasticsearch).

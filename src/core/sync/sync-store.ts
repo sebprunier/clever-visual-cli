@@ -34,10 +34,11 @@ import { readFavorites, saveFavorites } from '../home/favorites.js';
 import { knownOwners, localChanges, type LocalChangeDetail } from '../home/local-changes.js';
 import { readPrefs, savePrefs } from '../home/prefs.js';
 import { t } from '../i18n.js';
+import { isSyncAddon, SYNC_ADDON_NAME, SYNC_PROVIDER } from './sync-addon.js';
 import { mergeSpace, readSpaces, writeSpaces, type SpaceDocument } from './sync-document.js';
 
-export const SYNC_ADDON_NAME = 'clever-visual-cli';
-export const SYNC_PROVIDER = 'config-provider';
+export { isSyncAddon, SYNC_ADDON_NAME, SYNC_PROVIDER };
+
 /** The command that does what "Enable" does. */
 export const SYNC_CREATE_COMMAND = `clever addon create ${SYNC_PROVIDER} ${SYNC_ADDON_NAME}`;
 
@@ -82,7 +83,7 @@ export class SyncStore extends EventTarget {
 
   /** At sign-in and when the summary changes: an add-on found in the personal space switches the sync on. */
   attach(client: CcApiClient, userId: string, personalAddons: readonly AddonSummary[]): void {
-    const found = personalAddons.find((addon) => addon.providerId === SYNC_PROVIDER && addon.name === SYNC_ADDON_NAME);
+    const found = personalAddons.find((addon) => isSyncAddon(userId, addon));
     if (this.#client === client && this.#userId === userId && (found == null || this.addon?.id === found.id)) {
       if (found == null && this.addon != null && this.state === 'on' && !this.busy) {
         // Gone from the summary: deleted elsewhere, or created a moment ago and not listed yet. A read tells.

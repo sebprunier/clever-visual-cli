@@ -100,24 +100,6 @@ export class CvcResourceTags extends CvcElement {
         border-style: dashed;
         border-color: var(--cvc-border);
       }
-      /* A pencil after the chips: quiet until hovered. */
-      button.edit {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.5rem;
-        height: 1.5rem;
-        padding: 0;
-        border: 1px solid transparent;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--cvc-muted);
-      }
-      button.edit:hover,
-      button.edit:focus-visible {
-        color: var(--cvc-accent);
-        border-color: var(--cvc-border);
-      }
     `,
   ];
 }

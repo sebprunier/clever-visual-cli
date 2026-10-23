@@ -11,6 +11,7 @@ import type { CostStore } from '../core/home/cost-store.js';
 import { inheritedTags, linkedApps } from '../core/home/grouping.js';
 import type { HomeStore } from '../core/home/home-store.js';
 import { readPrefs } from '../core/home/prefs.js';
+import { isSyncAddon } from '../core/sync/sync-store.js';
 import { tagsInUse } from '../core/home/tagging.js';
 import { t, type MessageKey } from '../core/i18n.js';
 import {
@@ -43,7 +44,9 @@ import './addon/cvc-addon-overview.js';
 import './app/cvc-app-nav.js';
 import './shared/cvc-resource-tags.js';
 import { CvcElement } from './shared/cvc-element.js';
+import { openAction } from './shared/events.js';
 import { addonStateLabel } from './shared/format.js';
+import { ICON_EDIT } from './shared/icons.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
 
@@ -295,6 +298,28 @@ export class CvcAddonPage extends CvcElement {
         <div class="row title">
           <img src=${summary.logoUrl} alt="" width="36" height="36" title=${summary.providerId} />
           <h1>${summary.name}</h1>
+          ${
+            /* The views sync finds its add-on by this name (#26). */
+            isSyncAddon(ownerId, summary)
+              ? html`<button
+                  type="button"
+                  class="edit"
+                  disabled
+                  title=${t('action.rename.syncAddon')}
+                  aria-label=${t('action.rename.addonTitle')}
+                >
+                  ${ICON_EDIT}
+                </button>`
+              : html`<button
+                  type="button"
+                  class="edit"
+                  title=${t('action.rename.addonTitle')}
+                  aria-label=${t('action.rename.addonTitle')}
+                  @click=${() => openAction(this, 'addon-rename')}
+                >
+                  ${ICON_EDIT}
+                </button>`
+          }
           <cvc-doc-link path=${addonDocsPath(summary.providerId, tab)} topic=${t('docs.topic.addon')}></cvc-doc-link>
           ${
             state == null

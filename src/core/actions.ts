@@ -5,11 +5,12 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
-import type { Application, OrganisationSummary } from '../data/api.js';
+import type { AddonSummary, Application, OrganisationSummary } from '../data/api.js';
 import { ENV_NAME_PATTERN } from './env.js';
 import { t, type MessageKey } from './i18n.js';
 import type { AppTab } from './router.js';
 import { shellQuote } from './shell.js';
+import { isSyncAddon } from './sync/sync-addon.js';
 
 export type FieldType = 'text' | 'number' | 'select' | 'textarea' | 'checkbox';
 
@@ -41,11 +42,14 @@ export type ActionValues = Record<string, ActionValue>;
 export interface ActionContext {
   client: CcApiClient;
   ownerId: string;
+  /** The application of the page; empty on an add-on page. */
   appId: string;
   /** The full application when the page has loaded it; prefills and option lists come from it. */
   app: Application | null;
   /** Its organisation, for the add-ons and applications one can link it to. */
   orga?: OrganisationSummary | null;
+  /** On an add-on page, the add-on the `addon` actions apply to. */
+  addon?: AddonSummary | null;
 }
 
 export interface ActionResult {
@@ -61,6 +65,8 @@ export interface ActionResult {
 
 export interface ActionDefinition {
   id: string;
+  /** What the action applies to: the application of the page (default) or the add-on. */
+  target?: 'app' | 'addon';
   /** Message key of the title. */
   title: MessageKey;
   /** Message key of the description. */
@@ -74,6 +80,8 @@ export interface ActionDefinition {
   keywords?: string[];
   fields: (ctx: ActionContext, prefill: ActionValues) => ActionField[];
   cli: (ctx: ActionContext, values: ActionValues) => string;
+  /** False while running would change nothing: the submit button stays disabled. */
+  ready?: (ctx: ActionContext, values: ActionValues) => boolean;
   run: (ctx: ActionContext, values: ActionValues) => Promise<ActionResult>;
 }
 
@@ -287,6 +295,44 @@ export const ACTIONS: ActionDefinition[] = [
         Object.fromEntries(changes.map(({ option, enabled }) => [option.field, enabled])),
       );
       return { message: t('action.config.done', { count: changes.length }), refresh: true };
+    },
+  },
+  {
+    id: 'rename',
+    cliHint: 'clever config set name',
+    title: 'action.rename.title',
+    submitLabel: 'action.rename.submit',
+    keywords: ['rename', 'name', 'renommer', 'nom'],
+    fields: (ctx) => [nameField(appName(ctx))],
+    ready: (ctx, v) => isNewName(appName(ctx), v),
+    cli: (ctx, v) => `clever config set name ${shellQuote(str(v.name))} ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      const name = str(v.name);
+      await api.updateApplication(ctx.client, ctx.ownerId, ctx.appId, { name });
+      return { message: t('action.rename.done', { name }), refresh: true };
+    },
+  },
+  {
+    id: 'addon-rename',
+    target: 'addon',
+    cliHint: 'clever addon rename',
+    title: 'action.rename.addonTitle',
+    submitLabel: 'action.rename.submit',
+    keywords: ['rename', 'name', 'renommer', 'nom', 'addon', 'add-on'],
+    fields: (ctx) => [nameField(ctx.addon?.name ?? '')],
+    ready: (ctx, v) => isNewName(ctx.addon?.name ?? '', v),
+    cli: (ctx, v) => `clever addon rename ${ctx.addon?.id ?? ''} ${shellQuote(str(v.name))} --org ${ctx.ownerId}`,
+    run: async (ctx, v) => {
+      const addon = ctx.addon;
+      if (addon == null) {
+        throw new Error(t('addon.unknown'));
+      }
+      if (isSyncAddon(ctx.ownerId, addon)) {
+        throw new Error(t('action.rename.syncAddon'));
+      }
+      const name = str(v.name);
+      await api.renameAddon(ctx.client, ctx.ownerId, addon.id, name);
+      return { message: t('action.rename.done', { name }), refresh: true };
     },
   },
   {
@@ -612,6 +658,20 @@ function changedOptions(ctx: ActionContext, values: ActionValues): Array<{ optio
   return CONFIG_OPTIONS.filter((option) => values[option.field] !== undefined)
     .map((option) => ({ option, enabled: values[option.field] === true }))
     .filter(({ option, enabled }) => ctx.app == null || ctx.app[option.field] !== enabled);
+}
+
+/** The name of the application, from the page's copy or else the summary's. */
+function appName(ctx: ActionContext): string {
+  return ctx.app?.name ?? ctx.orga?.applications.find((app) => app.id === ctx.appId)?.name ?? '';
+}
+
+function nameField(current: string): ActionField {
+  return { name: 'name', label: t('action.rename.name'), type: 'text', required: true, default: current };
+}
+
+function isNewName(current: string, values: ActionValues): boolean {
+  const name = str(values.name);
+  return name !== '' && name !== current;
 }
 
 function appFlag(ctx: ActionContext): string {

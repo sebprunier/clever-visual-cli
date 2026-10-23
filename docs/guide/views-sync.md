@@ -34,7 +34,7 @@ The sync follows the active account: each account syncs through the add-on of it
 - In the "Views" menu, under your views: "Synced between your browsers · last sync …", or "Syncing…" while it works. A failure reads "Sync failed: …" with a "Retry" button.
 - On the account page, the "Views sync" card gives the same line, an "Open the add-on" link to its page, and a "Sync now" button.
 
-The add-on also shows in the list of your personal space, like any other add-on.
+The add-on also shows in the list of your personal space, like any other add-on. Its pencil is disabled: renamed, the add-on would no longer be found, and the sync would offer to create another one.
 
 ## What is stored {#what-is-stored}
 

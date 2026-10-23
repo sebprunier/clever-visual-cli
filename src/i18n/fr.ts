@@ -517,6 +517,12 @@ export const fr: Record<MessageKey, string> = {
   'action.scale.buildFlavor': 'Build dédié',
   'action.scale.buildDisabled': 'Désactivé (build sur l’instance)',
   'action.scale.buildHelp': 'Une instance à part compile l’application, puis s’arrête.',
+  'action.rename.title': 'Renommer l’application',
+  'action.rename.addonTitle': 'Renommer l’add-on',
+  'action.rename.name': 'Nom',
+  'action.rename.submit': 'Renommer',
+  'action.rename.done': 'Renommé en {name}.',
+  'action.rename.syncAddon': 'La synchro des vues retrouve cet add-on par son nom : le renommer la couperait.',
   'action.config.title': 'Options de l’application',
   'action.config.description':
     'Les réglages de clever config update. Certains ne s’appliquent qu’au prochain déploiement.',

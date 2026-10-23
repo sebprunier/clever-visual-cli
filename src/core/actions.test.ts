@@ -90,6 +90,38 @@ describe('actions', () => {
     expect(field.options?.map((option) => option.value)).toEqual(['addon_2']);
   });
 
+  it('rename an application or an add-on, only to a new name', () => {
+    const rename = findAction('rename')!;
+    const withApp: ActionContext = { ...ctx, app: { name: 'api' } as NonNullable<ActionContext['app']> };
+    expect(rename.fields(withApp, {})[0].default).toBe('api');
+    expect(rename.cli(withApp, { name: "Joe's api" })).toBe(`clever config set name 'Joe'\\''s api' --app app_1`);
+    expect(rename.ready!(withApp, { name: ' api ' })).toBe(false);
+    expect(rename.ready!(withApp, { name: '  ' })).toBe(false);
+    expect(rename.ready!(withApp, { name: 'api-v2' })).toBe(true);
+    // Before the page has the application, the summary gives the name.
+    const orga = { applications: [{ id: 'app_1', name: 'from-summary' }], addons: [] } as unknown as NonNullable<
+      ActionContext['orga']
+    >;
+    expect(rename.fields({ ...ctx, orga }, {})[0].default).toBe('from-summary');
+
+    const addonRename = findAction('addon-rename')!;
+    expect(addonRename.target).toBe('addon');
+    const addon = { id: 'addon_1', name: 'db', providerId: 'postgresql-addon' } as NonNullable<ActionContext['addon']>;
+    const onAddon: ActionContext = { ...ctx, appId: '', addon };
+    expect(addonRename.cli(onAddon, { name: 'main db' })).toBe("clever addon rename addon_1 'main db' --org orga_1");
+    expect(addonRename.ready!(onAddon, { name: 'db' })).toBe(false);
+  });
+
+  it('refuse to rename the add-on of the views sync', async () => {
+    const sync = { id: 'addon_9', name: 'clever-visual-cli', providerId: 'config-provider' } as NonNullable<
+      ActionContext['addon']
+    >;
+    const personal: ActionContext = { ...ctx, ownerId: 'user_1', appId: '', addon: sync };
+    await expect(findAction('addon-rename')!.run(personal, { name: 'other' })).rejects.toThrow(
+      t('action.rename.syncAddon'),
+    );
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");

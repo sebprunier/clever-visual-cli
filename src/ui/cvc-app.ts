@@ -11,7 +11,7 @@ import {
 } from '../core/actions.js';
 import { isNewerRelease, latestRelease, releaseNotesUrl } from '../core/cli-release.js';
 import { clearClientCaches } from '../core/clever-client.js';
-import { SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
+import { isSyncAddon, SYNC_CREATE_COMMAND, SyncStore } from '../core/sync/sync-store.js';
 import { APP_RELEASE_URL, APP_VERSION, CLI_VERSION } from '../core/constants.js';
 import { docsUrl } from '../core/docs.js';
 import { markEnvChanged } from '../core/env-pending.js';
@@ -320,7 +320,7 @@ export class CvcApp extends CvcElement {
 
   private openAction(actionId: string, prefill: ActionValues = {}): void {
     const action = findAction(actionId);
-    if (action == null || this.route.kind !== 'app') {
+    if (action == null || this.route.kind !== (action.target ?? 'app')) {
       return;
     }
     this.palette?.close();
@@ -329,12 +329,17 @@ export class CvcApp extends CvcElement {
 
   private actionContext(): ActionContext | null {
     const client = this.session?.client;
-    if (client == null || this.route.kind !== 'app') {
+    const route = this.route;
+    if (client == null || (route.kind !== 'app' && route.kind !== 'addon')) {
       return null;
     }
-    const app = this.currentApp?.id === this.route.appId ? this.currentApp : null;
-    const orga = this.session?.findOrganisation(this.route.ownerId) ?? null;
-    return { client, ownerId: this.route.ownerId, appId: this.route.appId, app, orga };
+    const orga = this.session?.findOrganisation(route.ownerId) ?? null;
+    if (route.kind === 'addon') {
+      const addon = orga?.addons.find((candidate) => candidate.id === route.addonId) ?? null;
+      return { client, ownerId: route.ownerId, appId: '', app: null, orga, addon };
+    }
+    const app = this.currentApp?.id === route.appId ? this.currentApp : null;
+    return { client, ownerId: route.ownerId, appId: route.appId, app, orga };
   }
 
   private onActionDone(event: CustomEvent<ActionResult>): void {
@@ -384,7 +389,7 @@ export class CvcApp extends CvcElement {
           run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
         });
       }
-      for (const action of ACTIONS) {
+      for (const action of ACTIONS.filter((candidate) => (candidate.target ?? 'app') === 'app')) {
         commands.push({
           id: `action:${action.id}`,
           title: t(action.title),
@@ -394,6 +399,22 @@ export class CvcApp extends CvcElement {
           cli: action.cliHint,
           run: () => this.openAction(action.id),
         });
+      }
+    } else if (route.kind === 'addon') {
+      const addon = session.findOrganisation(route.ownerId)?.addons.find((candidate) => candidate.id === route.addonId);
+      // The sync add-on keeps its name (#26).
+      if (addon != null && !isSyncAddon(route.ownerId, addon)) {
+        for (const action of ACTIONS.filter((candidate) => candidate.target === 'addon')) {
+          commands.push({
+            id: `action:${action.id}`,
+            title: t(action.title),
+            subtitle: addon.name,
+            group: 'Actions',
+            keywords: action.keywords,
+            cli: action.cliHint,
+            run: () => this.openAction(action.id),
+          });
+        }
       }
     }
 
