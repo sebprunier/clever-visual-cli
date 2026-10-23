@@ -85,6 +85,7 @@ Type an expression in the **Filter** field. Press `/` anywhere on the page, outs
 | `is:node`        | the applications of a runtime, or the add-ons of a provider |
 | `is:watch`       | what the "To watch" card lists                              |
 | `is:shared`      | the add-ons on a shared plan                                |
+| `is:archived`    | the archived applications, left out of the list otherwise   |
 | `env:prod`       | what carries the tag `env:prod`; any `key:value` tag works  |
 | `has:project`    | what carries a `project:…` tag, whatever its value          |
 | `a b`, `a AND b` | both conditions                                             |

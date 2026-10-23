@@ -5,8 +5,10 @@
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import * as api from '../data/api.js';
-import type { AddonSummary, Application, OrganisationSummary } from '../data/api.js';
+import type { AddonSummary, Application, ApplicationSummary, OrganisationSummary } from '../data/api.js';
 import { BUCKET_NAME_PATTERN, createBucketCurl } from './addons/cellar.js';
+import { operatorKind } from './addons/operator.js';
+import { archiveCurl, confirmsName } from './danger-zone.js';
 import { branchCurl, deploymentSource } from './deployment-source.js';
 import { ENV_NAME_PATTERN } from './env.js';
 import { t, type MessageKey } from './i18n.js';
@@ -52,6 +54,10 @@ export interface ActionContext {
   orga?: OrganisationSummary | null;
   /** On an add-on page, the add-on the `addon` actions apply to. */
   addon?: AddonSummary | null;
+  /** On an add-on page, the applications linked to it, as far as this browser knows. */
+  linkedApps?: readonly ApplicationSummary[];
+  /** On an operator's page, the name of the application it runs on, once known. */
+  operatorEntrypoint?: string | null;
 }
 
 export interface ActionResult {
@@ -70,6 +76,8 @@ export interface ActionResult {
   /** On an add-on page, the tab to open next, with its query parameters (the new bucket, #29). */
   addonTab?: AddonTab;
   params?: Record<string, string | null>;
+  /** The resource the action deleted: the page goes, and so do its traces in this browser (#31). */
+  deleted?: { kind: 'app' | 'addon'; id: string };
 }
 
 export interface ActionDefinition {
@@ -84,6 +92,8 @@ export interface ActionDefinition {
   title: MessageKey;
   /** Message key of the description. */
   description?: MessageKey;
+  /** What goes with it, listed in the dialog of a deletion. */
+  consequences?: (ctx: ActionContext) => string[];
   /** Destructive or disruptive: the submit button turns red and asks for confirmation wording. */
   danger?: boolean;
   /** Message key of the submit button. */
@@ -451,6 +461,86 @@ export const ACTIONS: ActionDefinition[] = [
     },
   },
   {
+    id: 'archive',
+    appliesTo: (app) => !app.isArchived,
+    cliHint: 'clever curl -X PUT …/applications/<id>',
+    title: 'action.archive.title',
+    description: 'action.archive.description',
+    submitLabel: 'action.archive.submit',
+    keywords: ['archive', 'archiver', 'hide', 'masquer', 'danger'],
+    fields: () => [],
+    cli: (ctx) => archiveCurl(ctx.ownerId, ctx.appId, true),
+    run: async (ctx) => {
+      await api.archiveApplication(ctx.client, ctx.ownerId, ctx.appId, true);
+      return { message: t('action.archive.done', { name: appName(ctx) }), refresh: true };
+    },
+  },
+  {
+    id: 'unarchive',
+    appliesTo: (app) => app.isArchived,
+    cliHint: 'clever curl -X PUT …/applications/<id>',
+    title: 'action.unarchive.title',
+    description: 'action.unarchive.description',
+    submitLabel: 'action.unarchive.submit',
+    keywords: ['unarchive', 'désarchiver', 'restore', 'restaurer', 'archive'],
+    fields: () => [],
+    cli: (ctx) => archiveCurl(ctx.ownerId, ctx.appId, false),
+    run: async (ctx) => {
+      await api.archiveApplication(ctx.client, ctx.ownerId, ctx.appId, false);
+      return { message: t('action.unarchive.done', { name: appName(ctx) }), refresh: true };
+    },
+  },
+  {
+    id: 'delete',
+    cliHint: 'clever delete',
+    title: 'action.delete.title',
+    description: 'action.delete.description',
+    danger: true,
+    submitLabel: 'action.delete.submit',
+    keywords: ['delete', 'remove', 'destroy', 'supprimer', 'danger'],
+    consequences: () => [t('action.delete.appRepository'), t('action.delete.appDomains'), t('action.delete.appAddons')],
+    fields: (ctx) => [confirmField(appName(ctx))],
+    ready: (ctx, v) => confirmsName(str(v.confirm), appName(ctx)),
+    cli: (ctx) => `clever delete ${appFlag(ctx)}`,
+    run: async (ctx, v) => {
+      const name = appName(ctx);
+      if (!confirmsName(str(v.confirm), name)) {
+        throw new Error(t('action.delete.mismatch'));
+      }
+      await api.deleteApplication(ctx.client, ctx.ownerId, ctx.appId);
+      return { message: t('action.delete.done', { name }), refresh: true, deleted: { kind: 'app', id: ctx.appId } };
+    },
+  },
+  {
+    id: 'addon-delete',
+    target: 'addon',
+    cliHint: 'clever addon delete',
+    title: 'action.addonDelete.title',
+    description: 'action.delete.description',
+    danger: true,
+    submitLabel: 'action.delete.submit',
+    keywords: ['delete', 'remove', 'destroy', 'supprimer', 'addon', 'add-on', 'danger'],
+    consequences: (ctx) => addonDeletionConsequences(ctx),
+    fields: (ctx) => [confirmField(ctx.addon?.name ?? '')],
+    ready: (ctx, v) => confirmsName(str(v.confirm), ctx.addon?.name ?? ''),
+    cli: (ctx) => `clever addon delete ${ctx.addon?.id ?? ''} --org ${ctx.ownerId}`,
+    run: async (ctx, v) => {
+      const addon = ctx.addon;
+      if (addon == null) {
+        throw new Error(t('addon.unknown'));
+      }
+      if (!confirmsName(str(v.confirm), addon.name)) {
+        throw new Error(t('action.delete.mismatch'));
+      }
+      await api.deleteAddon(ctx.client, ctx.ownerId, addon.id);
+      return {
+        message: t('action.delete.done', { name: addon.name }),
+        refresh: true,
+        deleted: { kind: 'addon', id: addon.id },
+      };
+    },
+  },
+  {
     id: 'link-addon',
     cliHint: 'clever service link-addon',
     title: 'action.linkAddon.title',
@@ -805,6 +895,45 @@ function appName(ctx: ActionContext): string {
 
 function nameField(current: string): ActionField {
   return { name: 'name', label: t('action.rename.name'), type: 'text', required: true, default: current };
+}
+
+/** The name to type before a deletion goes ahead. */
+function confirmField(name: string): ActionField {
+  return {
+    name: 'confirm',
+    label: t('action.delete.confirm', { name }),
+    type: 'text',
+    required: true,
+    mono: true,
+  };
+}
+
+/**
+ * What goes with an add-on: its data, the variables of the applications linked to it, for an
+ * operator what it runs on, and for the views sync's add-on, the sync.
+ */
+function addonDeletionConsequences(ctx: ActionContext): string[] {
+  const addon = ctx.addon;
+  if (addon == null) {
+    return [];
+  }
+  const lines = [t('action.addonDelete.data')];
+  const linked = ctx.linkedApps ?? [];
+  if (linked.length > 0) {
+    lines.push(t('action.addonDelete.linked', { apps: linked.map((app) => app.name).join(', ') }));
+  }
+  if (operatorKind(addon.providerId) != null) {
+    // Neither the API nor the documentation says whether they go with it: the reader is told to look.
+    lines.push(
+      ctx.operatorEntrypoint == null
+        ? t('action.addonDelete.operator')
+        : t('action.addonDelete.operatorOn', { app: ctx.operatorEntrypoint }),
+    );
+  }
+  if (isSyncAddon(ctx.ownerId, addon)) {
+    lines.push(t('action.addonDelete.sync'));
+  }
+  return lines;
 }
 
 function isNewName(current: string, values: ActionValues): boolean {

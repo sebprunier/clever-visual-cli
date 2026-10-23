@@ -582,6 +582,8 @@ export class CvcOrgaPage extends CvcElement {
   override render() {
     const data = this.store.get(this.orga.id);
     const apps = this.orga.applications.filter((app) => !app.isArchived);
+    // Listed only for is:archived (#31).
+    const archivedApps = this.orga.applications.filter((app) => app.isArchived);
     const addons = this.orga.addons;
     const activity = this.activity(data.deployments);
     const costs =
@@ -591,6 +593,7 @@ export class CvcOrgaPage extends CvcElement {
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
     const { context, filter, grouping, watch, addonWatch, visibleApps, visibleAddons, tree } = buildHomeList({
       apps,
+      archivedApps,
       addons,
       links: data.links,
       activity,

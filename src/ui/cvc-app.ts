@@ -21,9 +21,10 @@ import { getLocale, LOCALES, setLocale, t, type Locale } from '../core/i18n.js';
 import { getTheme, setTheme, THEME_EVENT, THEMES, type ThemeId } from '../core/themes.js';
 import { AddonStore } from '../core/home/addon-store.js';
 import { CostStore } from '../core/home/cost-store.js';
+import { linkedApps } from '../core/home/grouping.js';
 import { HomeStore } from '../core/home/home-store.js';
 import { eraseLocalData } from '../core/local-data.js';
-import { recordVisit } from '../core/home/recents.js';
+import { forgetVisit, recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
 import {
   navigate,
@@ -346,7 +347,19 @@ export class CvcApp extends CvcElement {
     const orga = this.session?.findOrganisation(route.ownerId) ?? null;
     if (route.kind === 'addon') {
       const addon = orga?.addons.find((candidate) => candidate.id === route.addonId) ?? null;
-      return { client, ownerId: route.ownerId, appId: '', app: null, orga, addon };
+      const apps = orga?.applications ?? [];
+      const entrypoint = this.addonStore.operators.entrypoint(route.ownerId, route.addonId);
+      return {
+        client,
+        ownerId: route.ownerId,
+        appId: '',
+        app: null,
+        orga,
+        addon,
+        // What a deletion takes with it, as far as this browser knows (#31).
+        linkedApps: linkedApps(route.addonId, { apps, links: this.homeStore.get(route.ownerId).links }),
+        operatorEntrypoint: apps.find((app) => app.id === entrypoint)?.name ?? null,
+      };
     }
     const app = this.currentApp?.id === route.appId ? this.currentApp : null;
     return { client, ownerId: route.ownerId, appId: route.appId, app, orga };
@@ -368,7 +381,12 @@ export class CvcApp extends CvcElement {
       this.revision += 1;
       void this.session?.refreshSummary();
     }
-    if (result.deploymentId != null && this.route.kind === 'app') {
+    if (result.deleted != null && (this.route.kind === 'app' || this.route.kind === 'addon')) {
+      // Its page is gone: back to the organisation, without what this browser kept about it.
+      const ownerId = this.route.ownerId;
+      this.forgetDeleted(ownerId, result.deleted);
+      navigate({ kind: 'orga', ownerId });
+    } else if (result.deploymentId != null && this.route.kind === 'app') {
       // The deployment just started, followed in the Logs tab until it ends, as `clever restart` does.
       window.location.hash = deploymentLogsHash(
         this.route.ownerId,
@@ -390,6 +408,21 @@ export class CvcApp extends CvcElement {
         result.params,
       );
     }
+  }
+
+  /** The recent visits, the links, the add-on caches and the estimate of a deleted resource (#31). */
+  private forgetDeleted(ownerId: string, deleted: NonNullable<ActionResult['deleted']>): void {
+    if (deleted.kind === 'app') {
+      forgetVisit(deleted.id);
+      if (this.currentApp?.id === deleted.id) {
+        this.currentApp = null;
+      }
+    } else {
+      this.addonStore.forgetAddon(ownerId, deleted.id);
+    }
+    this.homeStore.forgetResource(ownerId, deleted.id);
+    // The organisation page reads it again when it shows the costs.
+    this.costStore.staleEstimate(ownerId);
   }
 
   // --- palette -----------------------------------------------------------

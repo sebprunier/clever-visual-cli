@@ -28,7 +28,7 @@ The pencil right after the name opens "Rename the add-on" (also in the palette, 
 
 The tags sit under the name and are edited from the pencil, as on an [application page](/guide/application#tags), through `clever curl` calls since clever-tools has no tag command. For grouping, an add-on also takes the `key:value` tags of its linked applications, for every key it has no tag of its own: they show dashed, and their tooltip names the applications to edit them on.
 
-The tabs depend on the add-on: first those of every add-on, **Overview**, **Variables** and **Logs** (a dedicated plan), then those of its family, **Buckets** (Cellar) or **Backups** (databases and Elasticsearch).
+The tabs depend on the add-on: first those of every add-on, **Overview**, **Variables** and **Logs** (a dedicated plan), then those of its family, **Buckets** (Cellar) or **Backups** (databases and Elasticsearch), and **Danger zone** last.
 
 The list you came from stays beside the page, as on an [application page](/guide/application#list), and goes from add-ons to applications and back.
 
@@ -65,6 +65,16 @@ This is where the passwords of a database are: the overview never shows them. A 
 A dedicated add-on has a **Logs** tab: its live logs (`clever logs --addon <addon_id> --since 15m`), with the same replay window, **Filter lines…**, **Follow**, pause, stop and clear as the [logs of an application](/guide/application#logs). Its lines are not coloured by severity.
 
 A shared plan has no instance of its own, so no logs either: the tab is not offered. An operator has none either: its logs are those of its entrypoint application.
+
+### Danger zone {#danger-zone}
+
+One block, **Delete this add-on**, in red, with `clever addon delete <addon_id> --org <owner_id>`: the provider destroys the resource and its data. The dialog lists what goes with it and asks you to type the name of the add-on; **Delete** stays disabled until it matches exactly.
+
+- The applications linked to it, named, lose its variables at their next deployment.
+- An [operator](#operators) runs on an application and add-ons of its own; the dialog names the application when this browser knows it. Neither the API nor the documentation says whether they are deleted with the operator: check the list afterwards.
+- The add-on of the [views sync](/guide/views-sync): the sync goes off, and the account page can enable it again.
+
+Once deleted, the notification says so and you are back on the organisation home; this browser forgets what it kept about the add-on (state, version, links), and the cost estimate is read again.
 
 ## Databases {#databases}
 

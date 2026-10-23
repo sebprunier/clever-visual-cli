@@ -118,6 +118,15 @@ export class AddonStore extends EventTarget {
     this.#emit();
   }
 
+  /** A deleted add-on: its instances, its shared mark, its version (#31). */
+  forgetAddon(ownerId: string, addonId: string): void {
+    this.#owner(ownerId).delete(addonId);
+    this.#markShared(ownerId, addonId, false);
+    this.versions.forgetAddon(ownerId, addonId);
+    this.operators.forgetAddon(ownerId, addonId);
+    this.#emit();
+  }
+
   forget(): void {
     this.#entries.clear();
     this.#shared.clear();

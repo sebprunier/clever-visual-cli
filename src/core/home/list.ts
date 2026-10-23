@@ -9,7 +9,7 @@ import { operatorWatchList, type OperatorWatchItem } from '../addons/operator.js
 import { watchList, type AppActivity, type WatchItem } from './activity.js';
 import type { AddonState } from './addon-state.js';
 import type { CostTable } from './costs.js';
-import { matchesFilter, parseFilter, type ParsedFilter } from './filter.js';
+import { ARCHIVED, matchesFilter, parseFilter, wantsArchived, type ParsedFilter } from './filter.js';
 import {
   buildTree,
   linkedAddons,
@@ -24,6 +24,8 @@ import { sortNodes, type SortSpec } from './sorting.js';
 export interface HomeListInput {
   /** Applications of the organisation, archived ones left out. */
   apps: readonly ApplicationSummary[];
+  /** The archived ones, listed only when the filter asks for them with `is:archived` (#31). */
+  archivedApps?: readonly ApplicationSummary[];
   addons: readonly AddonSummary[];
   links: LinksIndex;
   activity: ReadonlyMap<string, AppActivity>;
@@ -77,7 +79,8 @@ export function buildHomeList(input: HomeListInput): HomeList {
     ...operatorWatchList(addons, input.operatorVersions ?? (() => null)),
   ];
   const watchIds = new Set([...watch.map((item) => item.app.id), ...addonWatch.map((item) => item.addon.id)]);
-  const visibleApps = apps.filter((app) =>
+  const candidates = wantsArchived(filter) ? [...apps, ...(input.archivedApps ?? [])] : apps;
+  const visibleApps = candidates.filter((app) =>
     matchesFilter(filter, {
       kind: 'app',
       name: app.name,
@@ -86,7 +89,7 @@ export function buildHomeList(input: HomeListInput): HomeList {
       state: input.stateLabel(app.state),
       tags: app.customerTags,
       extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
-      flags: watchIds.has(app.id) ? ['watch'] : [],
+      flags: [...(watchIds.has(app.id) ? ['watch'] : []), ...(app.isArchived ? [ARCHIVED] : [])],
     }),
   );
   const visibleAddons = addons.filter((addon) =>

@@ -95,6 +95,25 @@ export class HomeStore extends EventTarget {
     this.#emit();
   }
 
+  /** A deleted application or add-on: its links and the links to it go (#31). */
+  forgetResource(ownerId: string, id: string): void {
+    const data = this.get(ownerId);
+    const links: Record<string, AppLinks> = {};
+    for (const [appId, known] of Object.entries(data.links)) {
+      if (appId !== id) {
+        links[appId] = {
+          addonIds: known.addonIds.filter((other) => other !== id),
+          applicationIds: known.applicationIds.filter((other) => other !== id),
+        };
+      }
+    }
+    data.links = links;
+    if (data.linksAt > 0) {
+      writeLinks(ownerId, { at: data.linksAt, links });
+    }
+    this.#emit();
+  }
+
   /** The links of one application as just read or changed, without waiting for the next refresh. */
   setLinks(ownerId: string, appId: string, links: AppLinks): void {
     const data = this.get(ownerId);

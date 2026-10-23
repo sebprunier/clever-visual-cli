@@ -123,7 +123,7 @@ export class CvcActionDialog extends CvcElement {
           <h2 id="title">${t(action.title)}</h2>
           ${action.description ? html`<p class="muted small">${t(action.description)}</p>` : nothing}
         </header>
-
+        ${this.renderConsequences()}
         ${
           this.fields.length === 0 && action.danger
             ? html`<p>
@@ -153,6 +153,16 @@ export class CvcActionDialog extends CvcElement {
         </footer>
       </form>
     `;
+  }
+
+  /** What a deletion takes with it (#31). */
+  private renderConsequences() {
+    const lines = this.action.consequences?.(this.context) ?? [];
+    return lines.length === 0
+      ? nothing
+      : html`<ul class="consequences small">
+          ${lines.map((line) => html`<li>${line}</li>`)}
+        </ul>`;
   }
 
   private renderField(field: ActionField) {
@@ -267,6 +277,13 @@ export class CvcActionDialog extends CvcElement {
       }
       label.checkbox {
         gap: 0.5rem;
+      }
+      .consequences {
+        margin: 0;
+        padding-left: 1.2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
       }
       .cli-block {
         display: flex;

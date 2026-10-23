@@ -161,6 +161,11 @@ export class CostStore extends EventTarget {
     return promise;
   }
 
+  /** A resource was deleted: the estimate is read again at the next refresh; what was spent stays (#31). */
+  staleEstimate(ownerId: string): void {
+    this.get(ownerId).estimateAt = 0;
+  }
+
   forget(): void {
     this.#data.clear();
     this.#tables.clear();

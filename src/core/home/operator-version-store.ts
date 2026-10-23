@@ -83,6 +83,16 @@ export class OperatorVersionStore extends EventTarget {
     }
   }
 
+  /** A deleted add-on. */
+  forgetAddon(ownerId: string, addonId: string): void {
+    const known = this.#owner(ownerId);
+    if (known[addonId] != null) {
+      delete known[addonId];
+      this.#save(ownerId);
+      this.#emit();
+    }
+  }
+
   forget(): void {
     this.#owners.clear();
     this.#emit();

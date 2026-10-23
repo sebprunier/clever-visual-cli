@@ -10,6 +10,7 @@ import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.type
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
 import { UpdateAddonCommand } from '@clevercloud/client/cc-api-commands/addon/update-addon-command.js';
+import { DeleteAddonCommand } from '@clevercloud/client/cc-api-commands/addon/delete-addon-command.js';
 import type {
   CellarBucket,
   CellarBucketList,
@@ -49,6 +50,7 @@ import { ListApplicationCommand } from '@clevercloud/client/cc-api-commands/appl
 import { DeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/deploy-application-command.js';
 import { GetApplicationCommand } from '@clevercloud/client/cc-api-commands/application/get-application-command.js';
 import { UndeployApplicationCommand } from '@clevercloud/client/cc-api-commands/application/undeploy-application-command.js';
+import { DeleteApplicationCommand } from '@clevercloud/client/cc-api-commands/application/delete-application-command.js';
 import { UpdateApplicationCommand } from '@clevercloud/client/cc-api-commands/application/update-application-command.js';
 import type { UpdateApplicationCommandInput } from '@clevercloud/client/cc-api-commands/application/update-application-command.types.js';
 import { CancelDeploymentCommand } from '@clevercloud/client/cc-api-commands/deployment/cancel-deployment-command.js';
@@ -719,6 +721,26 @@ export function redeployApplication(
 /** `clever stop` */
 export async function undeployApplication(client: CcApiClient, ownerId: string, applicationId: string): Promise<void> {
   await client.send(new UndeployApplicationCommand({ ownerId, applicationId }));
+}
+
+/** Archive or unarchive (`archived`): clever-tools has no command for it (#31). */
+export async function archiveApplication(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  archived: boolean,
+): Promise<void> {
+  await client.send(new UpdateApplicationCommand({ ownerId, applicationId, isArchived: archived }));
+}
+
+/** `clever delete`: the application, its deployment repository and its configuration. */
+export async function deleteApplication(client: CcApiClient, ownerId: string, applicationId: string): Promise<void> {
+  await client.send(new DeleteApplicationCommand({ ownerId, applicationId }));
+}
+
+/** `clever addon delete`: the provider destroys the resource and its data. */
+export async function deleteAddon(client: CcApiClient, ownerId: string, addonId: string): Promise<void> {
+  await client.send(new DeleteAddonCommand({ ownerId, addonId }));
 }
 
 /** `clever cancel-deploy` */

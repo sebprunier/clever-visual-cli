@@ -5,6 +5,7 @@ import { CvcElement } from './shared/cvc-element.js';
 import { customElement, property, state } from 'lit/decorators.js';
 import { describeError } from '../core/clever-client.js';
 import { indexActivity, isInProgress, type AppActivity } from '../core/home/activity.js';
+import { archiveCurl } from '../core/danger-zone.js';
 import { appDocsPath } from '../core/docs.js';
 import { deploymentLogsHash } from '../core/logs/deployment-logs.js';
 import type { AddonStore } from '../core/home/addon-store.js';
@@ -35,6 +36,8 @@ import './app/cvc-app-domains.js';
 import './app/cvc-app-env.js';
 import './app/cvc-app-logs.js';
 import './app/cvc-app-overview.js';
+import type { DangerItem } from './shared/cvc-danger-zone.js';
+import './shared/cvc-danger-zone.js';
 import './shared/cvc-doc-link.js';
 import './shared/cvc-resource-tags.js';
 import { openAction } from './shared/events.js';
@@ -50,6 +53,7 @@ export const APP_TAB_LABELS: Record<AppTab, { label: MessageKey; cli: string }> 
   domains: { label: 'tab.domains', cli: 'clever domain' },
   env: { label: 'tab.env', cli: 'clever env' },
   dependencies: { label: 'tab.dependencies', cli: 'clever service' },
+  danger: { label: 'tab.danger', cli: 'clever delete' },
 };
 
 /**
@@ -269,6 +273,17 @@ ${t('activity.logsHint')}"
           }
           .suggestions=${this.orga == null ? [] : tagsInUse([...this.orga.applications, ...this.orga.addons])}
         ></cvc-resource-tags>
+        ${
+          /* Hidden from every list: the page says so, and brings it back in one click (#31). */
+          this.archived
+            ? html`<div class="archived row">
+                <span>${t('app.archived')}</span>
+                <button type="button" class="small" @click=${() => openAction(this, 'unarchive')}>
+                  ${t('action.unarchive.submit')}
+                </button>
+              </div>`
+            : nothing
+        }
         <nav class="tabs" aria-label=${t('app.sectionsAria')}>
           ${(Object.keys(APP_TAB_LABELS) as AppTab[]).map(
             (tab) =>
@@ -284,6 +299,41 @@ ${t('activity.logsHint')}"
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       <section class="content">${this.renderTab()}</section>
     `;
+  }
+
+  private get archived(): boolean {
+    return this.app?.isArchived ?? this.summaryApp?.isArchived ?? false;
+  }
+
+  private dangerItems(): DangerItem[] {
+    const archive: DangerItem = this.archived
+      ? {
+          title: t('danger.unarchive.title'),
+          text: t('danger.unarchive.text'),
+          cli: archiveCurl(this.ownerId, this.appId, false),
+          label: t('action.unarchive.submit'),
+          actionId: 'unarchive',
+          destructive: false,
+        }
+      : {
+          title: t('danger.archive.title'),
+          text: t('danger.archive.text'),
+          cli: archiveCurl(this.ownerId, this.appId, true),
+          label: t('action.archive.submit'),
+          actionId: 'archive',
+          destructive: false,
+        };
+    return [
+      archive,
+      {
+        title: t('danger.delete.title'),
+        text: t('danger.delete.text'),
+        cli: `clever delete --app ${this.appId}`,
+        label: t('action.delete.submit'),
+        actionId: 'delete',
+        destructive: true,
+      },
+    ];
   }
 
   private renderTab() {
@@ -333,6 +383,8 @@ ${t('activity.logsHint')}"
           .orga=${this.orga}
           .store=${this.store}
         ></cvc-app-dependencies>`;
+      case 'danger':
+        return html`<cvc-danger-zone .items=${this.dangerItems()}></cvc-danger-zone>`;
     }
   }
 
@@ -363,6 +415,18 @@ ${t('activity.logsHint')}"
       header .tags {
         display: block;
         margin-top: 0.5rem;
+      }
+      header .archived {
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--cvc-radius);
+        background: color-mix(in srgb, var(--cvc-warn) 12%, var(--cvc-surface));
+        border: 1px solid color-mix(in srgb, var(--cvc-warn) 40%, var(--cvc-border));
+      }
+      header .archived button.small {
+        padding: 0.15rem 0.6rem;
+        font-size: 0.85rem;
       }
       .title img {
         border-radius: 8px;

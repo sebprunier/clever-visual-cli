@@ -193,6 +193,69 @@ describe('actions', () => {
     expect(result).toMatchObject({ cancelledDeploymentId: 'deployment_9', navigateTo: 'deployments' });
   });
 
+  it('archive or unarchive, whichever applies', async () => {
+    const sent: unknown[] = [];
+    const client = {
+      send: async (command: { params?: unknown }) => {
+        sent.push(command.params);
+        return {};
+      },
+    } as unknown as CcApiClient;
+    const live = { name: 'api', isArchived: false } as NonNullable<ActionContext['app']>;
+    const archived = { ...live, isArchived: true } as NonNullable<ActionContext['app']>;
+    expect(offersAction(findAction('archive')!, 'app', undefined, live)).toBe(true);
+    expect(offersAction(findAction('archive')!, 'app', undefined, archived)).toBe(false);
+    expect(offersAction(findAction('unarchive')!, 'app', undefined, archived)).toBe(true);
+    expect(findAction('archive')!.cli(ctx, {})).toContain(`-d '{"archived":true}'`);
+    const result = await findAction('unarchive')!.run({ ...ctx, client, app: archived }, {});
+    expect(result).toMatchObject({ refresh: true });
+    expect(sent).toEqual([expect.objectContaining({ applicationId: 'app_1', isArchived: false })]);
+  });
+
+  it('delete an application once its name is typed', async () => {
+    const sent: string[] = [];
+    const client = {
+      send: async (command: object) => {
+        sent.push(command.constructor.name);
+        return undefined;
+      },
+    } as unknown as CcApiClient;
+    const del = findAction('delete')!;
+    const onApp: ActionContext = { ...ctx, client, app: { name: 'api' } as NonNullable<ActionContext['app']> };
+    expect(del.danger).toBe(true);
+    expect(del.cli(onApp, {})).toBe('clever delete --app app_1');
+    expect(del.ready!(onApp, { confirm: 'ap' })).toBe(false);
+    expect(del.ready!(onApp, { confirm: 'api' })).toBe(true);
+    await expect(del.run(onApp, { confirm: 'API' })).rejects.toThrow(t('action.delete.mismatch'));
+    expect(sent).toEqual([]);
+    const result = await del.run(onApp, { confirm: 'api' });
+    expect(result.deleted).toEqual({ kind: 'app', id: 'app_1' });
+    expect(sent).toEqual(['DeleteApplicationCommand']);
+  });
+
+  it('delete an add-on, saying what goes with it', async () => {
+    const del = findAction('addon-delete')!;
+    const db = { id: 'addon_1', name: 'db', providerId: 'postgresql-addon' } as NonNullable<ActionContext['addon']>;
+    const linkedApps = [{ name: 'api' }, { name: 'worker' }] as unknown as ActionContext['linkedApps'];
+    const onDb: ActionContext = { ...ctx, appId: '', addon: db, linkedApps };
+    expect(del.cli(onDb, {})).toBe('clever addon delete addon_1 --org orga_1');
+    expect(del.consequences!(onDb)).toEqual([
+      t('action.addonDelete.data'),
+      t('action.addonDelete.linked', { apps: 'api, worker' }),
+    ]);
+    const keycloak = { id: 'addon_2', name: 'sso', providerId: 'keycloak' } as NonNullable<ActionContext['addon']>;
+    expect(del.consequences!({ ...ctx, addon: keycloak, operatorEntrypoint: 'sso-app' })).toContain(
+      t('action.addonDelete.operatorOn', { app: 'sso-app' }),
+    );
+    const sync = { id: 'addon_9', name: 'clever-visual-cli', providerId: 'config-provider' } as NonNullable<
+      ActionContext['addon']
+    >;
+    expect(del.consequences!({ ...ctx, ownerId: 'user_1', addon: sync })).toContain(t('action.addonDelete.sync'));
+    expect(del.ready!(onDb, { confirm: 'db' })).toBe(true);
+    const client = { send: async () => undefined } as unknown as CcApiClient;
+    expect((await del.run({ ...onDb, client }, { confirm: 'db' })).deleted).toEqual({ kind: 'addon', id: 'addon_1' });
+  });
+
   it('quote shell arguments only when needed', () => {
     expect(shellQuote('simple-value_1.0')).toBe('simple-value_1.0');
     expect(shellQuote('')).toBe("''");

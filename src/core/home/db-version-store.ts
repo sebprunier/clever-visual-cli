@@ -100,6 +100,16 @@ export class DbVersionStore extends EventTarget {
     }
   }
 
+  /** A deleted add-on. */
+  forgetAddon(ownerId: string, addonId: string): void {
+    const known = this.#owner(ownerId);
+    if (known[addonId] != null) {
+      delete known[addonId];
+      this.#save(PREFIX + ownerId, known);
+      this.#emit();
+    }
+  }
+
   forget(): void {
     this.#versions.clear();
     this.#offered = null;

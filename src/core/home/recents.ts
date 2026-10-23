@@ -19,6 +19,20 @@ export function recordVisit(ownerId: string, appId: string, now = Date.now()): v
   }
 }
 
+/** A deleted application leaves the recent ones (#31). */
+export function forgetVisit(appId: string): void {
+  const visits = readAll();
+  const kept = visits.filter((visit) => visit.appId !== appId);
+  if (kept.length === visits.length) {
+    return;
+  }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(kept));
+  } catch {
+    // Not essential.
+  }
+}
+
 export function listRecents(ownerId: string): RecentVisit[] {
   return readAll().filter((visit) => visit.ownerId === ownerId);
 }

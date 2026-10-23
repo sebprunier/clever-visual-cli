@@ -12,6 +12,7 @@ You open it from the [organisation home](/guide/organisation-home) (a click on a
 | **Domains**      | `clever domain`   |
 | **Variables**    | `clever env`      |
 | **Dependencies** | `clever service`  |
+| **Danger zone**  | `clever delete`   |
 
 Inside each tab, the command carries `--app <app_id>`. Exposed configuration, TCP redirections, metrics and network groups stay with the Console: the **Open in the Console ↗** link of the overview takes you there.
 
@@ -39,6 +40,8 @@ On the right:
 - **Stop**, outlined in red, opens the stop dialog (`clever stop`). It is not shown on a stopped application.
 
 Both are described under [Actions](#actions).
+
+An archived application keeps a band under its name, "Archived: hidden from the lists and the palette.", with **Unarchive** (see [Danger zone](#danger-zone)).
 
 ### Tags {#tags}
 
@@ -199,6 +202,13 @@ The Dependencies tab shows what the application is linked to (`clever service --
 
 After a link or an unlink, the notification reminds you to restart the application for its variables to change.
 
+## Danger zone {#danger-zone}
+
+The last tab ends the page as the Console ends the settings of an application, with two blocks, each with its command and its button:
+
+- **Archive this application**: hidden from the lists and the palette, it can still be pushed and deployed. clever-tools has no command for it, so the block gives the `clever curl` call (`PUT …/applications/<app_id>` with `{"archived":true}`). Once archived, the block reads **Unarchive this application** and sends `{"archived":false}`. An archived application is left out of the home list, the list beside the pages and the palette; the filter `is:archived` lists it again, and its page stays reachable from there.
+- **Delete this application**, in red (`clever delete --app <app_id>`): its deployment repository, its configuration and its domains go with it. The dialog lists what goes, says that the linked add-ons stay with their data, and asks you to type the name of the application: **Delete** stays disabled until it matches exactly. Once deleted, the notification says so and you are back on the organisation home; this browser forgets the application in its recent visits and its links, and the cost estimate is read again.
+
 ## Actions {#actions}
 
 Every action opens a dialog with its fields and, under them, the "clever-tools equivalent": the `clever` command, updated live as you fill the form, ready to copy. **Cancel** or `Escape` closes the dialog; the actions that stop or remove something have a red button. On an application page, the palette lists them all under "Actions", each with its bare command.
@@ -209,6 +219,8 @@ Every action opens a dialog with its fields and, under them, the "clever-tools e
 | Stop                                        | **Stop** in the title                                                                                                   | `clever stop --app <app_id>`                                                                                                                |
 | Rename the application                      | the pencil after the name                                                                                               | `clever config set name <new name> --app <app_id>`                                                                                          |
 | Cancel the running deployment               | **Cancel deployment** in the title and the logs of a deployment in progress, **Cancel** in Activity and Recent activity | `clever cancel-deploy --app <app_id>`                                                                                                       |
+| Archive / Unarchive the application         | **Archive** / **Unarchive** in Danger zone, **Unarchive** in the band of an archived application                        | no clever-tools command: `clever curl -X PUT -H 'Content-Type: application/json' -d '{"archived":true}' …/applications/<app_id>`            |
+| Delete the application                      | **Delete** in Danger zone                                                                                               | `clever delete --app <app_id>`                                                                                                              |
 | Scale                                       | **Edit** on Scaling                                                                                                     | `clever scale --app <app_id> --min-instances … --max-instances … --min-flavor … --max-flavor …`, with `--build-flavor …` when it changes    |
 | Application options                         | **Edit** on Options                                                                                                     | `clever config update --app <app_id>`, with `--enable-…` / `--disable-…` for each option changed                                            |
 | GitHub branch                               | the pencil after the GitHub branch, on Deployment                                                                       | no clever-tools command: `clever curl -X PUT -H 'Content-Type: application/json' -d '{"branch":"<branch>"}' …/applications/<app_id>/branch` |

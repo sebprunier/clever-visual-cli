@@ -5,6 +5,7 @@
  *   is:app  is:addon               one kind only
  *   is:node  is:postgresql         runtime or add-on provider slug, like the Console's sidebar
  *   is:watch                       applications and add-ons listed under "To watch"
+ *   is:archived                    archived applications, left out of the list otherwise
  *   project:shop  env:prod         any `<key>:<value>` matches the tag `key:value` (or `key:value:…`)
  *   has:project                    has a tag with this key
  *   tag:env  runtime:java  state:arrêtée  name:api
@@ -103,6 +104,28 @@ export function matchesFilter(filter: ParsedFilter, item: FilterItem): boolean {
     return true;
   }
   return evaluate(filter.node, prepare(item));
+}
+
+/** The `is:` word of an archived application. */
+export const ARCHIVED = 'archived';
+
+/**
+ * Whether the expression asks for archived applications (`is:archived`, even under a negation): they
+ * are left out of the list otherwise (#31).
+ */
+export function wantsArchived(filter: ParsedFilter): boolean {
+  const walk = (node: FilterNode): boolean => {
+    switch (node.type) {
+      case 'and':
+      case 'or':
+        return node.children.some(walk);
+      case 'not':
+        return walk(node.child);
+      case 'term':
+        return node.key === 'is' && node.value === ARCHIVED;
+    }
+  };
+  return filter.node != null && walk(filter.node);
 }
 
 /** Adds `token` to the raw expression, or removes it when already present. */

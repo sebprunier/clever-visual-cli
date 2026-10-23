@@ -39,6 +39,7 @@ import './addon/cvc-addon-backups.js';
 import './addon/cvc-addon-buckets.js';
 import './addon/cvc-addon-env.js';
 import './addon/cvc-addon-logs.js';
+import './shared/cvc-danger-zone.js';
 import './shared/cvc-doc-link.js';
 import './addon/cvc-addon-overview.js';
 import './app/cvc-app-nav.js';
@@ -52,13 +53,14 @@ import { sharedStyles } from './shared/styles.js';
 
 const CELLAR_PROVIDER = 'cellar-addon';
 
-/** What every add-on has comes first (logs when it has some), then the tabs of its family (#28). */
+/** What every add-on has comes first (logs when it has some), then the tabs of its family (#28), the danger zone last (#31). */
 const TABS: ReadonlyArray<{ tab: AddonTab; label: MessageKey }> = [
   { tab: 'overview', label: 'tab.overview' },
   { tab: 'env', label: 'tab.env' },
   { tab: 'logs', label: 'tab.logs' },
   { tab: 'buckets', label: 'tab.buckets' },
   { tab: 'backups', label: 'tab.backups' },
+  { tab: 'danger', label: 'tab.danger' },
 ];
 
 /**
@@ -358,61 +360,74 @@ export class CvcAddonPage extends CvcElement {
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       <section class="content">
         ${
-          tab === 'buckets'
-            ? html`<cvc-addon-buckets
-                .client=${this.client}
-                ownerId=${ownerId}
-                addonId=${summary.id}
-                realId=${summary.realId}
-                revision=${this.revision}
-              ></cvc-addon-buckets>`
-            : tab === 'backups'
-              ? html`<cvc-addon-backups
+          tab === 'danger'
+            ? html`<cvc-danger-zone
+                .items=${[
+                  {
+                    title: t('danger.addonDelete.title'),
+                    text: t('danger.addonDelete.text'),
+                    cli: `clever addon delete ${summary.id} --org ${ownerId}`,
+                    label: t('action.delete.submit'),
+                    actionId: 'addon-delete',
+                    destructive: true,
+                  },
+                ]}
+              ></cvc-danger-zone>`
+            : tab === 'buckets'
+              ? html`<cvc-addon-buckets
                   .client=${this.client}
                   ownerId=${ownerId}
                   addonId=${summary.id}
-                  providerId=${summary.providerId}
-                  .details=${this.details}
-                  ?shared=${state === 'shared'}
-                ></cvc-addon-backups>`
-              : tab === 'env'
-                ? html`<cvc-addon-env
+                  realId=${summary.realId}
+                  revision=${this.revision}
+                ></cvc-addon-buckets>`
+              : tab === 'backups'
+                ? html`<cvc-addon-backups
                     .client=${this.client}
                     ownerId=${ownerId}
                     addonId=${summary.id}
                     providerId=${summary.providerId}
-                    realId=${summary.realId}
-                    .linkedApps=${linkedApps(summary.id, context)}
-                  ></cvc-addon-env>`
-                : tab === 'logs'
-                  ? state === 'shared'
-                    ? html`<p class="empty">${t('addon.logsShared')}</p>`
-                    : html`<cvc-addon-logs
-                        .client=${this.client}
-                        ownerId=${ownerId}
-                        addonId=${summary.id}
-                      ></cvc-addon-logs>`
-                  : html`<cvc-addon-overview
+                    .details=${this.details}
+                    ?shared=${state === 'shared'}
+                  ></cvc-addon-backups>`
+                : tab === 'env'
+                  ? html`<cvc-addon-env
                       .client=${this.client}
                       ownerId=${ownerId}
-                      .summary=${summary}
-                      .addon=${this.addon}
-                      .state=${state}
-                      .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
+                      addonId=${summary.id}
+                      providerId=${summary.providerId}
+                      realId=${summary.realId}
                       .linkedApps=${linkedApps(summary.id, context)}
-                      .applications=${this.orga.applications}
-                      .costStore=${this.costStore}
-                      .details=${this.details}
-                      .detailsError=${this.detailsError}
-                      .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
-                      .cellar=${this.cellar}
-                      .cellarError=${this.cellarError}
-                      .operator=${this.operator}
-                      .operatorVersions=${this.operatorVersions}
-                      .operatorError=${this.operatorError}
-                      .addons=${this.orga.addons}
-                      @cvc-operator-changed=${this.reloadOperator}
-                    ></cvc-addon-overview>`
+                    ></cvc-addon-env>`
+                  : tab === 'logs'
+                    ? state === 'shared'
+                      ? html`<p class="empty">${t('addon.logsShared')}</p>`
+                      : html`<cvc-addon-logs
+                          .client=${this.client}
+                          ownerId=${ownerId}
+                          addonId=${summary.id}
+                        ></cvc-addon-logs>`
+                    : html`<cvc-addon-overview
+                        .client=${this.client}
+                        ownerId=${ownerId}
+                        .summary=${summary}
+                        .addon=${this.addon}
+                        .state=${state}
+                        .instances=${this.addonStore?.instances(ownerId, summary.id) ?? null}
+                        .linkedApps=${linkedApps(summary.id, context)}
+                        .applications=${this.orga.applications}
+                        .costStore=${this.costStore}
+                        .details=${this.details}
+                        .detailsError=${this.detailsError}
+                        .offered=${this.addonStore?.versions.offered(summary.providerId) ?? null}
+                        .cellar=${this.cellar}
+                        .cellarError=${this.cellarError}
+                        .operator=${this.operator}
+                        .operatorVersions=${this.operatorVersions}
+                        .operatorError=${this.operatorError}
+                        .addons=${this.orga.addons}
+                        @cvc-operator-changed=${this.reloadOperator}
+                      ></cvc-addon-overview>`
         }
       </section>
     `;

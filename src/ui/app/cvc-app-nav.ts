@@ -203,8 +203,11 @@ export class CvcAppNav extends CvcElement {
     }
     const data = this.store.get(this.orga.id);
     const apps = this.orga.applications.filter((app) => !app.isArchived);
+    // Listed only for is:archived (#31).
+    const archivedApps = this.orga.applications.filter((app) => app.isArchived);
     const list = buildHomeList({
       apps,
+      archivedApps,
       addons: this.orga.addons,
       links: data.links,
       activity: this.activity(data.deployments),
@@ -219,7 +222,7 @@ export class CvcAppNav extends CvcElement {
       offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
       operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
     });
-    const appIds = new Set(apps.map((app) => app.id));
+    const appIds = new Set(list.visibleApps.map((app) => app.id));
     this.#appOrder = displayOrder(list.tree, this.prefs.collapsed).filter((id) => appIds.has(id));
 
     if (this.folded) {

@@ -76,7 +76,7 @@ When a sync brings changes to the organisation on screen, its home page takes th
 
 ## Stop it {#stop}
 
-Delete the add-on, from the Console or with clever-tools:
+Delete the add-on, from the Danger zone of [its page](/guide/addons#danger-zone), from the Console or with clever-tools:
 
 ```sh
 clever addon delete clever-visual-cli

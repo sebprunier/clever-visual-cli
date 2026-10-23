@@ -53,6 +53,19 @@ describe('buildHomeList', () => {
     expect(desc.tree[0].apps.map((item) => item.id)).toEqual(['shop-prod', 'shop-dev']);
   });
 
+  it('lists the archived applications only for is:archived', () => {
+    const archivedApps = [{ ...app('old-shop', ['project:shop']), isArchived: true }];
+    expect(buildHomeList(input({ archivedApps, filterText: 'project:shop' })).visibleApps.map((a) => a.id)).toEqual([
+      'shop-prod',
+      'shop-dev',
+    ]);
+    expect(buildHomeList(input({ archivedApps, filterText: 'is:archived' })).visibleApps.map((a) => a.id)).toEqual([
+      'old-shop',
+    ]);
+    const both = buildHomeList(input({ archivedApps, filterText: 'project:shop (is:archived OR -is:archived)' }));
+    expect(both.visibleApps.map((a) => a.id)).toEqual(['shop-prod', 'shop-dev', 'old-shop']);
+  });
+
   it('reports expression errors without losing the list', () => {
     const list = buildHomeList(input({ filterText: '(blog', groupingText: 'project > project' }));
     expect(list.filter.error).not.toBeNull();

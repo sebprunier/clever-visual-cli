@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { isEmptyFilter, matchesFilter, parseFilter, toggleToken, type FilterItem } from './filter.js';
+import { isEmptyFilter, matchesFilter, parseFilter, toggleToken, wantsArchived, type FilterItem } from './filter.js';
 import { setLocale } from '../i18n.js';
 
 beforeAll(() => setLocale('fr', false));
@@ -121,5 +121,16 @@ describe('is:watch', () => {
     expect(matchesFilter(parseFilter('is:watch env:prod'), failing)).toBe(true);
     expect(matchesFilter(parseFilter('-is:watch'), api)).toBe(true);
     expect(matchesFilter(parseFilter('runtime:watch'), failing)).toBe(false);
+  });
+});
+
+describe('is:archived', () => {
+  it('tells whether the expression asks for archived applications', () => {
+    expect(wantsArchived(parseFilter('is:archived'))).toBe(true);
+    expect(wantsArchived(parseFilter('IS:Archived env:prod'))).toBe(true);
+    expect(wantsArchived(parseFilter('blog OR (is:app -is:archived)'))).toBe(true);
+    expect(wantsArchived(parseFilter('archived'))).toBe(false);
+    expect(wantsArchived(parseFilter('is:watch'))).toBe(false);
+    expect(wantsArchived(parseFilter(''))).toBe(false);
   });
 });

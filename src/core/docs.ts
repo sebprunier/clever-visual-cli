@@ -20,6 +20,7 @@ const APP_SECTIONS: Record<AppTab, string> = {
   domains: 'domains',
   env: 'variables',
   dependencies: 'dependencies',
+  danger: 'danger-zone',
 };
 
 /** The section about a tab of the application page; a deployment's logs have their own. */
@@ -32,7 +33,9 @@ const DATABASES = ['postgresql-addon', 'mysql-addon', 'redis-addon', 'mongodb-ad
 /** The section about an add-on's family, or its Backups tab; the add-on page in general otherwise. */
 export function addonDocsPath(providerId: string, tab: AddonTab): string {
   let section = 'page';
-  if (DATABASES.includes(providerId)) {
+  if (tab === 'danger') {
+    section = 'danger-zone';
+  } else if (DATABASES.includes(providerId)) {
     section = tab === 'backups' ? 'backups' : 'databases';
   } else if (providerId === 'es-addon') {
     section = tab === 'backups' ? 'backups' : 'elasticsearch';
