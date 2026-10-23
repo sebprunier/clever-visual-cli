@@ -2,7 +2,7 @@
 
 Add-ons sit in the home list beside the applications, and each one has a page, as an application does. The page reads what clever-tools tells about it (`clever addon env`, `clever logs --addon`, `clever database backups`, `clever config-provider`, `clever keycloak`, `clever otoroshi`), with a few extras where a screen helps: browsing a Cellar bucket, editing a configuration provider as a draft, the restore commands of a backup.
 
-Some families get more than the common page: [databases](#databases), [Elasticsearch](#elasticsearch), [configuration providers](#configuration-providers), [Cellar](#cellar) and the [Keycloak and Otoroshi operators](#operators). Creating, renaming or deleting an add-on, or changing its plan, stays with the Console and clever-tools.
+Some families get more than the common page: [databases](#databases), [Elasticsearch](#elasticsearch), [configuration providers](#configuration-providers), [Cellar](#cellar) and the [Keycloak and Otoroshi operators](#operators). Creating or deleting an add-on, or changing its plan, stays with the Console and clever-tools; renaming one is done from its page.
 
 ## State in the home list {#state}
 
