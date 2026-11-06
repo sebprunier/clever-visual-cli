@@ -1,14 +1,13 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { cellarCurl, prefixTrail } from '../../core/addons/cellar.js';
+import { cellarCurl, filteredPrefix, prefixTrail, s3cmdList } from '../../core/addons/cellar.js';
 import { describeError } from '../../core/clever-client.js';
 import { t, type MessageKey } from '../../core/i18n.js';
-import { readHashParams, withHashParams } from '../../core/router.js';
+import { readHashParams, withHashParams, writeHashParams } from '../../core/router.js';
 import {
   fetchCellarBucket,
   fetchCellarBuckets,
-  fetchCellarDownloadUrl,
   fetchCellarObjects,
   type CellarBucket,
   type CellarBucketSummary,
@@ -16,11 +15,14 @@ import {
   type CellarObjectItem,
 } from '../../data/api.js';
 import '../shared/cvc-cli.js';
+import { copyToClipboard } from '../shared/clipboard.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { openAction } from '../shared/events.js';
 import { formatBytes, formatCount, formatDateTime, formatRelative } from '../shared/format.js';
 import { ICON_DOWNLOAD, ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
+import { openCellarDownload } from './cellar-download.js';
+import './cvc-cellar-object-dialog.js';
 
 const VERSIONING_LABELS: Readonly<Record<CellarBucket['versioning'], MessageKey>> = {
   ENABLED: 'buckets.versioning.ENABLED',
@@ -28,13 +30,22 @@ const VERSIONING_LABELS: Readonly<Record<CellarBucket['versioning'], MessageKey>
   DISABLED: 'buckets.versioning.DISABLED',
 };
 
+/** The pause after the last keystroke before the filter asks the API again. */
+const FILTER_DELAY = 300;
+/** How long a copy button says "Copied!". */
+const COPIED_FOR = 1500;
+
 /**
  * The buckets of a Cellar add-on, then a bucket read like a file browser:
  * directories (common prefixes) first, then files, a page at a time. The open
  * bucket and directory live in the URL (`?bucket=&prefix=`), so the browser's
  * back button and a shared link work. Everything goes through the platform
  * API: no S3 credentials; a download URL is only signed when asked for, and
- * "New bucket" (#29) is the one change, through the action dialog.
+ * "New bucket" (#29) is the one change, through the action dialog. The
+ * folder's s3cmd command copies in one click (the add-on's keys read by
+ * clever-tools when it runs), the folder filters by the start of the names
+ * (`?filter=`, sent as the listing's prefix), and a file opens its details,
+ * with its own s3cmd command (#30).
  */
 @customElement('cvc-addon-buckets')
 export class CvcAddonBuckets extends CvcElement {
@@ -60,6 +71,18 @@ export class CvcAddonBuckets extends CvcElement {
   @state() private error: string | null = null;
   /** The object whose download URL is being signed. */
   @state() private signing: string | null = null;
+  /** The start of the names the open folder is listed with, as in the URL. */
+  @state() private filter = '';
+  /** What the filter field holds, applied after a pause. */
+  @state() private filterText = '';
+  /** What the copy button copied: it says "Copied!" a moment. */
+  @state() private copied: string | null = null;
+  /** The file whose details are open. */
+  @state() private details: CellarObjectItem | null = null;
+
+  private filterTimer: number | undefined;
+  /** The name that opened the details, focused again when they close. */
+  private opener: HTMLElement | null = null;
 
   private readonly onHashChange = () => this.followUrl();
 
@@ -70,6 +93,7 @@ export class CvcAddonBuckets extends CvcElement {
 
   override disconnectedCallback(): void {
     window.removeEventListener('hashchange', this.onHashChange);
+    window.clearTimeout(this.filterTimer);
     super.disconnectedCallback();
   }
 
@@ -88,12 +112,17 @@ export class CvcAddonBuckets extends CvcElement {
     const params = readHashParams();
     const bucket = params.get('bucket') ?? '';
     const prefix = bucket === '' ? '' : (params.get('prefix') ?? '');
-    if (!force && bucket === this.bucket && prefix === this.folder) {
+    const filter = bucket === '' ? '' : (params.get('filter') ?? '');
+    if (!force && bucket === this.bucket && prefix === this.folder && filter === this.filter) {
       return;
     }
     const otherBucket = bucket !== this.bucket;
     this.bucket = bucket;
     this.folder = prefix;
+    window.clearTimeout(this.filterTimer);
+    this.filter = filter;
+    this.filterText = filter;
+    this.details = null;
     if (bucket === '') {
       return;
     }
@@ -136,7 +165,7 @@ export class CvcAddonBuckets extends CvcElement {
     if (this.client == null || this.realId === '' || this.bucket === '') {
       return;
     }
-    const { client, ownerId, realId, bucket, folder: prefix } = this;
+    const { client, ownerId, realId, bucket, folder, filter } = this;
     const cursor = first ? undefined : (this.cursor ?? undefined);
     if (first) {
       this.listed = false;
@@ -148,8 +177,9 @@ export class CvcAddonBuckets extends CvcElement {
     }
     this.error = null;
     try {
-      const page = await fetchCellarObjects(client, ownerId, realId, bucket, prefix, cursor);
-      if (this.bucket !== bucket || this.folder !== prefix) {
+      const page = await fetchCellarObjects(client, ownerId, realId, bucket, filteredPrefix(folder, filter), cursor);
+      // An answer for another folder, or for what the filter held before, is dropped.
+      if (this.bucket !== bucket || this.folder !== folder || this.filter !== filter) {
         return;
       }
       this.directories = [...this.directories, ...page.directories];
@@ -171,41 +201,84 @@ export class CvcAddonBuckets extends CvcElement {
     }
   }
 
-  /**
-   * Signs a download URL and opens it. The tab is opened before the call, while
-   * the click still counts as one, or the browser would block it.
-   */
   private async download(file: CellarObjectItem): Promise<void> {
-    const opened = window.open('', '_blank');
-    if (opened != null) {
-      opened.opener = null;
-    }
     this.signing = file.key;
     this.error = null;
     try {
-      const url = await fetchCellarDownloadUrl(this.client, this.ownerId, this.realId, this.bucket, file.key);
-      if (opened != null) {
-        opened.location.href = url;
-      } else {
-        window.location.assign(url);
-      }
+      await openCellarDownload(this.client, this.ownerId, this.realId, this.bucket, file.key);
     } catch (error) {
-      opened?.close();
       this.error = describeError(error);
     } finally {
       this.signing = null;
     }
   }
 
-  /** A link to a bucket and directory of this add-on, the rest of the URL kept. */
+  private onFilterInput(event: Event): void {
+    const value = (event.currentTarget as HTMLInputElement).value;
+    this.filterText = value;
+    window.clearTimeout(this.filterTimer);
+    this.filterTimer = window.setTimeout(() => this.applyFilter(value), FILTER_DELAY);
+  }
+
+  private onFilterKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.applyFilter(this.filterText);
+    } else if (event.key === 'Escape' && this.filterText !== '') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.filterText = '';
+      this.applyFilter('');
+    }
+  }
+
+  /** Lists the open folder again with this start of the names; the URL is replaced, not pushed. */
+  private applyFilter(value: string): void {
+    window.clearTimeout(this.filterTimer);
+    if (value === this.filter) {
+      return;
+    }
+    this.filter = value;
+    writeHashParams({ filter: value || null });
+    void this.loadPage(true);
+  }
+
+  private async copy(text: string): Promise<void> {
+    if (!(await copyToClipboard(text))) {
+      this.error = t('env.clipboardError');
+      return;
+    }
+    this.copied = text;
+    setTimeout(() => {
+      if (this.copied === text) {
+        this.copied = null;
+      }
+    }, COPIED_FOR);
+  }
+
+  private openDetails(file: CellarObjectItem, event: Event): void {
+    this.opener = event.currentTarget as HTMLElement;
+    this.details = file;
+  }
+
+  private async closeDetails(): Promise<void> {
+    this.details = null;
+    await this.updateComplete;
+    this.opener?.focus();
+    this.opener = null;
+  }
+
+  /** A link to a bucket and directory of this add-on, the rest of the URL kept but the filter. */
   private href(bucket: string, prefix = ''): string {
-    return withHashParams(window.location.hash, { bucket: bucket || null, prefix: prefix || null });
+    return withHashParams(window.location.hash, { bucket: bucket || null, prefix: prefix || null, filter: null });
   }
 
   override render() {
     return html`
       <div class="row toolbar">
-        <cvc-cli command=${cellarCurl(this.ownerId, this.realId, this.bucket, this.folder)}></cvc-cli>
+        <cvc-cli
+          command=${cellarCurl(this.ownerId, this.realId, this.bucket, filteredPrefix(this.folder, this.filter))}
+        ></cvc-cli>
         <span class="grow"></span>
         ${
           this.bucket === ''
@@ -261,6 +334,8 @@ export class CvcAddonBuckets extends CvcElement {
     const summary = this.buckets?.find((bucket) => bucket.name === this.bucket);
     const info = this.bucketInfo;
     const empty = this.listed && this.directories.length === 0 && this.files.length === 0;
+    // Like the listing: the open folder, then the start of the names the filter holds.
+    const s3cmd = s3cmdList(this.addonId, this.bucket, filteredPrefix(this.folder, this.filter));
     return html`
       <nav class="row trail" aria-label=${t('buckets.trailAria')}>
         <a href=${this.href('')}>${t('buckets.all')}</a>
@@ -278,6 +353,14 @@ export class CvcAddonBuckets extends CvcElement {
                   : html`<a class="mono" href=${this.href(this.bucket, step.prefix)}>${step.name}</a>`
               }`,
         )}
+        <button
+          type="button"
+          class="ghost small"
+          title=${`${t('buckets.copyS3cmdTitle')}\n\n${s3cmd}`}
+          @click=${() => this.copy(s3cmd)}
+        >
+          ${this.copied === s3cmd ? t('common.copied') : t('buckets.copyS3cmd')}
+        </button>
         <span class="grow"></span>
         ${
           summary == null
@@ -288,11 +371,25 @@ export class CvcAddonBuckets extends CvcElement {
         }
         ${info == null ? nothing : html`<span class="badge neutral">${t(VERSIONING_LABELS[info.versioning])}</span>`}
       </nav>
+      <div class="row filter">
+        <input
+          type="search"
+          placeholder=${t('buckets.filter')}
+          aria-label=${t('buckets.filter')}
+          title=${t('buckets.filterHint')}
+          .value=${this.filterText}
+          @input=${this.onFilterInput}
+          @keydown=${this.onFilterKeyDown}
+        />
+        ${this.filter === '' ? nothing : html`<span class="muted small">${t('buckets.filterHint')}</span>`}
+      </div>
       ${
         !this.listed
           ? html`<p class="empty">${t('common.loading')}</p>`
           : empty
-            ? html`<p class="empty">${t('buckets.empty')}</p>`
+            ? html`<p class="empty">
+                ${this.filter === '' ? t('buckets.empty') : t('buckets.noMatch', { filter: this.filter })}
+              </p>`
             : html`<div class="card table">
                 <table>
                   <thead>
@@ -307,7 +404,7 @@ export class CvcAddonBuckets extends CvcElement {
                     ${this.directories.map(
                       (directory) =>
                         html`<tr>
-                          <td class="mono" colspan="4">
+                          <td class="mono name" colspan="4">
                             <a href=${this.href(this.bucket, directory.key)}>${directory.name}/</a>
                           </td>
                         </tr>`,
@@ -315,7 +412,16 @@ export class CvcAddonBuckets extends CvcElement {
                     ${this.files.map(
                       (file) =>
                         html`<tr>
-                          <td class="mono name">${file.name}</td>
+                          <td class="mono name">
+                            <button
+                              type="button"
+                              class="link object"
+                              title=${t('buckets.details', { name: file.name })}
+                              @click=${(event: Event) => this.openDetails(file, event)}
+                            >
+                              ${file.name}
+                            </button>
+                          </td>
                           <td class="num">${formatBytes(file.contentLength)}</td>
                           <td class="muted" title=${formatDateTime(file.updatedAt)}>
                             ${formatRelative(file.updatedAt)}
@@ -342,6 +448,20 @@ export class CvcAddonBuckets extends CvcElement {
               ${this.loadingMore ? t('common.loading') : t('buckets.more')}
             </button>`
           : nothing
+      }
+      ${
+        this.details == null
+          ? nothing
+          : html`<cvc-cellar-object-dialog
+              .client=${this.client}
+              ownerId=${this.ownerId}
+              addonId=${this.addonId}
+              realId=${this.realId}
+              bucket=${this.bucket}
+              .item=${this.details}
+              @cvc-cellar-object-close=${this.closeDetails}
+              @cvc-cellar-object-missing=${() => void this.loadPage(true)}
+            ></cvc-cellar-object-dialog>`
       }
     `;
   }
@@ -383,6 +503,19 @@ export class CvcAddonBuckets extends CvcElement {
       }
       td.name {
         overflow-wrap: anywhere;
+      }
+      /* The file name opens its details: a link to look at, the cell's monospace kept. */
+      button.object {
+        font: inherit;
+        text-align: left;
+        overflow-wrap: anywhere;
+      }
+      .filter {
+        margin-bottom: 0.6rem;
+        gap: 0.6rem;
+      }
+      .filter input {
+        width: min(320px, 100%);
       }
       td.actions {
         width: 1%;

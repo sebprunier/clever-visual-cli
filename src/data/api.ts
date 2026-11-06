@@ -5,7 +5,7 @@
  * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { isCcHttpErrorWithCode } from '@clevercloud/client/utils/error-utils.js';
+import { isCcHttpErrorWithCode, tolerateNotFound } from '@clevercloud/client/utils/error-utils.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
@@ -17,6 +17,7 @@ import type {
   CellarBucketSummary,
   CellarDirectory,
   CellarInfo,
+  CellarObjectDetails,
   CellarObjectItem,
   CellarObjectList,
 } from '@clevercloud/client/cc-api-commands/cellar/cellar.types.js';
@@ -26,6 +27,7 @@ import {
 } from '@clevercloud/client/cc-api-commands/cellar/create-cellar-bucket-command.js';
 import { GetCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-bucket-command.js';
 import { GetCellarInfoCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-info-command.js';
+import { GetCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-command.js';
 import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-download-url-command.js';
 import { ListCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-bucket-command.js';
 import { ListCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-object-command.js';
@@ -125,6 +127,7 @@ export type {
   CellarBucketSummary,
   CellarDirectory,
   CellarInfo,
+  CellarObjectDetails,
   CellarObjectItem,
   CellarObjectList,
   AddonRuntimeLog,
@@ -438,6 +441,23 @@ export function fetchCellarObjects(
   return client.send(
     new ListCellarObjectCommand({ ownerId, addonId: realId, bucketName, prefix: prefix || undefined, cursor, count }),
   );
+}
+
+/**
+ * One object read on its own (#30): what the listing has, plus its content type, tags, user metadata
+ * and access list. Null when the key is gone (deleted since the listing).
+ */
+export async function fetchCellarObject(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  objectKey: string,
+): Promise<CellarObjectDetails | null> {
+  const details = await tolerateNotFound(
+    client.send(new GetCellarObjectCommand({ ownerId, addonId: realId, bucketName, objectKey })),
+  );
+  return details ?? null;
 }
 
 /** A URL that downloads one object without credentials; signing it stores nothing. */

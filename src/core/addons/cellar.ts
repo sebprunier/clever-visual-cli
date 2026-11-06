@@ -30,6 +30,55 @@ export function cellarCurl(ownerId: string, realId: string, bucket = '', prefix 
 }
 
 /**
+ * What the listing asks for once filtered (#30): the open folder, then the start of the names, as
+ * the Console does. The API filters the whole folder, case-sensitive, directories included.
+ */
+export function filteredPrefix(folder: string, filter: string): string {
+  return folder + filter;
+}
+
+/** `s3://bucket/folder/`: the form `aws s3`, `s3cmd` and most S3 clients read. */
+export function s3Uri(bucket: string, prefix = ''): string {
+  return `s3://${bucket}/${prefix}`;
+}
+
+/**
+ * One s3cmd command on a Cellar add-on, keys included yet none in the clipboard: clever-tools reads
+ * the add-on's variables (`CELLAR_ADDON_HOST`, `CELLAR_ADDON_KEY_ID`, `CELLAR_ADDON_KEY_SECRET`) when
+ * it runs, then s3cmd gets them as options, path-style, which win over a `~/.s3cfg`. Everything is
+ * chained with `&&`: when `clever addon env` fails, `eval` never sees what it printed (its help, on
+ * stdout) and s3cmd does not run with empty options, which would fall back on other credentials.
+ * One part per line, continued with `\`: it reads in a narrow block and pastes as is.
+ */
+function s3cmdScript(addonId: string, args: string): string {
+  return [
+    `cellar_vars=$(clever addon env ${addonId} -F shell)`,
+    '  && eval "$cellar_vars"',
+    '  && s3cmd --access_key=$CELLAR_ADDON_KEY_ID',
+    '    --secret_key=$CELLAR_ADDON_KEY_SECRET',
+    '    --host=$CELLAR_ADDON_HOST',
+    '    --host-bucket=$CELLAR_ADDON_HOST',
+    `    ${args}`,
+  ].join(' \\\n');
+}
+
+/** Lists a folder (or the keys starting with a prefix) with s3cmd. */
+export function s3cmdList(addonId: string, bucket: string, prefix = ''): string {
+  return s3cmdScript(addonId, `ls ${shellQuote(s3Uri(bucket, prefix))}`);
+}
+
+/** Downloads one object with s3cmd, into the current folder under its name. */
+export function s3cmdGet(addonId: string, bucket: string, key: string): string {
+  return s3cmdScript(addonId, `get ${shellQuote(s3Uri(bucket, key))}`);
+}
+
+/** `GET …/objects/<key>`: one object read on its own, the key percent-encoded slashes included. */
+export function objectCurl(ownerId: string, realId: string, bucket: string, key: string): string {
+  const url = `${API_HOST}/v4/cellar/organisations/${ownerId}/cellar/${realId}/buckets/${encodeURIComponent(bucket)}/objects/${encodeURIComponent(key)}`;
+  return `clever curl ${shellQuote(url)}`;
+}
+
+/**
  * The S3 rules for a bucket name: 3 to 63 characters, lowercase letters, digits, dots and hyphens,
  * a letter or a digit at both ends, no two dots in a row, not shaped like an IP address.
  */

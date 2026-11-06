@@ -172,12 +172,30 @@ A Cellar add-on gets a card on its overview with its **Buckets**, **Objects**, t
 
 The **Buckets** tab lists the buckets with their objects, size and last write; a click on one browses it like a file browser:
 
-- the path at the top, from **Buckets** down to the open folder, each step above it a link;
+- the path at the top, from **Buckets** down to the open folder, each step above it a link, then **Copy the s3cmd command**, which lists the open folder (the filter included) with [s3cmd](https://s3tools.org/s3cmd), see below;
 - the folders first, then the files with their size and last write, 100 entries at a time, **Load more** for the next ones;
 - the number of objects and size of the bucket, and its versioning status (versioning on, versioning suspended, no versioning);
 - **Download** on a file: the download URL is signed only when you click, then opens in a new tab.
 
-The open bucket and folder live in the URL (`?bucket=…&prefix=…`), so the browser's back button and a shared link work.
+**Names starting with…**, above the list, filters the open folder as you type. The API does it, with the folder and what you typed as the listing's prefix, so the filter covers the whole folder, not only the entries loaded. It is case-sensitive, as S3 keys are, and folders match too. Escape clears it.
+
+A click on a file name opens its **details**: its key (with **Copy**), content type, size (readable and in bytes), last write, ETag, its tags when it has some, and its user metadata, folded under **Metadata**. **Download** is there too, and the s3cmd command that downloads it. The access list is not shown: the API does not name the groups it grants to, so it cannot tell whether an object is public. If the object was deleted since the folder was listed, the dialog says so and the list reloads.
+
+The s3cmd commands carry no key. They ask clever-tools for the add-on's variables (`CELLAR_ADDON_HOST`, `CELLAR_ADDON_KEY_ID`, `CELLAR_ADDON_KEY_SECRET`) when you run them, then hand them to s3cmd as options, which win over a `~/.s3cfg` you may have. The steps are chained with `&&`: if clever-tools fails (not logged in, say), s3cmd does not run.
+
+```sh
+cellar_vars=$(clever addon env <addon_id> -F shell) \
+  && eval "$cellar_vars" \
+  && s3cmd --access_key=$CELLAR_ADDON_KEY_ID \
+    --secret_key=$CELLAR_ADDON_KEY_SECRET \
+    --host=$CELLAR_ADDON_HOST \
+    --host-bucket=$CELLAR_ADDON_HOST \
+    ls s3://<bucket>/<folder>/
+```
+
+The three variables then stay in that shell until it closes. A file's command ends with `get s3://<bucket>/<key>`, which saves it under its name in the current folder.
+
+The open bucket, folder and filter live in the URL (`?bucket=…&prefix=…&filter=…`), so the browser's back button and a shared link work. Typing in the filter does not add a step to the history.
 
 **New bucket**, above the list of buckets (also "New bucket" in the palette on a Cellar page), creates an empty bucket:
 
@@ -186,11 +204,12 @@ The open bucket and folder live in the URL (`?bucket=…&prefix=…`), so the br
 
 Once created, the bucket opens. Deleting a bucket stays with the Console.
 
-Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see, and the dialog the call that creates the bucket:
+Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see (the filter included), the details the call that reads the object (its key percent-encoded, slashes too), and the dialog the call that creates the bucket:
 
 ```sh
 clever curl https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets
-clever curl 'https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets/<bucket>/objects?prefix=<folder>'
+clever curl 'https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets/<bucket>/objects?prefix=<folder><filter>'
+clever curl https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets/<bucket>/objects/<key>
 clever curl -X POST -H 'Content-Type: application/json' -d '{"name":"<bucket>","versioning":false}' https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets
 ```
 
