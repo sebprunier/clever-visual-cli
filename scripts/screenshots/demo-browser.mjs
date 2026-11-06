@@ -139,7 +139,7 @@ export async function openDemoContext(
         return json(route, url.pathname.endsWith('/incidents') ? STATUS.incidents : STATUS.status);
       }
       if (url.host === 'registry.npmjs.org') {
-        return json(route, { name: 'clever-tools', version: '5.2.0' });
+        return json(route, { name: 'clever-tools', version: '5.4.0' });
       }
       if (request.method() !== 'GET') {
         // Nothing is changed for real: what was sent comes back.

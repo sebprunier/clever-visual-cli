@@ -13,7 +13,7 @@ export const APP_RELEASE_URL = IS_SNAPSHOT
   : `https://github.com/sebprunier/clever-visual-cli/releases/tag/v${APP_VERSION}`;
 
 /** The clever-tools release the commands shown on screen are checked against. */
-export const CLI_VERSION = '5.2.0';
+export const CLI_VERSION = '5.4.0';
 
 /** Key of the resource-id cache that `@clevercloud/client` keeps in localStorage. */
 export const RESOURCE_ID_CACHE_KEY = 'cvc.resource-ids';

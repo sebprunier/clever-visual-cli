@@ -210,7 +210,7 @@ The operator card, with `clever keycloak get <addon_id>` (or `clever otoroshi ge
 - Two notes: "Experimental clever-tools commands: `clever features enable operators` once.", and "The initial credentials are in the Console, or in the command above with --format json." The page does not show them.
 
 ::: warning Experimental commands
-In clever-tools 5.2, the `clever keycloak` and `clever otoroshi` commands are experimental: run `clever features enable operators` once before using them.
+In clever-tools 5.4, the `clever keycloak` and `clever otoroshi` commands are experimental: run `clever features enable operators` once before using them.
 :::
 
 ### Version and updates

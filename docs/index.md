@@ -31,7 +31,7 @@ features:
     link: /guide/logs
     linkText: Logs of several applications
   - title: Every screen names its command
-    details: The <code>clever</code> command a screen stands for is shown with the real identifiers, one click to copy, checked against clever-tools 5.2.0. Using the interface teaches the CLI along the way.
+    details: The <code>clever</code> command a screen stands for is shown with the real identifiers, one click to copy, checked against clever-tools 5.4.0. Using the interface teaches the CLI along the way.
     link: /guide/introduction
     linkText: The principles
   - title: Front-end only

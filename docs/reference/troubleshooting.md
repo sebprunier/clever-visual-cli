@@ -70,7 +70,7 @@ Nothing is lost meanwhile: the views stay in this browser. See [views sync](/gui
 
 ## "clever-tools … is out" {#cli-release}
 
-The commands the interface shows are checked against one clever-tools release, named at the bottom of the account menu: "Commands checked with clever-tools 5.2.0". Once a day, clever-visual-cli asks the npm registry for the latest release. When a newer one is out, a dot marks the account menu, and the menu says, for instance, "clever-tools 5.3.0 is out; the commands are checked with 5.2.0.", with a link to its **Release notes**.
+The commands the interface shows are checked against one clever-tools release, named at the bottom of the account menu: "Commands checked with clever-tools 5.4.0". Once a day, clever-visual-cli asks the npm registry for the latest release. When a newer one is out, a dot marks the account menu, and the menu says, for instance, "clever-tools 5.5.0 is out; the commands are checked with 5.4.0.", with a link to its **Release notes**.
 
 The commands most likely still work: read the release notes for what changed, and run `clever version` to see the release you have. A weekly workflow of the project opens an issue when npm is ahead, so the commands get checked against the new release. If you find one that no longer works, say so in an [issue](https://github.com/sebprunier/clever-visual-cli/issues).
 
