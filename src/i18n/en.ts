@@ -189,7 +189,6 @@ export const en = {
   'cellarUpload.replaces': 'replaces an object',
   'cellarUpload.new': 'new',
   'cellarUpload.duplicate': 'same name twice: sent once',
-  'cellarUpload.tooBig': 'too big here: use s3cmd',
   'cellarUpload.keptAsVersion': 'The bucket keeps versions: the {count} objects replaced stay as previous versions.',
   'cellarUpload.keptAsVersion_one': 'The bucket keeps versions: the object replaced stays as a previous version.',
   'cellarUpload.replacedForGood': '{count} objects are replaced for good: the bucket keeps no versions.',

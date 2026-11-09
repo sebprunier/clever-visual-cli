@@ -1,7 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { planUpload, s3cmdPut, sendable, UPLOAD_MAX_BYTES, type UploadEntry } from '../../core/addons/cellar.js';
+import { planUpload, s3cmdPut, sendable, type UploadEntry } from '../../core/addons/cellar.js';
 import { describeError } from '../../core/clever-client.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import { fetchCellarObject, uploadCellarObject, uploadRefusal, type CellarBucket } from '../../data/api.js';
@@ -84,7 +84,7 @@ export class CvcCellarUploadDialog extends CvcElement {
     this.phase = 'checking';
     this.checked = 0;
     this.error = null;
-    this.entries = planUpload(this.folder, files, new Set(), UPLOAD_MAX_BYTES);
+    this.entries = planUpload(this.folder, files, new Set());
     const keys = [...new Set(this.entries.map((entry) => entry.key))];
     const existing = new Set<string>();
     let next = 0;
@@ -105,7 +105,7 @@ export class CvcCellarUploadDialog extends CvcElement {
     if (this.files !== files) {
       return;
     }
-    this.entries = planUpload(this.folder, files, existing, UPLOAD_MAX_BYTES);
+    this.entries = planUpload(this.folder, files, existing);
     this.phase = 'ready';
   }
 
@@ -166,7 +166,7 @@ export class CvcCellarUploadDialog extends CvcElement {
 
   override render() {
     const toSend = sendable(this.entries);
-    const replaced = this.entries.filter((entry) => entry.exists && !entry.duplicate && !entry.tooBig).length;
+    const replaced = this.entries.filter((entry) => entry.exists && !entry.duplicate).length;
     const count = this.files.length;
     return html`
       <div class="backdrop" @click=${this.close}></div>
@@ -226,9 +226,6 @@ export class CvcCellarUploadDialog extends CvcElement {
   private renderState(entry: UploadEntry) {
     if (entry.duplicate) {
       return html`<span class="muted">${t('cellarUpload.duplicate')}</span>`;
-    }
-    if (entry.tooBig) {
-      return html`<span class="muted">${t('cellarUpload.tooBig')}</span>`;
     }
     const sending = this.states[entry.key];
     if (sending != null) {

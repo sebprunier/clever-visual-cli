@@ -93,12 +93,6 @@ export function folderNameError(name: string): 'empty' | 'invalid' | null {
   return FOLDER_NAME_FORBIDDEN.test(trimmed) ? 'invalid' : null;
 }
 
-/**
- * The largest file the upload route takes, once measured on a real bucket; null while unknown, and
- * then nothing is held back. Files over it are left to s3cmd.
- */
-export const UPLOAD_MAX_BYTES: number | null = null;
-
 /** One file of an upload, as the dialog lists it before anything is sent. */
 export interface UploadEntry {
   name: string;
@@ -107,21 +101,18 @@ export interface UploadEntry {
   key: string;
   /** The key holds an object already: it is replaced, or kept as a previous version. */
   exists: boolean;
-  /** Over the largest body the upload route takes: left to s3cmd. */
-  tooBig: boolean;
   /** A second file with the same name in the selection: only the first one is sent. */
   duplicate: boolean;
 }
 
 /**
- * What an upload of these files into `folder` does: each file's key, which keys exist already, which
- * files are over the cap (none when the cap is unknown), and the names chosen twice.
+ * What an upload of these files into `folder` does: each file's key, which keys exist already, and
+ * the names chosen twice.
  */
 export function planUpload(
   folder: string,
   files: ReadonlyArray<{ name: string; size: number }>,
   existingKeys: ReadonlySet<string>,
-  maxBytes: number | null,
 ): UploadEntry[] {
   const seen = new Set<string>();
   return files.map((file) => {
@@ -133,15 +124,14 @@ export function planUpload(
       size: file.size,
       key,
       exists: existingKeys.has(key),
-      tooBig: maxBytes != null && file.size > maxBytes,
       duplicate,
     };
   });
 }
 
-/** The files an upload actually sends: not over the cap, each name once. */
+/** The files an upload actually sends: each name once. */
 export function sendable(entries: readonly UploadEntry[]): UploadEntry[] {
-  return entries.filter((entry) => !entry.tooBig && !entry.duplicate);
+  return entries.filter((entry) => !entry.duplicate);
 }
 
 function bucketUrl(ownerId: string, realId: string, bucket: string): string {

@@ -183,7 +183,6 @@ export const fr: Record<MessageKey, string> = {
   'cellarUpload.replaces': 'remplace un objet',
   'cellarUpload.new': 'nouveau',
   'cellarUpload.duplicate': 'même nom deux fois : envoyé une fois',
-  'cellarUpload.tooBig': 'trop gros ici : passer par s3cmd',
   'cellarUpload.keptAsVersion':
     'Le bucket garde les versions : les {count} objets remplacés restent comme versions précédentes.',
   'cellarUpload.keptAsVersion_one': 'Le bucket garde les versions : l’objet remplacé reste comme version précédente.',

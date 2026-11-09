@@ -160,7 +160,7 @@ describe('an upload', () => {
   ];
 
   it('puts each file under the open folder, and marks what it would replace', () => {
-    const plan = planUpload('photos/', files, new Set(['photos/notes.txt']), null);
+    const plan = planUpload('photos/', files, new Set(['photos/notes.txt']));
     expect(plan.map((entry) => entry.key)).toEqual([
       'photos/cat.png',
       'photos/big.mp4',
@@ -168,18 +168,12 @@ describe('an upload', () => {
       'photos/cat.png',
     ]);
     expect(plan.map((entry) => entry.exists)).toEqual([false, false, true, false]);
-    expect(plan.some((entry) => entry.tooBig)).toBe(false);
   });
 
-  it('leaves the files over the cap and the names chosen twice out of what is sent', () => {
-    const plan = planUpload('', files, new Set(), 50_000_000);
-    expect(plan.map((entry) => [entry.tooBig, entry.duplicate])).toEqual([
-      [false, false],
-      [true, false],
-      [false, false],
-      [false, true],
-    ]);
-    expect(sendable(plan).map((entry) => entry.name)).toEqual(['cat.png', 'notes.txt']);
+  it('leaves the names chosen twice out of what is sent', () => {
+    const plan = planUpload('', files, new Set());
+    expect(plan.map((entry) => entry.duplicate)).toEqual([false, false, false, true]);
+    expect(sendable(plan).map((entry) => entry.name)).toEqual(['cat.png', 'big.mp4', 'notes.txt']);
   });
 
   it('has its s3cmd equivalent, the files given by name', () => {
