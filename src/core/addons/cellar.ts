@@ -190,6 +190,23 @@ export function needsPurge(contents: BucketContents): boolean {
 }
 
 /**
+ * `aws s3api list-object-versions`: the previous versions of a bucket, under a prefix. The AWS CLI
+ * because neither the platform API nor s3cmd lists them; the keys are read when it runs, as for s3cmd.
+ */
+export function awsListVersions(addonId: string, bucket: string, prefix = ''): string {
+  return [
+    `cellar_vars=$(clever addon env ${addonId} -F shell)`,
+    '  && eval "$cellar_vars"',
+    '  && AWS_ACCESS_KEY_ID=$CELLAR_ADDON_KEY_ID',
+    '    AWS_SECRET_ACCESS_KEY=$CELLAR_ADDON_KEY_SECRET',
+    '    aws s3api list-object-versions',
+    '    --endpoint-url "https://$CELLAR_ADDON_HOST"',
+    `    --bucket ${shellQuote(bucket)}`,
+    ...(prefix === '' ? [] : [`    --prefix ${shellQuote(prefix)}`]),
+  ].join(' \\\n');
+}
+
+/**
  * The S3 rules for a bucket name: 3 to 63 characters, lowercase letters, digits, dots and hyphens,
  * a letter or a digit at both ends, no two dots in a row, not shaped like an IP address.
  */

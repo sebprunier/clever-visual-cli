@@ -160,6 +160,11 @@ export const en = {
   'buckets.trailAria': 'Where you are in the bucket',
   'buckets.summary': '{objects} objects · {size}',
   'buckets.summaryVersions': '{objects} objects · {size}, previous versions included',
+  'buckets.versionsNote.summary': 'Where are the previous versions?',
+  'buckets.versionsNote.text':
+    'While versioning is on, each upload keeps the previous version, and a deletion only puts a marker over the file: it leaves the listing, but its versions stay stored and count in the objects and size above. Neither the Clever Cloud API nor s3cmd shows them; the AWS CLI does, for the open folder:',
+  'buckets.versionsNote.restore':
+    'To bring a deleted file back, remove its marker: aws s3api delete-object, with the same keys and --endpoint-url, the --bucket, the --key of the file and the --version-id of the marker (under DeleteMarkers in the answer).',
   'buckets.versioning.ENABLED': 'versioning on',
   'buckets.versioning.SUSPENDED': 'versioning suspended',
   'buckets.versioning.DISABLED': 'no versioning',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  awsListVersions,
   BUCKET_NAME_PATTERN,
   cellarCurl,
   createBucketCurl,
@@ -217,5 +218,22 @@ describe('a deletion', () => {
     expect(needsPurge({ ...contents, objects: 3 })).toBe(true);
     expect(needsPurge({ ...contents, listed: true })).toBe(true);
     expect(needsPurge({ ...contents, refused: true })).toBe(true);
+  });
+});
+
+describe('the versions of a bucket', () => {
+  it('are listed with the AWS CLI, every line continued but the last', () => {
+    const lines = awsListVersions('addon_1', 'assets').split('\n');
+    expect(lines.at(-1)).toBe('    --bucket assets');
+    expect(lines.slice(0, -1).every((line) => line.endsWith(' \\'))).toBe(true);
+  });
+
+  it('under the open folder, in one shell word', () => {
+    expect(awsListVersions('addon_1', 'assets', 'my photos/').split('\n').at(-1)).toBe("    --prefix 'my photos/'");
+  });
+
+  it('never hold a key, only the names of the variables', () => {
+    expect(awsListVersions('addon_1', 'assets')).toContain('AWS_ACCESS_KEY_ID=$CELLAR_ADDON_KEY_ID');
+    expect(awsListVersions('addon_1', 'assets')).toContain('AWS_SECRET_ACCESS_KEY=$CELLAR_ADDON_KEY_SECRET');
   });
 });

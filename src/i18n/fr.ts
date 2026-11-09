@@ -153,6 +153,11 @@ export const fr: Record<MessageKey, string> = {
   'buckets.trailAria': 'Emplacement dans le bucket',
   'buckets.summary': '{objects} objets · {size}',
   'buckets.summaryVersions': '{objects} objets · {size}, versions précédentes comprises',
+  'buckets.versionsNote.summary': 'Où sont les versions précédentes ?',
+  'buckets.versionsNote.text':
+    'Tant que le versioning est actif, chaque envoi garde la version précédente, et une suppression ne fait que poser un marqueur sur le fichier : il disparaît de la liste, mais ses versions restent stockées et comptées dans les objets et la taille ci-dessus. Ni l’API de Clever Cloud ni s3cmd ne les montrent ; l’AWS CLI, si, pour le dossier ouvert :',
+  'buckets.versionsNote.restore':
+    'Pour faire revenir un fichier supprimé, retirez son marqueur : aws s3api delete-object, avec les mêmes clés et --endpoint-url, le --bucket, la --key du fichier et la --version-id du marqueur (sous DeleteMarkers dans la réponse).',
   'buckets.versioning.ENABLED': 'versioning activé',
   'buckets.versioning.SUSPENDED': 'versioning suspendu',
   'buckets.versioning.DISABLED': 'sans versioning',

@@ -1,7 +1,7 @@
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
 import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { cellarCurl, filteredPrefix, prefixTrail, s3cmdList } from '../../core/addons/cellar.js';
+import { awsListVersions, cellarCurl, filteredPrefix, prefixTrail, s3cmdList } from '../../core/addons/cellar.js';
 import { describeError } from '../../core/clever-client.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import { readHashParams, withHashParams, writeHashParams } from '../../core/router.js';
@@ -593,6 +593,21 @@ export class CvcAddonBuckets extends CvcElement {
         }
         ${info == null ? nothing : html`<span class="badge neutral">${t(VERSIONING_LABELS[info.versioning])}</span>`}
       </nav>
+      ${
+        info == null || info.versioning === 'DISABLED'
+          ? nothing
+          : html`<details class="versions">
+              <summary class="small">${t('buckets.versionsNote.summary')}</summary>
+              <div class="versions-body">
+                <p class="small">${t('buckets.versionsNote.text')}</p>
+                <cvc-cli
+                  block
+                  command=${awsListVersions(this.addonId, this.bucket, filteredPrefix(this.folder, this.filter))}
+                ></cvc-cli>
+                <p class="muted small">${t('buckets.versionsNote.restore')}</p>
+              </div>
+            </details>`
+      }
       <div class="row filter">
         <input
           type="search"
@@ -775,6 +790,23 @@ export class CvcAddonBuckets extends CvcElement {
         font: inherit;
         text-align: left;
         overflow-wrap: anywhere;
+      }
+      /* Folded: the count of a versioned bucket can exceed the listing, and this says why. */
+      .versions {
+        margin-bottom: 0.6rem;
+      }
+      .versions summary {
+        cursor: pointer;
+        color: var(--cvc-muted);
+      }
+      .versions-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+      .versions-body p {
+        margin: 0;
       }
       .filter {
         margin-bottom: 0.6rem;

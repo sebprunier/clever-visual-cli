@@ -212,6 +212,21 @@ The open bucket, folder and filter live in the URL (`?bucket=…&prefix=…&filt
 
 **Delete bucket**, above an open bucket, reads the bucket again and says what goes with it, then asks for its name. The Console refuses a bucket that holds objects; here they are deleted with it (`?purgeObjects=true`), but only if the dialog showed them. A bucket seen empty is deleted without the purge, so anything that arrives meanwhile makes the API refuse, and the dialog says what the bucket now holds and asks for the name again. The same goes when the answer does not come: the purge may still be running, so the dialog says what is left. The dialog cannot be closed during the call.
 
+**Where are the previous versions?**, under the trail of a bucket with versioning, says why the count can be higher than what is listed. Each upload keeps the previous version, and a deletion only puts a marker over the file: it leaves the listing, but its versions stay stored and count in the objects and size. Neither the Clever Cloud API nor s3cmd shows them, so the note gives the AWS CLI command for the open folder:
+
+```sh
+cellar_vars=$(clever addon env <addon_id> -F shell) \
+  && eval "$cellar_vars" \
+  && AWS_ACCESS_KEY_ID=$CELLAR_ADDON_KEY_ID \
+    AWS_SECRET_ACCESS_KEY=$CELLAR_ADDON_KEY_SECRET \
+    aws s3api list-object-versions \
+    --endpoint-url "https://$CELLAR_ADDON_HOST" \
+    --bucket <bucket> \
+    --prefix <folder>/
+```
+
+To bring a deleted file back, remove its marker: `aws s3api delete-object`, with the same keys and `--endpoint-url`, the `--bucket`, the `--key` of the file and the `--version-id` of the marker, found under `DeleteMarkers` in the answer.
+
 **New bucket**, above the list of buckets (also "New bucket" in the palette on a Cellar page), creates an empty bucket:
 
 - **Name**: 3 to 63 characters, lowercase letters, digits, dots and hyphens, a letter or a digit at both ends, not shaped like an IP address. A name already taken, or an add-on at its number of buckets, gets its own message.
