@@ -144,10 +144,49 @@ export function sendable(entries: readonly UploadEntry[]): UploadEntry[] {
   return entries.filter((entry) => !entry.tooBig && !entry.duplicate);
 }
 
-/** `GET …/objects/<key>`: one object read on its own, the key percent-encoded slashes included. */
+function bucketUrl(ownerId: string, realId: string, bucket: string): string {
+  return `${API_HOST}/v4/cellar/organisations/${ownerId}/cellar/${realId}/buckets/${encodeURIComponent(bucket)}`;
+}
+
+/** An object's route, the key percent-encoded slashes included. */
+function objectUrl(ownerId: string, realId: string, bucket: string, key: string): string {
+  return `${bucketUrl(ownerId, realId, bucket)}/objects/${encodeURIComponent(key)}`;
+}
+
+/** `GET …/objects/<key>`: one object read on its own. */
 export function objectCurl(ownerId: string, realId: string, bucket: string, key: string): string {
-  const url = `${API_HOST}/v4/cellar/organisations/${ownerId}/cellar/${realId}/buckets/${encodeURIComponent(bucket)}/objects/${encodeURIComponent(key)}`;
-  return `clever curl ${shellQuote(url)}`;
+  return `clever curl ${shellQuote(objectUrl(ownerId, realId, bucket, key))}`;
+}
+
+/** `DELETE …/objects/<key>`: what "Delete" sends for a file. */
+export function deleteObjectCurl(ownerId: string, realId: string, bucket: string, key: string): string {
+  return `clever curl -X DELETE ${shellQuote(objectUrl(ownerId, realId, bucket, key))}`;
+}
+
+/** `DELETE …/buckets/<bucket>`, with the purge when the bucket holds something. */
+export function deleteBucketCurl(ownerId: string, realId: string, bucket: string, purge: boolean): string {
+  const url = `${bucketUrl(ownerId, realId, bucket)}${purge ? '?purgeObjects=true' : ''}`;
+  return `clever curl -X DELETE ${shellQuote(url)}`;
+}
+
+/** What the dialog of a bucket's deletion knows it holds. */
+export interface BucketContents {
+  objects: number;
+  sizeInBytes: number;
+  /** The listing has something, whatever the count says: the count can lag. */
+  listed: boolean;
+  /** The API answered that the bucket is not empty, though nothing is listed (previous versions are not). */
+  refused: boolean;
+  /** Versioning is or was on: the count includes previous versions, which the listing does not show. */
+  versioned: boolean;
+}
+
+/**
+ * Only what the dialog showed gets purged: a bucket seen empty is deleted without `purgeObjects`,
+ * and the API refuses it if something came in meanwhile.
+ */
+export function needsPurge(contents: BucketContents): boolean {
+  return contents.objects > 0 || contents.listed || contents.refused;
 }
 
 /**

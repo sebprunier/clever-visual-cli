@@ -19,11 +19,15 @@ import { copyToClipboard } from '../shared/clipboard.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { openAction, pushToast } from '../shared/events.js';
 import { formatBytes, formatCount, formatDateTime, formatRelative } from '../shared/format.js';
-import { ICON_DOWNLOAD, ICON_REFRESH } from '../shared/icons.js';
+import { ICON_DOWNLOAD, ICON_REFRESH, ICON_TRASH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 import { openCellarDownload } from './cellar-download.js';
+import type { BucketDeletedDetail } from './cvc-cellar-bucket-delete-dialog.js';
+import './cvc-cellar-bucket-delete-dialog.js';
 import type { FolderOpenDetail } from './cvc-cellar-folder-dialog.js';
 import './cvc-cellar-folder-dialog.js';
+import type { ObjectDeletedDetail } from './cvc-cellar-object-delete-dialog.js';
+import './cvc-cellar-object-delete-dialog.js';
 import './cvc-cellar-object-dialog.js';
 import type { UploadCloseDetail } from './cvc-cellar-upload-dialog.js';
 import './cvc-cellar-upload-dialog.js';
@@ -52,7 +56,8 @@ const COPIED_FOR = 1500;
  * with its own s3cmd command (#30). "New folder" writes nothing (S3 has only
  * key prefixes): it opens the folder, empty until a file is uploaded into it;
  * "Upload files", or files dropped on the folder, go through a dialog that
- * says what they replace before sending them (#30).
+ * says what they replace before sending them. A file or the open bucket can
+ * be deleted, each through its own confirmation (#30).
  */
 @customElement('cvc-addon-buckets')
 export class CvcAddonBuckets extends CvcElement {
@@ -94,6 +99,10 @@ export class CvcAddonBuckets extends CvcElement {
   @state() private uploading: { files: File[]; bucket: string; folder: string } | null = null;
   /** Files dragged over the folder: it shows where they would go. */
   @state() private dropping = false;
+  /** The file to delete and its bucket, fixed when the dialog opens, as for an upload. */
+  @state() private deletingFile: { item: CellarObjectItem; bucket: string } | null = null;
+  /** The bucket to delete, fixed when the dialog opens. */
+  @state() private deletingBucket: string | null = null;
 
   private filterTimer: number | undefined;
   /** The name that opened the details, focused again when they close. */
@@ -354,6 +363,67 @@ export class CvcAddonBuckets extends CvcElement {
     }
   }
 
+  private askDeleteFile(file: CellarObjectItem, event: Event): void {
+    this.opener = event.currentTarget as HTMLElement;
+    this.deletingFile = { item: file, bucket: this.bucket };
+  }
+
+  /** From the details: they make room for the confirmation, and the name that opened them stays the opener. */
+  private askDeleteFromDetails(): void {
+    if (this.details != null) {
+      this.deletingFile = { item: this.details, bucket: this.bucket };
+      this.details = null;
+    }
+  }
+
+  /** Back to the button that opened the dialog; its row may have gone with the file. */
+  private async restoreFocus(): Promise<void> {
+    await this.updateComplete;
+    const target = this.opener?.isConnected
+      ? this.opener
+      : this.renderRoot.querySelector<HTMLElement>('input[type=search]');
+    target?.focus();
+    this.opener = null;
+  }
+
+  private closeDeleteFile(): void {
+    this.deletingFile = null;
+    void this.restoreFocus();
+  }
+
+  /** The row goes without reloading, so the pages already loaded stay; the bucket's count is read again. */
+  private onFileDeleted(event: CustomEvent<ObjectDeletedDetail>): void {
+    const { key, already } = event.detail;
+    if (this.deletingFile?.bucket === this.bucket) {
+      this.files = this.files.filter((file) => file.key !== key);
+    }
+    this.deletingFile = null;
+    const name = key.slice(key.lastIndexOf('/') + 1);
+    pushToast(this, {
+      kind: 'info',
+      message: t(already ? 'cellarDelete.toastAlready' : 'cellarDelete.toast', { name }),
+    });
+    void this.loadBuckets();
+    void this.restoreFocus();
+  }
+
+  /** Back to the list, the deleted bucket replaced in the history so that Back does not lead to it. */
+  private onBucketDeleted(event: CustomEvent<BucketDeletedDetail>): void {
+    const { bucket, already } = event.detail;
+    this.deletingBucket = null;
+    this.opener = null;
+    pushToast(this, {
+      kind: 'info',
+      message: t(already ? 'cellarBucketDelete.toastAlready' : 'cellarBucketDelete.toast', { name: bucket }),
+    });
+    this.buckets = this.buckets?.filter((summary) => summary.name !== bucket) ?? null;
+    if (this.bucket === bucket) {
+      writeHashParams({ bucket: null, prefix: null, filter: null });
+      this.followUrl();
+    }
+    void this.loadBuckets();
+  }
+
   /** A link to a bucket and directory of this add-on, the rest of the URL kept but the filter. */
   private href(bucket: string, prefix = ''): string {
     return withHashParams(window.location.hash, { bucket: bucket || null, prefix: prefix || null, filter: null });
@@ -371,7 +441,16 @@ export class CvcAddonBuckets extends CvcElement {
             ? html`<button type="button" @click=${() => openAction(this, 'cellar-bucket-create')}>
                 ${t('buckets.create')}
               </button>`
-            : nothing
+            : html`<button
+                type="button"
+                class="ghost with-icon delete"
+                @click=${(event: Event) => {
+                  this.opener = event.currentTarget as HTMLElement;
+                  this.deletingBucket = this.bucket;
+                }}
+              >
+                ${ICON_TRASH} ${t('buckets.deleteBucket')}
+              </button>`
         }
         <button type="button" class="ghost with-icon" @click=${this.refresh}>
           ${ICON_REFRESH} ${t('common.refresh')}
@@ -380,7 +459,40 @@ export class CvcAddonBuckets extends CvcElement {
       <p class="muted small hint">${t('buckets.hint')}</p>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       ${this.bucket === '' ? this.renderBuckets() : this.renderBrowser()} ${this.renderUpload()}
+      ${this.renderDeletion()}
     `;
+  }
+
+  private renderDeletion() {
+    const file = this.deletingFile;
+    if (file != null) {
+      // The versioning is the open bucket's, read for the file's own bucket only.
+      const versioning = this.bucketInfo != null && file.bucket === this.bucket ? this.bucketInfo.versioning : null;
+      return html`<cvc-cellar-object-delete-dialog
+        .client=${this.client}
+        ownerId=${this.ownerId}
+        realId=${this.realId}
+        bucket=${file.bucket}
+        .item=${file.item}
+        .versioning=${versioning}
+        @cvc-cellar-object-deleted=${this.onFileDeleted}
+        @cvc-cellar-object-delete-close=${this.closeDeleteFile}
+      ></cvc-cellar-object-delete-dialog>`;
+    }
+    if (this.deletingBucket != null) {
+      return html`<cvc-cellar-bucket-delete-dialog
+        .client=${this.client}
+        ownerId=${this.ownerId}
+        realId=${this.realId}
+        bucket=${this.deletingBucket}
+        @cvc-cellar-bucket-deleted=${this.onBucketDeleted}
+        @cvc-cellar-bucket-delete-close=${() => {
+          this.deletingBucket = null;
+          void this.restoreFocus();
+        }}
+      ></cvc-cellar-bucket-delete-dialog>`;
+    }
+    return nothing;
   }
 
   private renderUpload() {
@@ -439,7 +551,8 @@ export class CvcAddonBuckets extends CvcElement {
   private renderBrowser() {
     const summary = this.buckets?.find((bucket) => bucket.name === this.bucket);
     const info = this.bucketInfo;
-    const empty = this.listed && this.directories.length === 0 && this.files.length === 0;
+    // Nothing left to load either: the rows of a page can all have been deleted.
+    const empty = this.listed && this.directories.length === 0 && this.files.length === 0 && this.cursor == null;
     // Like the listing: the open folder, then the start of the names the filter holds.
     const s3cmd = s3cmdList(this.addonId, this.bucket, filteredPrefix(this.folder, this.filter));
     return html`
@@ -472,7 +585,10 @@ export class CvcAddonBuckets extends CvcElement {
           summary == null
             ? nothing
             : html`<span class="muted small">
-                ${t('buckets.summary', { objects: formatCount(summary.objectsCount), size: formatBytes(summary.sizeInBytes) })}
+                ${t(info != null && info.versioning !== 'DISABLED' ? 'buckets.summaryVersions' : 'buckets.summary', {
+                  objects: formatCount(summary.objectsCount),
+                  size: formatBytes(summary.sizeInBytes),
+                })}
               </span>`
         }
         ${info == null ? nothing : html`<span class="badge neutral">${t(VERSIONING_LABELS[info.versioning])}</span>`}
@@ -560,6 +676,15 @@ export class CvcAddonBuckets extends CvcElement {
                               >
                                 ${ICON_DOWNLOAD} ${t('buckets.download')}
                               </button>
+                              <button
+                                type="button"
+                                class="ghost small with-icon delete"
+                                title=${t('buckets.deleteFile', { name: file.name })}
+                                aria-label=${t('buckets.deleteFile', { name: file.name })}
+                                @click=${(event: Event) => this.askDeleteFile(file, event)}
+                              >
+                                ${ICON_TRASH} ${t('action.delete.submit')}
+                              </button>
                             </td>
                           </tr>`,
                       )}
@@ -600,6 +725,7 @@ export class CvcAddonBuckets extends CvcElement {
               bucket=${this.bucket}
               .item=${this.details}
               @cvc-cellar-object-close=${this.closeDetails}
+              @cvc-cellar-object-delete=${this.askDeleteFromDetails}
               @cvc-cellar-object-missing=${() => void this.loadPage(true)}
             ></cvc-cellar-object-dialog>`
       }
@@ -684,6 +810,11 @@ export class CvcAddonBuckets extends CvcElement {
       button.small {
         padding: 0.2rem 0.5rem;
         font-size: 0.8rem;
+      }
+      /* Calm in a list of rows, red once it is the one being aimed at. */
+      button.delete:not(:disabled):hover,
+      button.delete:focus-visible {
+        color: var(--cvc-danger);
       }
       .more {
         margin-top: 0.6rem;

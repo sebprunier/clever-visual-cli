@@ -3,8 +3,11 @@ import {
   BUCKET_NAME_PATTERN,
   cellarCurl,
   createBucketCurl,
+  deleteBucketCurl,
+  deleteObjectCurl,
   filteredPrefix,
   folderNameError,
+  needsPurge,
   objectCurl,
   planUpload,
   prefixTrail,
@@ -182,5 +185,37 @@ describe('an upload', () => {
     expect(s3cmdPut('addon_1', 'assets', 'photos/', ['cat.png', "my cat's.png", 'été.txt'])).toMatch(
       /\n {4}put cat\.png 'my cat'\\''s\.png' 'été\.txt' s3:\/\/assets\/photos\/$/,
     );
+  });
+});
+
+describe('a deletion', () => {
+  const base = 'https://api.clever-cloud.com/v4/cellar/organisations/orga_1/cellar/cellar_2/buckets';
+
+  it('of a file sends a DELETE on its key, percent-encoded slashes included', () => {
+    expect(deleteObjectCurl('orga_1', 'cellar_2', 'assets', 'photos/a b.png')).toBe(
+      `clever curl -X DELETE ${base}/assets/objects/photos%2Fa%20b.png`,
+    );
+    expect(deleteObjectCurl('orga_1', 'cellar_2', 'assets', "it's.txt")).toBe(
+      `clever curl -X DELETE '${base}/assets/objects/it'\\''s.txt'`,
+    );
+  });
+
+  it('of a bucket asks for the purge only when it says so', () => {
+    expect(deleteBucketCurl('orga_1', 'cellar_2', 'assets', false)).toBe(`clever curl -X DELETE ${base}/assets`);
+    expect(deleteBucketCurl('orga_1', 'cellar_2', 'assets', true)).toBe(
+      `clever curl -X DELETE '${base}/assets?purgeObjects=true'`,
+    );
+  });
+
+  const contents = { objects: 0, sizeInBytes: 0, listed: false, refused: false, versioned: false };
+
+  it('leaves out the purge for a bucket seen empty', () => {
+    expect(needsPurge(contents)).toBe(false);
+  });
+
+  it('purges what the count, the listing or a refusal showed', () => {
+    expect(needsPurge({ ...contents, objects: 3 })).toBe(true);
+    expect(needsPurge({ ...contents, listed: true })).toBe(true);
+    expect(needsPurge({ ...contents, refused: true })).toBe(true);
   });
 });

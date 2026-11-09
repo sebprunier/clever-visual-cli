@@ -143,7 +143,7 @@ export const fr: Record<MessageKey, string> = {
   'cellar.browse': 'Parcourir les buckets',
   'buckets.create': 'Nouveau bucket',
   'buckets.hint':
-    'Lu par l’API de Clever Cloud : pas besoin des clés S3, et rien ne change hormis les buckets que vous créez et les fichiers que vous envoyez. clever-tools n’a pas de commande Cellar ; l’appel ci-dessus fait la même chose.',
+    'Lu par l’API de Clever Cloud : pas besoin des clés S3, et rien ne change hormis ce que vous créez, envoyez ou supprimez ici. clever-tools n’a pas de commande Cellar ; l’appel ci-dessus fait la même chose.',
   'buckets.none': 'Aucun bucket.',
   'buckets.name': 'Nom',
   'buckets.objects': 'Objets',
@@ -152,6 +152,7 @@ export const fr: Record<MessageKey, string> = {
   'buckets.all': 'Buckets',
   'buckets.trailAria': 'Emplacement dans le bucket',
   'buckets.summary': '{objects} objets · {size}',
+  'buckets.summaryVersions': '{objects} objets · {size}, versions précédentes comprises',
   'buckets.versioning.ENABLED': 'versioning activé',
   'buckets.versioning.SUSPENDED': 'versioning suspendu',
   'buckets.versioning.DISABLED': 'sans versioning',
@@ -205,6 +206,36 @@ export const fr: Record<MessageKey, string> = {
   'cellarUpload.refusal.bucket': 'Ce bucket n’existe plus.',
   'cellarUpload.refusal.refused': 'Cellar a refusé le contenu.',
   'cellarUpload.refusal.network': 'Le fichier n’a pas atteint Cellar (réseau, ou requête bloquée par le navigateur).',
+  'cellarDelete.title': 'Supprimer ce fichier ?',
+  'cellarDelete.forGood': 'Cette suppression est définitive.',
+  'cellarDelete.versioned':
+    'Le fichier disparaît de la liste, mais avec le versioning il reste stocké, avec ses versions précédentes, et compté dans le bucket. Ils ne peuvent être ni listés ni restaurés d’ici ; supprimer le bucket les retire.',
+  'cellarDelete.suspended':
+    'Le fichier disparaît de la liste. Les versions stockées quand le versioning était actif restent dans le bucket : elles ne peuvent être ni listées ni restaurées d’ici ; supprimer le bucket les retire.',
+  'cellarDelete.toast': '{name} supprimé.',
+  'cellarDelete.toastAlready': '{name} était déjà supprimé.',
+  'cellarDelete.refusal.network':
+    'Pas de réponse de Cellar (réseau) : le fichier n’est peut-être pas supprimé. Vous pouvez réessayer.',
+  'cellarBucketDelete.title': 'Supprimer ce bucket ?',
+  'cellarBucketDelete.reading': 'Lecture du contenu du bucket…',
+  'cellarBucketDelete.empty': 'Ce bucket est vide.',
+  'cellarBucketDelete.holds':
+    '{objects} objets ({size}) sont supprimés avec le bucket. Cette suppression est définitive.',
+  'cellarBucketDelete.holds_one':
+    '{objects} objet ({size}) est supprimé avec le bucket. Cette suppression est définitive.',
+  'cellarBucketDelete.countsVersions': 'Ce nombre compte aussi les versions précédentes, que la liste ne montre pas.',
+  'cellarBucketDelete.notCounted':
+    'Le bucket contient des objets que son compteur n’affiche pas encore. Ils sont supprimés avec lui. Cette suppression est définitive.',
+  'cellarBucketDelete.notListed':
+    'Le bucket contient quelque chose que la liste ne montre pas, par exemple d’anciennes versions. C’est supprimé avec lui. Cette suppression est définitive.',
+  'cellarBucketDelete.refused':
+    'Cellar a refusé : le bucket n’est pas vide. Vérifiez ce qu’il contient, puis retapez son nom.',
+  'cellarBucketDelete.uncertain':
+    'Pas de réponse de Cellar : la suppression continue peut-être. Voici ce que contient le bucket maintenant.',
+  'cellarBucketDelete.toast': 'Bucket {name} supprimé.',
+  'cellarBucketDelete.toastAlready': 'Le bucket {name} était déjà supprimé.',
+  'buckets.deleteBucket': 'Supprimer le bucket',
+  'buckets.deleteFile': 'Supprimer {name}',
   'buckets.more': 'Charger la suite',
   'buckets.copyS3cmd': 'Copier la commande s3cmd',
   'buckets.copyS3cmdTitle':

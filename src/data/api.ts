@@ -27,6 +27,14 @@ import {
 } from '@clevercloud/client/cc-api-commands/cellar/create-cellar-bucket-command.js';
 import { GetCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-bucket-command.js';
 import { GetCellarInfoCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-info-command.js';
+import {
+  DELETE_CELLAR_BUCKET_ERROR_CODES,
+  DeleteCellarBucketCommand,
+} from '@clevercloud/client/cc-api-commands/cellar/delete-cellar-bucket-command.js';
+import {
+  DELETE_CELLAR_OBJECT_ERROR_CODES,
+  DeleteCellarObjectCommand,
+} from '@clevercloud/client/cc-api-commands/cellar/delete-cellar-object-command.js';
 import { GetCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-command.js';
 import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-download-url-command.js';
 import { ListCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-bucket-command.js';
@@ -492,6 +500,85 @@ export function uploadRefusal(error: unknown): 'cellar' | 'bucket' | 'refused' |
   }
   if (isCcHttpErrorWithCode(error, codes.UPLOAD_FAILED)) {
     return 'refused';
+  }
+  return isNetworkError(error) ? 'network' : null;
+}
+
+/** Removes one object (#30). */
+export async function deleteCellarObject(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  objectKey: string,
+): Promise<void> {
+  await client.send(new DeleteCellarObjectCommand({ ownerId, addonId: realId, bucketName, objectKey }));
+}
+
+/** Why an object was not deleted, when Cellar or the network said so. */
+export function objectDeletionRefusal(error: unknown): 'cellar' | 'bucket' | 'gone' | 'network' | null {
+  const codes = DELETE_CELLAR_OBJECT_ERROR_CODES;
+  if (isCcHttpErrorWithCode(error, codes.CELLAR_NOT_FOUND)) {
+    return 'cellar';
+  }
+  if (isCcHttpErrorWithCode(error, codes.BUCKET_NOT_FOUND)) {
+    return 'bucket';
+  }
+  if (isCcHttpErrorWithCode(error, codes.OBJECT_NOT_FOUND)) {
+    return 'gone';
+  }
+  return isNetworkError(error) ? 'network' : null;
+}
+
+/** What a bucket holds right now, read again for its deletion (#30). Null when it is gone. */
+export async function fetchCellarBucketContents(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+): Promise<{ objects: number; sizeInBytes: number; listed: boolean; versioned: boolean } | null> {
+  const read = await tolerateNotFound(
+    Promise.all([
+      fetchCellarBucket(client, ownerId, realId, bucketName),
+      fetchCellarObjects(client, ownerId, realId, bucketName, '', undefined, 1),
+    ]),
+  );
+  if (read == null) {
+    return null;
+  }
+  const [bucket, page] = read;
+  return {
+    objects: bucket.objectsCount,
+    sizeInBytes: bucket.sizeInBytes,
+    listed: page.items.length > 0 || page.directories.length > 0,
+    versioned: bucket.versioning !== 'DISABLED',
+  };
+}
+
+/** Removes a bucket; the objects it holds go with it only when the purge is asked for (#30). */
+export async function deleteCellarBucket(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  purge: boolean,
+): Promise<void> {
+  // Left out rather than false: the route only ever sees the purge when it is meant.
+  const shouldPurgeObjects = purge ? true : undefined;
+  await client.send(new DeleteCellarBucketCommand({ ownerId, addonId: realId, bucketName, shouldPurgeObjects }));
+}
+
+/** Why a bucket was not deleted, when Cellar or the network said so. */
+export function bucketDeletionRefusal(error: unknown): 'cellar' | 'gone' | 'notEmpty' | 'network' | null {
+  const codes = DELETE_CELLAR_BUCKET_ERROR_CODES;
+  if (isCcHttpErrorWithCode(error, codes.CELLAR_NOT_FOUND)) {
+    return 'cellar';
+  }
+  if (isCcHttpErrorWithCode(error, codes.BUCKET_NOT_FOUND)) {
+    return 'gone';
+  }
+  if (isCcHttpErrorWithCode(error, codes.BUCKET_NOT_EMPTY)) {
+    return 'notEmpty';
   }
   return isNetworkError(error) ? 'network' : null;
 }

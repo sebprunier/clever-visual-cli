@@ -174,7 +174,7 @@ The **Buckets** tab lists the buckets with their objects, size and last write; a
 
 - the path at the top, from **Buckets** down to the open folder, each step above it a link, then **Copy the s3cmd command**, which lists the open folder (the filter included) with [s3cmd](https://s3tools.org/s3cmd), see below;
 - the folders first, then the files with their size and last write, 100 entries at a time, **Load more** for the next ones;
-- the number of objects and size of the bucket, and its versioning status (versioning on, versioning suspended, no versioning);
+- the number of objects and size of the bucket, and its versioning status (versioning on, versioning suspended, no versioning). With versioning, the count includes previous versions, so it can be higher than what the listing shows;
 - **Download** on a file: the download URL is signed only when you click, then opens in a new tab.
 
 **Names starting with…**, above the list, filters the open folder as you type. The API does it, with the folder and what you typed as the listing's prefix, so the filter covers the whole folder, not only the entries loaded. It is case-sensitive, as S3 keys are, and folders match too. Escape clears it.
@@ -207,6 +207,10 @@ The open bucket, folder and filter live in the URL (`?bucket=…&prefix=…&filt
 - the `s3cmd put` command of the same upload, the files given by name.
 
 **Upload** sends the files one after the other, each with its state (waiting, sending, sent, failed and why) and a count; **Stop** ends after the current file. The dialog cannot be closed while a file is on its way. Then the folder reloads and a message says how many files were sent. Each file takes two requests: the API signs an upload URL, then the browser sends the file to it, on `api.clever-cloud.com` directly (not through the API bridge).
+
+**Delete**, on a file's row and in its details, asks for a confirmation that names the file and says what it means: gone for good, or, in a bucket with versioning, gone from the listing while the file stays stored with its previous versions (they cannot be listed or restored from here, and deleting the bucket removes them). The dialog shows the `clever curl -X DELETE` call. The row goes without reloading the folder.
+
+**Delete bucket**, above an open bucket, reads the bucket again and says what goes with it, then asks for its name. The Console refuses a bucket that holds objects; here they are deleted with it (`?purgeObjects=true`), but only if the dialog showed them. A bucket seen empty is deleted without the purge, so anything that arrives meanwhile makes the API refuse, and the dialog says what the bucket now holds and asks for the name again. The same goes when the answer does not come: the purge may still be running, so the dialog says what is left. The dialog cannot be closed during the call.
 
 **New bucket**, above the list of buckets (also "New bucket" in the palette on a Cellar page), creates an empty bucket:
 

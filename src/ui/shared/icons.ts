@@ -132,6 +132,26 @@ export const ICON_DOWNLOAD = html`<svg
   <path d="M4 17v3h16v-3" />
 </svg>`;
 
+/** A bin: remove what is shown beside it. */
+export const ICON_TRASH = html`<svg
+  class="icon"
+  viewBox="0 0 24 24"
+  width="14"
+  height="14"
+  aria-hidden="true"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 7h16" />
+  <path d="M9 7V4h6v3" />
+  <path d="M6 7l1 13h10l1-13" />
+  <path d="M10 11v5" />
+  <path d="M14 11v5" />
+</svg>`;
+
 /** A pencil: change what is shown beside it. */
 export const ICON_EDIT = html`<svg
   class="icon"

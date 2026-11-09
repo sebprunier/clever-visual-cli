@@ -150,7 +150,7 @@ export const en = {
   'cellar.browse': 'Browse the buckets',
   'buckets.create': 'New bucket',
   'buckets.hint':
-    'Read through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create and the files you upload. clever-tools has no Cellar command; the call above does the same.',
+    'Read through the Clever Cloud API: no S3 credentials needed, and nothing changes but what you create, upload or delete here. clever-tools has no Cellar command; the call above does the same.',
   'buckets.none': 'No bucket.',
   'buckets.name': 'Name',
   'buckets.objects': 'Objects',
@@ -159,6 +159,7 @@ export const en = {
   'buckets.all': 'Buckets',
   'buckets.trailAria': 'Where you are in the bucket',
   'buckets.summary': '{objects} objects · {size}',
+  'buckets.summaryVersions': '{objects} objects · {size}, previous versions included',
   'buckets.versioning.ENABLED': 'versioning on',
   'buckets.versioning.SUSPENDED': 'versioning suspended',
   'buckets.versioning.DISABLED': 'no versioning',
@@ -210,6 +211,33 @@ export const en = {
   'cellarUpload.refusal.bucket': 'This bucket no longer exists.',
   'cellarUpload.refusal.refused': 'Cellar refused the content.',
   'cellarUpload.refusal.network': 'The file did not reach Cellar (network, or the browser blocked the request).',
+  'cellarDelete.title': 'Delete this file?',
+  'cellarDelete.forGood': 'This cannot be undone.',
+  'cellarDelete.versioned':
+    'The file leaves the listing, but with versioning it stays stored, with its previous versions, and still counts in the bucket. They cannot be listed or restored from here; deleting the bucket removes them.',
+  'cellarDelete.suspended':
+    'The file leaves the listing. Versions stored while versioning was on stay in the bucket: they cannot be listed or restored from here; deleting the bucket removes them.',
+  'cellarDelete.toast': '{name} deleted.',
+  'cellarDelete.toastAlready': '{name} was already deleted.',
+  'cellarDelete.refusal.network': 'No answer from Cellar (network): the file may not be deleted. You can try again.',
+  'cellarBucketDelete.title': 'Delete this bucket?',
+  'cellarBucketDelete.reading': 'Reading what the bucket holds…',
+  'cellarBucketDelete.empty': 'This bucket is empty.',
+  'cellarBucketDelete.holds': '{objects} objects ({size}) are deleted with the bucket. This cannot be undone.',
+  'cellarBucketDelete.holds_one': '{objects} object ({size}) is deleted with the bucket. This cannot be undone.',
+  'cellarBucketDelete.countsVersions': 'This count includes previous versions, which the listing does not show.',
+  'cellarBucketDelete.notCounted':
+    'The bucket holds objects its count does not show yet. They are deleted with it. This cannot be undone.',
+  'cellarBucketDelete.notListed':
+    'The bucket holds something the listing does not show, such as previous versions. It is deleted with it. This cannot be undone.',
+  'cellarBucketDelete.refused':
+    'Cellar refused: the bucket is not empty. Check what it holds, then type its name again.',
+  'cellarBucketDelete.uncertain':
+    'No answer from Cellar: the deletion may still be running. This is what the bucket holds now.',
+  'cellarBucketDelete.toast': 'Bucket {name} deleted.',
+  'cellarBucketDelete.toastAlready': 'Bucket {name} was already deleted.',
+  'buckets.deleteBucket': 'Delete bucket',
+  'buckets.deleteFile': 'Delete {name}',
   'buckets.more': 'Load more',
   'buckets.copyS3cmd': 'Copy the s3cmd command',
   'buckets.copyS3cmdTitle':

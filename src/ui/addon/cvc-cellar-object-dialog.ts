@@ -9,7 +9,7 @@ import '../shared/cvc-cli.js';
 import { copyToClipboard } from '../shared/clipboard.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { formatBytes, formatCount, formatDateTime, formatRelative } from '../shared/format.js';
-import { ICON_DOWNLOAD } from '../shared/icons.js';
+import { ICON_DOWNLOAD, ICON_TRASH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 import { openCellarDownload } from './cellar-download.js';
 
@@ -20,8 +20,9 @@ const COPIED_FOR = 1500;
  * One Cellar object (#30): what the listing knows straight away, then what one
  * `GET …/objects/<key>` adds (content type, tags, user metadata), with its
  * download. The access list is left out: the API names no group, so it cannot
- * tell whether the object is public. Emits `cvc-cellar-object-close`, and
- * `cvc-cellar-object-missing` when the key is gone, for the list to reload.
+ * tell whether the object is public. Emits `cvc-cellar-object-close`,
+ * `cvc-cellar-object-missing` when the key is gone, for the list to reload,
+ * and `cvc-cellar-object-delete` when Delete is asked for: the page confirms.
  */
 @customElement('cvc-cellar-object-dialog')
 export class CvcCellarObjectDialog extends CvcElement {
@@ -186,6 +187,15 @@ export class CvcCellarObjectDialog extends CvcElement {
         </div>
         ${this.error ? html`<p class="error small" role="alert">${this.error}</p>` : nothing}
         <footer class="row">
+          <button
+            type="button"
+            class="ghost with-icon delete"
+            ?disabled=${this.missing}
+            @click=${() =>
+              this.dispatchEvent(new CustomEvent('cvc-cellar-object-delete', { bubbles: true, composed: true }))}
+          >
+            ${ICON_TRASH} ${t('action.delete.submit')}
+          </button>
           <button type="button" class="ghost close" @click=${this.close}>${t('common.close')}</button>
           <button
             type="button"
@@ -280,6 +290,13 @@ export class CvcCellarObjectDialog extends CvcElement {
         justify-content: flex-end;
         gap: 0.5rem;
       }
+      button.delete {
+        margin-right: auto;
+      }
+      button.delete:not(:disabled):hover,
+      button.delete:focus-visible {
+        color: var(--cvc-danger);
+      }
     `,
   ];
 }
@@ -291,5 +308,6 @@ declare global {
   interface HTMLElementEventMap {
     'cvc-cellar-object-close': CustomEvent<undefined>;
     'cvc-cellar-object-missing': CustomEvent<undefined>;
+    'cvc-cellar-object-delete': CustomEvent<undefined>;
   }
 }
