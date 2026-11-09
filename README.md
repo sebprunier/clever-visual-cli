@@ -167,7 +167,7 @@ A release goes live once its GitHub release is published: the workflow then runs
 
 ### What will not work without a backend
 
-`clever deploy` (git push), `clever ssh`, direct database access. Workarounds: redeploy the latest commit, applications linked to GitHub, show the CLI command to run locally.
+`clever deploy` (git push), `clever ssh`, direct database access. Workarounds: redeploy the latest commit, applications linked to GitHub, show the CLI command to run locally (the application's Overview shows the `clever ssh` commands).
 
 ### Code layout
 

@@ -3,6 +3,7 @@ import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { CONFIG_OPTIONS } from '../../core/actions.js';
 import { arrangeDomains, summarizeInstances } from '../../core/app/overview.js';
+import { sshSession } from '../../core/app/ssh.js';
 import { describeError } from '../../core/clever-client.js';
 import type { CostStore } from '../../core/home/cost-store.js';
 import { CONSOLE_URL } from '../../core/constants.js';
@@ -14,6 +15,7 @@ import { deploymentLogsHash } from '../../core/logs/deployment-logs.js';
 import { keepListView, readListView, routeToHash, type AppTab, type Route } from '../../core/router.js';
 import { fetchDeployments, fetchInstances, type Application, type Deployment, type Instance } from '../../data/api.js';
 import '../shared/cvc-cli.js';
+import './cvc-app-ssh-dialog.js';
 import { CvcElement } from '../shared/cvc-element.js';
 import { openAction } from '../shared/events.js';
 import { ICON_EDIT } from '../shared/icons.js';
@@ -39,7 +41,7 @@ const DOMAINS_SHOWN = 5;
  * The overview of an application, arranged by what one does with it: a band
  * with where it stands, then what moves or can be changed (recent activity,
  * scaling, options, domains), and aside the facts one only reads (runtime,
- * deployment, identifiers).
+ * deployment, identifiers and the SSH command).
  */
 @customElement('cvc-app-overview')
 export class CvcAppOverview extends CvcElement {
@@ -54,6 +56,10 @@ export class CvcAppOverview extends CvcElement {
   @state() private deployments: Deployment[] | null = null;
   @state() private instances: Instance[] | null = null;
   @state() private error: string | null = null;
+  @state() private sshOpen = false;
+
+  /** The link that opened the SSH dialog, focused again when it closes. */
+  private sshOpener: HTMLElement | null = null;
 
   private readonly onCostsChange = () => this.requestUpdate();
 
@@ -78,6 +84,7 @@ export class CvcAppOverview extends CvcElement {
     if (otherApp) {
       this.deployments = null;
       this.instances = null;
+      this.sshOpen = false;
     }
     if (otherApp || changed.has('client') || changed.has('revision')) {
       void this.load();
@@ -105,6 +112,13 @@ export class CvcAppOverview extends CvcElement {
     }
   }
 
+  private async closeSsh(): Promise<void> {
+    this.sshOpen = false;
+    await this.updateComplete;
+    this.sshOpener?.focus();
+    this.sshOpener = null;
+  }
+
   /** Another tab of this page, keeping the list of the column. */
   private tabHref(tab: AppTab): string {
     const route: Route = { kind: 'app', ownerId: this.ownerId, appId: this.app.id, tab };
@@ -120,6 +134,16 @@ export class CvcAppOverview extends CvcElement {
         </div>
         <aside class="side">${this.renderRuntime()} ${this.renderDeployment()} ${this.renderIdentifiers()}</aside>
       </div>
+      ${
+        this.sshOpen
+          ? html`<cvc-app-ssh-dialog
+              .client=${this.client}
+              .app=${this.app}
+              .instances=${this.instances}
+              @cvc-app-ssh-close=${this.closeSsh}
+            ></cvc-app-ssh-dialog>`
+          : nothing
+      }
     `;
   }
 
@@ -464,6 +488,18 @@ export class CvcAppOverview extends CvcElement {
       <cvc-cli no-prompt command=${this.app.id}></cvc-cli>
       <p class="muted small id-label">${t('overview.owner')}</p>
       <cvc-cli no-prompt command=${this.app.ownerId}></cvc-cli>
+      <p class="muted small id-label">${t('ssh.title')}</p>
+      <cvc-cli command=${sshSession(this.app.id)}></cvc-cli>
+      <button
+        type="button"
+        class="link small ssh-more"
+        @click=${(event: Event) => {
+          this.sshOpener = event.currentTarget as HTMLElement;
+          this.sshOpen = true;
+        }}
+      >
+        ${t('ssh.more')}
+      </button>
       <p class="small console">
         <a href="${CONSOLE_URL}/goto/${this.app.id}" target="_blank" rel="noopener">${t('common.openInConsole')} ↗</a>
       </p>
@@ -706,6 +742,9 @@ export class CvcAppOverview extends CvcElement {
       }
       .side cvc-cli {
         display: flex;
+      }
+      .ssh-more {
+        margin-top: 0.25rem;
       }
       .console {
         margin: 0.75rem 0 0;

@@ -115,6 +115,8 @@ import { GetPriceSystemCommand } from '@clevercloud/client/cc-api-commands/price
 import type { GetPriceSystemCommandOutput } from '@clevercloud/client/cc-api-commands/price-system/get-price-system-command.types.js';
 import { GetProfileCommand } from '@clevercloud/client/cc-api-commands/profile/get-profile-command.js';
 import { CreateTagCommand } from '@clevercloud/client/cc-api-commands/tag/create-tag-command.js';
+import type { SshKey } from '@clevercloud/client/cc-api-commands/ssh-key/ssh-key.types.js';
+import { ListPersonalSshKeyCommand } from '@clevercloud/client/cc-api-commands/ssh-key/list-personal-ssh-key-command.js';
 import { DeleteTagCommand } from '@clevercloud/client/cc-api-commands/tag/delete-tag-command.js';
 import type { Profile } from '@clevercloud/client/cc-api-commands/profile/profile.types.js';
 import { ERROR_TYPES, parseRaw } from '@clevercloud/client/utils/environment-utils.js';
@@ -152,6 +154,7 @@ export type {
   GetEnvironmentCommandOutput as Environment,
   EnvironmentVariable,
   Instance,
+  SshKey,
   LogsStream,
   OrganisationSummary,
   Profile,
@@ -196,6 +199,11 @@ export async function setApplicationBranch(
 
 export function fetchInstances(client: CcApiClient, ownerId: string, applicationId: string): Promise<Instance[]> {
   return client.send(new ListApplicationInstanceCommand({ ownerId, applicationId, excludeState: ['DELETED'] }));
+}
+
+/** The SSH keys of the account: public keys and fingerprints, nothing secret (#36). */
+export function fetchSshKeys(client: CcApiClient): Promise<SshKey[]> {
+  return client.send(new ListPersonalSshKeyCommand());
 }
 
 export function fetchDeployments(

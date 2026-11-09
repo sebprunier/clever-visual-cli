@@ -26,6 +26,7 @@ import { HomeStore } from '../core/home/home-store.js';
 import { eraseLocalData } from '../core/local-data.js';
 import { forgetVisit, recordVisit } from '../core/home/recents.js';
 import type { PaletteCommand } from '../core/palette.js';
+import { sshSession } from '../core/app/ssh.js';
 import {
   navigate,
   readHashParams,
@@ -49,6 +50,7 @@ import './cvc-login.js';
 import './cvc-addon-page.js';
 import './cvc-logs-page.js';
 import './cvc-orga-page.js';
+import { copyToClipboard } from './shared/clipboard.js';
 import './cvc-toaster.js';
 import type { CvcToaster, Toast } from './cvc-toaster.js';
 import './cvc-unlock.js';
@@ -427,6 +429,13 @@ export class CvcApp extends CvcElement {
 
   // --- palette -----------------------------------------------------------
 
+  private async copySshCommand(appId: string): Promise<void> {
+    const copied = await copyToClipboard(sshSession(appId));
+    this.toaster?.push(
+      copied ? { kind: 'info', message: t('ssh.copied') } : { kind: 'error', message: t('env.clipboardError') },
+    );
+  }
+
   private buildCommands(): PaletteCommand[] {
     const session = this.session;
     if (session == null) {
@@ -448,6 +457,15 @@ export class CvcApp extends CvcElement {
           run: () => navigate({ kind: 'app', ownerId: route.ownerId, appId: route.appId, tab }),
         });
       }
+      commands.push({
+        id: 'ssh:copy',
+        title: t('ssh.copy'),
+        subtitle: current?.app.name,
+        group: 'Actions',
+        keywords: ['ssh', 'shell', 'terminal', 'copy', 'copier'],
+        cli: 'clever ssh',
+        run: () => void this.copySshCommand(route.appId),
+      });
       const loaded = this.currentApp?.id === route.appId ? this.currentApp : null;
       for (const action of ACTIONS.filter((candidate) => offersAction(candidate, 'app', undefined, loaded))) {
         commands.push({

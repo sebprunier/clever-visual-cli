@@ -98,7 +98,17 @@ The overview is arranged by use: a band with where the application stands, then 
   - A **GitHub**-linked application shows its repository (a link), the **GitHub branch** it deploys and "Deploys on every push to this branch on GitHub."; the commit links to GitHub. The pencil after the branch opens "GitHub branch", a choice among the branches of the repository (see [Actions](#actions)). The change deploys nothing by itself: the next deployment takes the new branch, on a push to it or a restart, which the notification offers.
   - An application deployed to **Clever Cloud's git** shows "git (Clever Cloud)", the branch it deploys (usually `master`) and the commands that deploy it: `git remote add clever <url>`, then `git push clever HEAD:<branch>`.
   - An FTP or SFTP application shows its method only.
-- **Identifiers**: the application id and its owner id, each copied in one click, and **Open in the Console ↗**.
+- **Identifiers**: the application id and its owner id, each copied in one click, the [SSH](#ssh) command, and **Open in the Console ↗**.
+
+### SSH {#ssh}
+
+The page cannot open an SSH session: that needs your machine, your key and the `ssh` client. The **Identifiers** card shows the command, `clever ssh --app <app_id>`, ready to copy. **Instances, prepare a command…** below it opens a dialog:
+
+- With several running instances, one command per instance, with its number, size and state. It uses `--instance <number>`, or `--instance <id>` for a build instance and while a deployment briefly runs two instances under one number.
+- **Prepare a command**: type a command and the dialog builds `clever ssh --app <app_id> --instance any --app-home -c '<command>'`. Nothing runs from the page: copied to your terminal, it runs the command from the application folder. A Docker application has no `--app-home`: the command runs in the container's `WORKDIR`.
+- How many SSH keys your account has, their names on hover. With none, the dialog says SSH needs one and shows `clever ssh-keys add my-key ~/.ssh/id_ed25519.pub`.
+
+With no running instance, the dialog says to start the application first. "Copy the SSH command" in the palette copies the interactive session's command.
 
 ## Logs {#logs}
 
