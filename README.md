@@ -8,7 +8,7 @@ A visual interface for [clever-tools](https://github.com/CleverCloud/clever-tool
 
 **Try it: <https://sebprunier.github.io/clever-visual-cli/>**, sign in with an API token; everything stays in your browser. The user documentation, with screenshots: <https://sebprunier.github.io/clever-visual-cli/docs/>. That is the latest release; what `main` holds today is at <https://sebprunier.github.io/clever-visual-cli/snapshot/>, and may break.
 
-Status: 1.1.0 ([release notes](https://github.com/sebprunier/clever-visual-cli/releases/tag/v1.1.0)), usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
+Status: 1.2.0 ([release notes](https://github.com/sebprunier/clever-visual-cli/releases/tag/v1.2.0)), usable every day on the organisation home, the application and add-on pages; see [what comes next](#what-comes-next).
 
 ## Who we are
 
@@ -157,7 +157,7 @@ Gotcha met on the way: the client sends its `fetch` calls in `mode: 'same-origin
 The site is published on GitHub Pages by the `.github/workflows/deploy.yml` workflow, on every push to `main` and every published release. A Pages deployment replaces the whole site, so each run builds both channels with `scripts/site/build.sh` (after typecheck and tests on `main`):
 
 - <https://sebprunier.github.io/clever-visual-cli/>, and its documentation under `docs/`: the latest published release, built from its tag;
-- <https://sebprunier.github.io/clever-visual-cli/snapshot/>, and `snapshot/docs/`: `main`, built with `CVC_CHANNEL=snapshot`, which names the commit in the version (`1.1.0-snapshot+<sha>`), links the account menu to that commit and shows a "snapshot" badge.
+- <https://sebprunier.github.io/clever-visual-cli/snapshot/>, and `snapshot/docs/`: `main`, built with `CVC_CHANNEL=snapshot`, which names the commit in the version (`1.2.0-snapshot+<sha>`), links the account menu to that commit and shows a "snapshot" badge.
 
 A release goes live once its GitHub release is published: the workflow then runs again on `main` (the `github-pages` environment deploys from `main` only). `scripts/site/build.sh <out>` builds the same site locally.
 
