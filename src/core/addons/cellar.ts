@@ -72,6 +72,78 @@ export function s3cmdGet(addonId: string, bucket: string, key: string): string {
   return s3cmdScript(addonId, `get ${shellQuote(s3Uri(bucket, key))}`);
 }
 
+/** Uploads files into a folder with s3cmd, given by name: the browser does not know where they are. */
+export function s3cmdPut(addonId: string, bucket: string, folder: string, fileNames: readonly string[]): string {
+  const files = fileNames.map((name) => shellQuote(name)).join(' ');
+  return s3cmdScript(addonId, `put ${files} ${shellQuote(s3Uri(bucket, folder))}`);
+}
+
+/**
+ * The Console's rule for a folder name, after the S3 guidance on safe keys: no slash (one level at a
+ * time), none of `\ { } ^ % ` [ ] " < > ~ # |`, nothing from 128 to 255.
+ */
+const FOLDER_NAME_FORBIDDEN = /[/\\{}^%`\]">[~<#|\u0080-\u00FF]/;
+
+/** Why a new folder name is refused, or null when it is fine. */
+export function folderNameError(name: string): 'empty' | 'invalid' | null {
+  const trimmed = name.trim();
+  if (trimmed === '' || trimmed === '.' || trimmed === '..') {
+    return 'empty';
+  }
+  return FOLDER_NAME_FORBIDDEN.test(trimmed) ? 'invalid' : null;
+}
+
+/**
+ * The largest file the upload route takes, once measured on a real bucket; null while unknown, and
+ * then nothing is held back. Files over it are left to s3cmd.
+ */
+export const UPLOAD_MAX_BYTES: number | null = null;
+
+/** One file of an upload, as the dialog lists it before anything is sent. */
+export interface UploadEntry {
+  name: string;
+  size: number;
+  /** The open folder, then the file name. */
+  key: string;
+  /** The key holds an object already: it is replaced, or kept as a previous version. */
+  exists: boolean;
+  /** Over the largest body the upload route takes: left to s3cmd. */
+  tooBig: boolean;
+  /** A second file with the same name in the selection: only the first one is sent. */
+  duplicate: boolean;
+}
+
+/**
+ * What an upload of these files into `folder` does: each file's key, which keys exist already, which
+ * files are over the cap (none when the cap is unknown), and the names chosen twice.
+ */
+export function planUpload(
+  folder: string,
+  files: ReadonlyArray<{ name: string; size: number }>,
+  existingKeys: ReadonlySet<string>,
+  maxBytes: number | null,
+): UploadEntry[] {
+  const seen = new Set<string>();
+  return files.map((file) => {
+    const key = folder + file.name;
+    const duplicate = seen.has(key);
+    seen.add(key);
+    return {
+      name: file.name,
+      size: file.size,
+      key,
+      exists: existingKeys.has(key),
+      tooBig: maxBytes != null && file.size > maxBytes,
+      duplicate,
+    };
+  });
+}
+
+/** The files an upload actually sends: not over the cap, each name once. */
+export function sendable(entries: readonly UploadEntry[]): UploadEntry[] {
+  return entries.filter((entry) => !entry.tooBig && !entry.duplicate);
+}
+
 /** `GET …/objects/<key>`: one object read on its own, the key percent-encoded slashes included. */
 export function objectCurl(ownerId: string, realId: string, bucket: string, key: string): string {
   const url = `${API_HOST}/v4/cellar/organisations/${ownerId}/cellar/${realId}/buckets/${encodeURIComponent(bucket)}/objects/${encodeURIComponent(key)}`;

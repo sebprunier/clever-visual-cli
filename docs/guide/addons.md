@@ -197,6 +197,17 @@ The three variables then stay in that shell until it closes. A file's command en
 
 The open bucket, folder and filter live in the URL (`?bucket=…&prefix=…&filter=…`), so the browser's back button and a shared link work. Typing in the filter does not add a step to the history.
 
+**New folder**, next to the filter, writes nothing: S3 has no folders, only key prefixes, so a folder exists as long as a file has it in its key. The dialog takes a name (one level, without ``/ \ { } ^ % ` [ ] " < > ~ # |`` nor characters 128 to 255, as S3 advises and the Console does), then opens the folder, empty, ready for its first file. Back returns to the parent, where it shows once it holds a file.
+
+**Upload files**, or files dropped on the folder, opens a dialog before anything is sent:
+
+- each file with its size and the key it gets (the open folder, then its name);
+- the keys that exist already, checked one by one: the file **replaces an object**, for good, or kept as a previous version when the bucket has versioning on, which the dialog says;
+- a name chosen twice is sent once;
+- the `s3cmd put` command of the same upload, the files given by name.
+
+**Upload** sends the files one after the other, each with its state (waiting, sending, sent, failed and why) and a count; **Stop** ends after the current file. The dialog cannot be closed while a file is on its way. Then the folder reloads and a message says how many files were sent. Each file takes two requests: the API signs an upload URL, then the browser sends the file to it, on `api.clever-cloud.com` directly (not through the API bridge).
+
 **New bucket**, above the list of buckets (also "New bucket" in the palette on a Cellar page), creates an empty bucket:
 
 - **Name**: 3 to 63 characters, lowercase letters, digits, dots and hyphens, a letter or a digit at both ends, not shaped like an IP address. A name already taken, or an add-on at its number of buckets, gets its own message.
@@ -204,7 +215,7 @@ The open bucket, folder and filter live in the URL (`?bucket=…&prefix=…&filt
 
 Once created, the bucket opens. Deleting a bucket stays with the Console.
 
-Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see (the filter included), the details the call that reads the object (its key percent-encoded, slashes too), and the dialog the call that creates the bucket:
+Everything goes through the Clever Cloud API: no S3 credentials needed, and nothing changes but the buckets you create and the files you upload. clever-tools has no Cellar command, so the tab shows the `clever curl` call of what you see (the filter included), the details the call that reads the object (its key percent-encoded, slashes too), and the dialog the call that creates the bucket:
 
 ```sh
 clever curl https://api.clever-cloud.com/v4/cellar/organisations/<orga_id>/cellar/<cellar_id>/buckets

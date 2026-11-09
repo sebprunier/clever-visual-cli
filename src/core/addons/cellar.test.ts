@@ -4,11 +4,15 @@ import {
   cellarCurl,
   createBucketCurl,
   filteredPrefix,
+  folderNameError,
   objectCurl,
+  planUpload,
   prefixTrail,
   s3cmdGet,
   s3cmdList,
+  s3cmdPut,
   s3Uri,
+  sendable,
 } from './cellar.js';
 
 describe('prefixTrail', () => {
@@ -126,5 +130,57 @@ describe('a new bucket', () => {
       `clever curl -X POST -H 'Content-Type: application/json' -d '{"name":"assets","versioning":false}' https://api.clever-cloud.com/v4/cellar/organisations/orga_1/cellar/cellar_2/buckets`,
     );
     expect(createBucketCurl('orga_1', 'cellar_2', 'assets', true)).toContain('"versioning":true');
+  });
+});
+
+describe('a new folder', () => {
+  it('takes one level, without the characters S3 advises against', () => {
+    for (const name of ['photos', '2026', 'my folder', 'a.b-c_d', '(old)']) {
+      expect(folderNameError(name), name).toBeNull();
+    }
+    for (const name of ['a/b', 'a\\b', 'x#y', 'x%y', 'x`y', 'x[y]', 'x"y', 'x<y', 'x~y', 'x|y', 'été']) {
+      expect(folderNameError(name), name).toBe('invalid');
+    }
+    for (const name of ['', '   ', '.', '..']) {
+      expect(folderNameError(name), JSON.stringify(name)).toBe('empty');
+    }
+  });
+});
+
+describe('an upload', () => {
+  const files = [
+    { name: 'cat.png', size: 2_000 },
+    { name: 'big.mp4', size: 80_000_000 },
+    { name: 'notes.txt', size: 10 },
+    { name: 'cat.png', size: 3_000 },
+  ];
+
+  it('puts each file under the open folder, and marks what it would replace', () => {
+    const plan = planUpload('photos/', files, new Set(['photos/notes.txt']), null);
+    expect(plan.map((entry) => entry.key)).toEqual([
+      'photos/cat.png',
+      'photos/big.mp4',
+      'photos/notes.txt',
+      'photos/cat.png',
+    ]);
+    expect(plan.map((entry) => entry.exists)).toEqual([false, false, true, false]);
+    expect(plan.some((entry) => entry.tooBig)).toBe(false);
+  });
+
+  it('leaves the files over the cap and the names chosen twice out of what is sent', () => {
+    const plan = planUpload('', files, new Set(), 50_000_000);
+    expect(plan.map((entry) => [entry.tooBig, entry.duplicate])).toEqual([
+      [false, false],
+      [true, false],
+      [false, false],
+      [false, true],
+    ]);
+    expect(sendable(plan).map((entry) => entry.name)).toEqual(['cat.png', 'notes.txt']);
+  });
+
+  it('has its s3cmd equivalent, the files given by name', () => {
+    expect(s3cmdPut('addon_1', 'assets', 'photos/', ['cat.png', "my cat's.png", 'été.txt'])).toMatch(
+      /\n {4}put cat\.png 'my cat'\\''s\.png' 'été\.txt' s3:\/\/assets\/photos\/$/,
+    );
   });
 });

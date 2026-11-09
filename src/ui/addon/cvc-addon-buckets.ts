@@ -17,12 +17,16 @@ import {
 import '../shared/cvc-cli.js';
 import { copyToClipboard } from '../shared/clipboard.js';
 import { CvcElement } from '../shared/cvc-element.js';
-import { openAction } from '../shared/events.js';
+import { openAction, pushToast } from '../shared/events.js';
 import { formatBytes, formatCount, formatDateTime, formatRelative } from '../shared/format.js';
 import { ICON_DOWNLOAD, ICON_REFRESH } from '../shared/icons.js';
 import { sharedStyles } from '../shared/styles.js';
 import { openCellarDownload } from './cellar-download.js';
+import type { FolderOpenDetail } from './cvc-cellar-folder-dialog.js';
+import './cvc-cellar-folder-dialog.js';
 import './cvc-cellar-object-dialog.js';
+import type { UploadCloseDetail } from './cvc-cellar-upload-dialog.js';
+import './cvc-cellar-upload-dialog.js';
 
 const VERSIONING_LABELS: Readonly<Record<CellarBucket['versioning'], MessageKey>> = {
   ENABLED: 'buckets.versioning.ENABLED',
@@ -45,7 +49,10 @@ const COPIED_FOR = 1500;
  * folder's s3cmd command copies in one click (the add-on's keys read by
  * clever-tools when it runs), the folder filters by the start of the names
  * (`?filter=`, sent as the listing's prefix), and a file opens its details,
- * with its own s3cmd command (#30).
+ * with its own s3cmd command (#30). "New folder" writes nothing (S3 has only
+ * key prefixes): it opens the folder, empty until a file is uploaded into it;
+ * "Upload files", or files dropped on the folder, go through a dialog that
+ * says what they replace before sending them (#30).
  */
 @customElement('cvc-addon-buckets')
 export class CvcAddonBuckets extends CvcElement {
@@ -79,6 +86,14 @@ export class CvcAddonBuckets extends CvcElement {
   @state() private copied: string | null = null;
   /** The file whose details are open. */
   @state() private details: CellarObjectItem | null = null;
+  @state() private creatingFolder = false;
+  /**
+   * The files chosen or dropped and where they go, fixed when the dialog opens: it stays open
+   * and sends there even if the page moves to another folder meanwhile.
+   */
+  @state() private uploading: { files: File[]; bucket: string; folder: string } | null = null;
+  /** Files dragged over the folder: it shows where they would go. */
+  @state() private dropping = false;
 
   private filterTimer: number | undefined;
   /** The name that opened the details, focused again when they close. */
@@ -268,6 +283,77 @@ export class CvcAddonBuckets extends CvcElement {
     this.opener = null;
   }
 
+  /** Opens the new folder: nothing is written, it exists once a file is uploaded into it. */
+  private openNewFolder(event: CustomEvent<FolderOpenDetail>): void {
+    this.creatingFolder = false;
+    window.location.hash = this.href(this.bucket, `${this.folder}${event.detail.name}/`);
+  }
+
+  private chooseFiles(): void {
+    this.renderRoot.querySelector<HTMLInputElement>('input[type=file]')?.click();
+  }
+
+  private onFilesChosen(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    const files = [...(input.files ?? [])];
+    // Emptied so that choosing the same file again fires a change.
+    input.value = '';
+    if (files.length > 0) {
+      this.uploading = { files, bucket: this.bucket, folder: this.folder };
+    }
+  }
+
+  private static carriesFiles(event: DragEvent): boolean {
+    return event.dataTransfer?.types.includes('Files') ?? false;
+  }
+
+  private onDragOver(event: DragEvent): void {
+    if (this.bucket === '' || this.uploading != null || !CvcAddonBuckets.carriesFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer != null) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    this.dropping = true;
+  }
+
+  private onDragLeave(event: DragEvent): void {
+    // Leaving for a child of the drop zone is not leaving it.
+    const to = event.relatedTarget as Node | null;
+    if (to == null || !(event.currentTarget as HTMLElement).contains(to)) {
+      this.dropping = false;
+    }
+  }
+
+  private onDrop(event: DragEvent): void {
+    if (!this.dropping) {
+      return;
+    }
+    event.preventDefault();
+    this.dropping = false;
+    // A dropped folder comes through as an item too: only files are kept (a folder upload is out of scope).
+    const files = [...(event.dataTransfer?.items ?? [])]
+      .filter((item) => item.kind === 'file' && (item.webkitGetAsEntry()?.isFile ?? true))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file != null);
+    if (files.length > 0) {
+      this.uploading = { files, bucket: this.bucket, folder: this.folder };
+    }
+  }
+
+  private closeUpload(event: CustomEvent<UploadCloseDetail>): void {
+    this.uploading = null;
+    const sent = event.detail.sent;
+    if (sent > 0) {
+      pushToast(this, { kind: 'info', message: t('cellarUpload.toast', { count: sent }) });
+      void this.loadBuckets();
+      if (this.bucket !== '') {
+        void this.loadPage(true);
+      }
+    }
+  }
+
   /** A link to a bucket and directory of this add-on, the rest of the URL kept but the filter. */
   private href(bucket: string, prefix = ''): string {
     return withHashParams(window.location.hash, { bucket: bucket || null, prefix: prefix || null, filter: null });
@@ -293,8 +379,28 @@ export class CvcAddonBuckets extends CvcElement {
       </div>
       <p class="muted small hint">${t('buckets.hint')}</p>
       ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
-      ${this.bucket === '' ? this.renderBuckets() : this.renderBrowser()}
+      ${this.bucket === '' ? this.renderBuckets() : this.renderBrowser()} ${this.renderUpload()}
     `;
+  }
+
+  private renderUpload() {
+    const upload = this.uploading;
+    if (upload == null) {
+      return nothing;
+    }
+    // The versioning is the open bucket's, read for the upload's own bucket only.
+    const versioning = this.bucketInfo != null && upload.bucket === this.bucket ? this.bucketInfo.versioning : null;
+    return html`<cvc-cellar-upload-dialog
+      .client=${this.client}
+      ownerId=${this.ownerId}
+      addonId=${this.addonId}
+      realId=${this.realId}
+      bucket=${upload.bucket}
+      folder=${upload.folder}
+      .versioning=${versioning}
+      .files=${upload.files}
+      @cvc-cellar-upload-close=${this.closeUpload}
+    ></cvc-cellar-upload-dialog>`;
   }
 
   private renderBuckets() {
@@ -382,71 +488,105 @@ export class CvcAddonBuckets extends CvcElement {
           @keydown=${this.onFilterKeyDown}
         />
         ${this.filter === '' ? nothing : html`<span class="muted small">${t('buckets.filterHint')}</span>`}
+        <span class="grow"></span>
+        <button type="button" class="ghost" @click=${() => (this.creatingFolder = true)}>
+          ${t('cellarFolder.open')}
+        </button>
+        <button type="button" @click=${this.chooseFiles}>${t('cellarUpload.choose')}</button>
+        <input type="file" multiple hidden @change=${this.onFilesChosen} />
+      </div>
+      <div
+        class="drop-zone ${this.dropping ? 'dropping' : ''}"
+        @dragover=${this.onDragOver}
+        @dragleave=${this.onDragLeave}
+        @drop=${this.onDrop}
+      >
+        ${this.dropping ? html`<p class="drop-hint">${t('cellarUpload.dropHere', { folder: `${this.bucket}/${this.folder}` })}</p>` : nothing}
+        ${
+          !this.listed
+            ? html`<p class="empty">${t('common.loading')}</p>`
+            : empty
+              ? html`<p class="empty">
+                  ${
+                    this.filter !== ''
+                      ? t('buckets.noMatch', { filter: this.filter })
+                      : this.folder === ''
+                        ? t('buckets.empty')
+                        : t('buckets.emptyFolder')
+                  }
+                </p>`
+              : html`<div class="card table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>${t('buckets.name')}</th>
+                        <th class="num">${t('buckets.size')}</th>
+                        <th>${t('buckets.updated')}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${this.directories.map(
+                        (directory) =>
+                          html`<tr>
+                            <td class="mono name" colspan="4">
+                              <a href=${this.href(this.bucket, directory.key)}>${directory.name}/</a>
+                            </td>
+                          </tr>`,
+                      )}
+                      ${this.files.map(
+                        (file) =>
+                          html`<tr>
+                            <td class="mono name">
+                              <button
+                                type="button"
+                                class="link object"
+                                title=${t('buckets.details', { name: file.name })}
+                                @click=${(event: Event) => this.openDetails(file, event)}
+                              >
+                                ${file.name}
+                              </button>
+                            </td>
+                            <td class="num">${formatBytes(file.contentLength)}</td>
+                            <td class="muted" title=${formatDateTime(file.updatedAt)}>
+                              ${formatRelative(file.updatedAt)}
+                            </td>
+                            <td class="actions">
+                              <button
+                                type="button"
+                                class="ghost small with-icon"
+                                ?disabled=${this.signing === file.key}
+                                @click=${() => this.download(file)}
+                              >
+                                ${ICON_DOWNLOAD} ${t('buckets.download')}
+                              </button>
+                            </td>
+                          </tr>`,
+                      )}
+                    </tbody>
+                  </table>
+                </div>`
+        }
+        ${
+          this.cursor != null && this.listed
+            ? html`<button
+                type="button"
+                class="more"
+                ?disabled=${this.loadingMore}
+                @click=${() => this.loadPage(false)}
+              >
+                ${this.loadingMore ? t('common.loading') : t('buckets.more')}
+              </button>`
+            : nothing
+        }
       </div>
       ${
-        !this.listed
-          ? html`<p class="empty">${t('common.loading')}</p>`
-          : empty
-            ? html`<p class="empty">
-                ${this.filter === '' ? t('buckets.empty') : t('buckets.noMatch', { filter: this.filter })}
-              </p>`
-            : html`<div class="card table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>${t('buckets.name')}</th>
-                      <th class="num">${t('buckets.size')}</th>
-                      <th>${t('buckets.updated')}</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${this.directories.map(
-                      (directory) =>
-                        html`<tr>
-                          <td class="mono name" colspan="4">
-                            <a href=${this.href(this.bucket, directory.key)}>${directory.name}/</a>
-                          </td>
-                        </tr>`,
-                    )}
-                    ${this.files.map(
-                      (file) =>
-                        html`<tr>
-                          <td class="mono name">
-                            <button
-                              type="button"
-                              class="link object"
-                              title=${t('buckets.details', { name: file.name })}
-                              @click=${(event: Event) => this.openDetails(file, event)}
-                            >
-                              ${file.name}
-                            </button>
-                          </td>
-                          <td class="num">${formatBytes(file.contentLength)}</td>
-                          <td class="muted" title=${formatDateTime(file.updatedAt)}>
-                            ${formatRelative(file.updatedAt)}
-                          </td>
-                          <td class="actions">
-                            <button
-                              type="button"
-                              class="ghost small with-icon"
-                              ?disabled=${this.signing === file.key}
-                              @click=${() => this.download(file)}
-                            >
-                              ${ICON_DOWNLOAD} ${t('buckets.download')}
-                            </button>
-                          </td>
-                        </tr>`,
-                    )}
-                  </tbody>
-                </table>
-              </div>`
-      }
-      ${
-        this.cursor != null && this.listed
-          ? html`<button type="button" class="more" ?disabled=${this.loadingMore} @click=${() => this.loadPage(false)}>
-              ${this.loadingMore ? t('common.loading') : t('buckets.more')}
-            </button>`
+        this.creatingFolder
+          ? html`<cvc-cellar-folder-dialog
+              parent=${`${this.bucket}/${this.folder}`}
+              @cvc-cellar-folder-open=${this.openNewFolder}
+              @cvc-cellar-folder-close=${() => (this.creatingFolder = false)}
+            ></cvc-cellar-folder-dialog>`
           : nothing
       }
       ${
@@ -516,6 +656,25 @@ export class CvcAddonBuckets extends CvcElement {
       }
       .filter input {
         width: min(320px, 100%);
+      }
+      .filter {
+        flex-wrap: wrap;
+      }
+      /* Files dragged over the folder: the list shows where they would go. */
+      .drop-zone {
+        position: relative;
+        border-radius: 10px;
+        outline: 2px dashed transparent;
+        outline-offset: 4px;
+      }
+      .drop-zone.dropping {
+        outline-color: var(--cvc-accent);
+        background: color-mix(in srgb, var(--cvc-accent) 6%, transparent);
+      }
+      .drop-hint {
+        margin: 0 0 0.6rem;
+        color: var(--cvc-accent);
+        font-weight: 600;
       }
       td.actions {
         width: 1%;

@@ -5,7 +5,7 @@
  * in one place.
  */
 import type { CcApiClient } from '@clevercloud/client/cc-api-client.js';
-import { isCcHttpErrorWithCode, tolerateNotFound } from '@clevercloud/client/utils/error-utils.js';
+import { isCcHttpErrorWithCode, isNetworkError, tolerateNotFound } from '@clevercloud/client/utils/error-utils.js';
 import type { Addon } from '@clevercloud/client/cc-api-commands/addon/addon.types.js';
 import { GetAddonCommand } from '@clevercloud/client/cc-api-commands/addon/get-addon-command.js';
 import { ListAddonCommand } from '@clevercloud/client/cc-api-commands/addon/list-addon-command.js';
@@ -31,6 +31,10 @@ import { GetCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cell
 import { GetCellarObjectDownloadUrlCommand } from '@clevercloud/client/cc-api-commands/cellar/get-cellar-object-download-url-command.js';
 import { ListCellarBucketCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-bucket-command.js';
 import { ListCellarObjectCommand } from '@clevercloud/client/cc-api-commands/cellar/list-cellar-object-command.js';
+import {
+  UPLOAD_CELLAR_OBJECT_ERROR_CODES,
+  UploadCellarObjectCommand,
+} from '@clevercloud/client/cc-api-commands/cellar/upload-cellar-object-command.js';
 import { GetConfigProviderCommand } from '@clevercloud/client/cc-api-commands/config-provider/get-config-provider-command.js';
 import { CheckKeycloakVersionCommand } from '@clevercloud/client/cc-api-commands/keycloak/check-keycloak-version-command.js';
 import { GetKeycloakInfoCommand } from '@clevercloud/client/cc-api-commands/keycloak/get-keycloak-info-command.js';
@@ -458,6 +462,38 @@ export async function fetchCellarObject(
     client.send(new GetCellarObjectCommand({ ownerId, addonId: realId, bucketName, objectKey })),
   );
   return details ?? null;
+}
+
+/**
+ * Uploads one file to `objectKey` (#30), replacing what the key held, or keeping it as a previous
+ * version when the bucket has versioning on. Two requests: the API signs an upload URL on
+ * `api.clever-cloud.com`, then the file goes there straight, cross-origin, never through api-bridge;
+ * its content type is the file's, as the browser guessed it from the name.
+ */
+export async function uploadCellarObject(
+  client: CcApiClient,
+  ownerId: string,
+  realId: string,
+  bucketName: string,
+  objectKey: string,
+  file: File,
+): Promise<void> {
+  await client.send(new UploadCellarObjectCommand({ ownerId, addonId: realId, bucketName, objectKey, content: file }));
+}
+
+/** Why an upload failed, when the client or the network said so. */
+export function uploadRefusal(error: unknown): 'cellar' | 'bucket' | 'refused' | 'network' | null {
+  const codes = UPLOAD_CELLAR_OBJECT_ERROR_CODES;
+  if (isCcHttpErrorWithCode(error, codes.CELLAR_NOT_FOUND)) {
+    return 'cellar';
+  }
+  if (isCcHttpErrorWithCode(error, codes.BUCKET_NOT_FOUND)) {
+    return 'bucket';
+  }
+  if (isCcHttpErrorWithCode(error, codes.UPLOAD_FAILED)) {
+    return 'refused';
+  }
+  return isNetworkError(error) ? 'network' : null;
 }
 
 /** A URL that downloads one object without credentials; signing it stores nothing. */
