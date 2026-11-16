@@ -18,6 +18,11 @@ describe('palettes', () => {
         ['danger on surface', palette.danger, palette.surface],
         ['ok on surface', palette.ok, palette.surface],
         ['warn on surface', palette.warn, palette.surface],
+        ...Object.entries(palette.ansi).map(([colour, value]): [string, string, string] => [
+          `ANSI ${colour} on surface`,
+          value,
+          palette.surface,
+        ]),
       ];
       for (const [label, foreground, background] of pairs) {
         expect(contrastRatio(foreground, background), `${id}: ${label}`).toBeGreaterThanOrEqual(AA);
@@ -49,5 +54,10 @@ describe('palettes', () => {
     expect(css).toContain(`--cvc-bg: ${PALETTES.light.bg};`);
     expect(css).toContain(`--cvc-bg: ${PALETTES.dark.bg};`);
     expect(css).toContain(`--cvc-bg: ${PALETTES.modern.bg};`);
+    for (const id of ['light', 'dark'] as const) {
+      for (const [colour, value] of Object.entries(PALETTES[id].ansi)) {
+        expect(css, `${id}: ANSI ${colour}`).toContain(`--cvc-ansi-${colour}: ${value};`);
+      }
+    }
   });
 });

@@ -24,6 +24,22 @@
   --cvc-backdrop: rgb(0 0 0 / 35%);
   --cvc-glow: none;
   --cvc-label-font: var(--cvc-font);
+  --cvc-ansi-black: #1b1f24;
+  --cvc-ansi-red: #b42318;
+  --cvc-ansi-green: #1a7f37;
+  --cvc-ansi-yellow: #9a6700;
+  --cvc-ansi-blue: #0969da;
+  --cvc-ansi-magenta: #8250df;
+  --cvc-ansi-cyan: #1b7c83;
+  --cvc-ansi-white: #5c6670;
+  --cvc-ansi-bright-black: #5c6670;
+  --cvc-ansi-bright-red: #a40e26;
+  --cvc-ansi-bright-green: #116329;
+  --cvc-ansi-bright-yellow: #7d4e00;
+  --cvc-ansi-bright-blue: #0550ae;
+  --cvc-ansi-bright-magenta: #6639ba;
+  --cvc-ansi-bright-cyan: #0f5f66;
+  --cvc-ansi-bright-white: #1b1f24;
   color-scheme: light dark;
 }
 
@@ -40,6 +56,22 @@
     --cvc-ok: #4cc26b;
     --cvc-warn: #e3b341;
     --cvc-info: #58a6ff;
+    --cvc-ansi-black: #9aa4af;
+    --cvc-ansi-red: #ff6b61;
+    --cvc-ansi-green: #4cc26b;
+    --cvc-ansi-yellow: #e3b341;
+    --cvc-ansi-blue: #58a6ff;
+    --cvc-ansi-magenta: #bc8cff;
+    --cvc-ansi-cyan: #39c5cf;
+    --cvc-ansi-white: #e6e9ed;
+    --cvc-ansi-bright-black: #9aa4af;
+    --cvc-ansi-bright-red: #ffa198;
+    --cvc-ansi-bright-green: #7ee787;
+    --cvc-ansi-bright-yellow: #f2cc60;
+    --cvc-ansi-bright-blue: #79c0ff;
+    --cvc-ansi-bright-magenta: #d2a8ff;
+    --cvc-ansi-bright-cyan: #56d4dd;
+    --cvc-ansi-bright-white: #ffffff;
   }
 }
 

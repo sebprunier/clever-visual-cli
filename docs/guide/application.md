@@ -122,6 +122,8 @@ The Logs tab streams the logs of the application live. The switch at the top pic
 | **Access**      | the HTTP requests it answered: status, method, path, duration, size, client      | `clever accesslogs --app <app_id> --since 15m` |
 | **Both**        | both kinds interleaved by date, each line labelled, the requests on a light tint | no single command: the two above together      |
 
+The colours an application writes in its lines (ANSI codes, as a terminal shows them: a red `[error]`, a green "Successfully deployed") are shown too, in shades of the theme so they stay readable. The filter ignores them: `[error]` finds a coloured `[error]`.
+
 The toolbar:
 
 - the command for what is shown, copied in one click;

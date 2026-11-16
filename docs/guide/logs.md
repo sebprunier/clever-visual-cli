@@ -47,7 +47,7 @@ When a stream fails, the panel shows the error and how many times it reconnected
 
 ### Merged {#merged}
 
-The merged view puts the lines of every application in one feed, in the order of their dates. Each line gives its time, the name of its application in a colour of its own, and the message, on a light tint of that colour. The same set of applications always gets the same colours.
+The merged view puts the lines of every application in one feed, in the order of their dates. Each line gives its time, the name of its application in a colour of its own, and the message, on a light tint of that colour. The same set of applications always gets the same colours. As in the panels and the [Logs tab](/guide/application#logs), the colours an application writes in its lines are shown.
 
 Above the feed, a legend lists the applications. A click on a name hides its lines, and a second click shows them again. The merged view keeps the latest 4,000 lines.
 

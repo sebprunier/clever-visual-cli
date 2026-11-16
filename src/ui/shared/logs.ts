@@ -3,7 +3,8 @@
  * words, and the look of a runtime line, so the application tab and the
  * multi-application page read the same.
  */
-import { css, html, nothing } from 'lit';
+import { css, html, nothing, unsafeCSS } from 'lit';
+import { ANSI_COLOURS, hasAnsi, parseAnsi, stripAnsi, type AnsiSegment } from '../../core/logs/ansi.js';
 import type { StreamStatus } from '../../core/logs/stream.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import type { ApplicationRuntimeLog } from '../../data/api.js';
@@ -58,9 +59,54 @@ export type RuntimeLine = Pick<
   'id' | 'date' | 'severity' | 'service' | 'message' | 'instanceId'
 >;
 
+/** What the filter reads: the service and the message, without its escape codes. */
 export function runtimeSearchText(log: RuntimeLine): string {
-  return `${log.service} ${log.message}`.toLowerCase();
+  return `${log.service} ${stripAnsi(log.message)}`.toLowerCase();
 }
+
+/** Parsed once per line: a view renders all its lines again whenever new ones arrive. */
+const segmentsOf = new WeakMap<object, AnsiSegment[]>();
+
+/**
+ * The message of a line, its ANSI colours and styles as classes (never a `style` attribute: the
+ * production CSP refuses it). A message without escape codes is plain text.
+ */
+export function renderMessage(line: { message: string }) {
+  if (!hasAnsi(line.message)) {
+    return line.message;
+  }
+  let segments = segmentsOf.get(line);
+  if (segments == null) {
+    segments = parseAnsi(line.message);
+    segmentsOf.set(line, segments);
+  }
+  return segments.map((segment) => {
+    const classes = ansiClasses(segment);
+    return classes === '' ? segment.text : html`<span class=${classes}>${segment.text}</span>`;
+  });
+}
+
+function ansiClasses(segment: AnsiSegment): string {
+  return [
+    segment.fg == null ? '' : `ansi-${segment.fg}`,
+    segment.bg == null ? '' : `ansi-bg-${segment.bg}`,
+    segment.bold ? 'ansi-bold' : '',
+    segment.dim ? 'ansi-dim' : '',
+    segment.italic ? 'ansi-italic' : '',
+    segment.underline ? 'ansi-underline' : '',
+  ]
+    .filter((name) => name !== '')
+    .join(' ');
+}
+
+/** One class per ANSI colour, foreground and background, on the theme's `--cvc-ansi-*` tokens. */
+const ansiColourStyles = unsafeCSS(
+  ANSI_COLOURS.map(
+    (colour) =>
+      `.ansi-${colour} { color: var(--cvc-ansi-${colour}); }\n` +
+      `.ansi-bg-${colour} { background: color-mix(in srgb, var(--cvc-ansi-${colour}) 25%, transparent); }`,
+  ).join('\n'),
+);
 
 /**
  * Time, service and message, coloured by severity unless `severity` is false. `lead` goes after the
@@ -76,54 +122,69 @@ export function renderRuntimeLine(
     <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
     ${lead}
     <span class="service" title=${log.instanceId}>${log.service}</span>
-    <span class="message">${log.message}</span>
+    <span class="message">${renderMessage(log)}</span>
   </div>`;
 }
 
-export const logStyles = css`
-  .lines {
-    overflow: auto;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--cvc-mono);
-    font-size: 0.8rem;
-    line-height: 1.5;
-  }
-  .line {
-    display: grid;
-    grid-template-columns: 8ch 12ch 1fr;
-    gap: 0.75rem;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .line time,
-  .line .service {
-    color: var(--cvc-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .line.sev-err .message,
-  .line.sev-crit .message,
-  .line.sev-alert .message,
-  .line.sev-emerg .message {
-    color: var(--cvc-danger);
-  }
-  .line.sev-warning .message {
-    color: var(--cvc-warn);
-  }
-  .seg {
-    display: inline-flex;
-    gap: 0.15rem;
-  }
-  .seg button {
-    padding: 0.25rem 0.7rem;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    background: transparent;
-  }
-  .seg button.on {
-    background: var(--cvc-text);
-    color: var(--cvc-bg);
-    border-color: transparent;
-  }
-`;
+export const logStyles = [
+  ansiColourStyles,
+  css`
+    .lines {
+      overflow: auto;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--cvc-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    .line {
+      display: grid;
+      grid-template-columns: 8ch 12ch 1fr;
+      gap: 0.75rem;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .line time,
+    .line .service {
+      color: var(--cvc-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .line.sev-err .message,
+    .line.sev-crit .message,
+    .line.sev-alert .message,
+    .line.sev-emerg .message {
+      color: var(--cvc-danger);
+    }
+    .line.sev-warning .message {
+      color: var(--cvc-warn);
+    }
+    .seg {
+      display: inline-flex;
+      gap: 0.15rem;
+    }
+    .seg button {
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      background: transparent;
+    }
+    .seg button.on {
+      background: var(--cvc-text);
+      color: var(--cvc-bg);
+      border-color: transparent;
+    }
+    .ansi-bold {
+      font-weight: 600;
+    }
+    .ansi-dim {
+      opacity: 0.7;
+    }
+    .ansi-italic {
+      font-style: italic;
+    }
+    .ansi-underline {
+      text-decoration: underline;
+    }
+  `,
+];

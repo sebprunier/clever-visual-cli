@@ -6,6 +6,7 @@
  * browser (`cvc.theme`).
  */
 import type { MessageKey } from './i18n.js';
+import { ANSI_COLOURS, type AnsiColour } from './logs/ansi.js';
 
 export type PaletteId = 'light' | 'dark' | 'modern';
 export type ThemeId = 'system' | PaletteId;
@@ -37,6 +38,11 @@ export interface Palette {
   glow: string;
   /** Small labels: field names, column headers, facts. */
   labelFont: string;
+  /**
+   * The 16 colours of ANSI codes in log lines, readable on this palette's surface: black and white
+   * follow the background (the one that would vanish becomes the muted grey).
+   */
+  ansi: Record<AnsiColour, string>;
 }
 
 const SYSTEM_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -64,6 +70,25 @@ export const PALETTES: Record<PaletteId, Palette> = {
     backdrop: 'rgb(0 0 0 / 35%)',
     glow: 'none',
     labelFont: SYSTEM_FONT,
+    // Red, green, yellow and blue are danger, ok, warn and info; bright means darker on a light background.
+    ansi: {
+      black: '#1b1f24',
+      red: '#b42318',
+      green: '#1a7f37',
+      yellow: '#9a6700',
+      blue: '#0969da',
+      magenta: '#8250df',
+      cyan: '#1b7c83',
+      white: '#5c6670',
+      'bright-black': '#5c6670',
+      'bright-red': '#a40e26',
+      'bright-green': '#116329',
+      'bright-yellow': '#7d4e00',
+      'bright-blue': '#0550ae',
+      'bright-magenta': '#6639ba',
+      'bright-cyan': '#0f5f66',
+      'bright-white': '#1b1f24',
+    },
   },
   dark: {
     colorScheme: 'dark',
@@ -85,6 +110,24 @@ export const PALETTES: Record<PaletteId, Palette> = {
     backdrop: 'rgb(0 0 0 / 55%)',
     glow: 'none',
     labelFont: SYSTEM_FONT,
+    ansi: {
+      black: '#9aa4af',
+      red: '#ff6b61',
+      green: '#4cc26b',
+      yellow: '#e3b341',
+      blue: '#58a6ff',
+      magenta: '#bc8cff',
+      cyan: '#39c5cf',
+      white: '#e6e9ed',
+      'bright-black': '#9aa4af',
+      'bright-red': '#ffa198',
+      'bright-green': '#7ee787',
+      'bright-yellow': '#f2cc60',
+      'bright-blue': '#79c0ff',
+      'bright-magenta': '#d2a8ff',
+      'bright-cyan': '#56d4dd',
+      'bright-white': '#ffffff',
+    },
   },
   // After the Clever Cloud technologies page: night blue, indigo borders, a cyan accent that glows.
   modern: {
@@ -107,6 +150,25 @@ export const PALETTES: Record<PaletteId, Palette> = {
     backdrop: 'rgb(3 6 15 / 72%)',
     glow: '0 0 0 1px rgb(63 208 234 / 45%), 0 0 16px rgb(63 208 234 / 22%)',
     labelFont: MONO_FONT,
+    // Info is the cyan accent here: blue gets a blue of its own.
+    ansi: {
+      black: '#94a0c8',
+      red: '#ff6b81',
+      green: '#3ddc97',
+      yellow: '#f5c451',
+      blue: '#7aa2ff',
+      magenta: '#c792ea',
+      cyan: '#3fd0ea',
+      white: '#e8ecf5',
+      'bright-black': '#94a0c8',
+      'bright-red': '#ff9cab',
+      'bright-green': '#7af0bd',
+      'bright-yellow': '#ffd97a',
+      'bright-blue': '#a5c1ff',
+      'bright-magenta': '#ddb6f2',
+      'bright-cyan': '#7fe4f5',
+      'bright-white': '#ffffff',
+    },
   },
 };
 
@@ -146,6 +208,7 @@ export function paletteProperties(palette: Palette): Record<string, string> {
     '--cvc-backdrop': palette.backdrop,
     '--cvc-glow': palette.glow,
     '--cvc-label-font': palette.labelFont,
+    ...Object.fromEntries(ANSI_COLOURS.map((colour) => [`--cvc-ansi-${colour}`, palette.ansi[colour]])),
   };
 }
 

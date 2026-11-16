@@ -33,6 +33,7 @@ import { ICON_REFRESH } from './shared/icons.js';
 import { inlineStyle } from './shared/inline-style.js';
 import {
   logStyles,
+  renderMessage,
   renderRuntimeLine,
   runtimeSearchText,
   SINCE_OPTIONS,
@@ -555,7 +556,7 @@ export class CvcLogsPage extends CvcElement {
                     <span class="app" ${inlineStyle({ color: color(entry.appId) })} title=${entry.line.service}
                       >${names.get(entry.appId) ?? entry.appId}</span
                     >
-                    <span class="message">${entry.line.message}</span>
+                    <span class="message">${renderMessage(entry.line)}</span>
                   </div>`,
               )
         }
