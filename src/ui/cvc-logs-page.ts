@@ -8,7 +8,7 @@ import { appStatus } from '../core/home/status.js';
 import { t, type MessageKey } from '../core/i18n.js';
 import { distinctHues, hueColor, hueTint, mergeLines, type MergedLine } from '../core/logs/merge.js';
 import { deploymentLogsCommand, deploymentSince, parseFrom, parseRestarts } from '../core/logs/deployment-logs.js';
-import { LogStream } from '../core/logs/stream.js';
+import { lineKey, LogStream } from '../core/logs/stream.js';
 import {
   keepListView,
   readHashParams,
@@ -495,7 +495,7 @@ export class CvcLogsPage extends CvcElement {
               </p>`
             : repeat(
                 lines,
-                (log) => log.id,
+                (log) => lineKey(log),
                 (log) => renderRuntimeLine(log),
               )
         }
@@ -559,7 +559,7 @@ export class CvcLogsPage extends CvcElement {
               </p>`
             : repeat(
                 lines,
-                (entry) => `${entry.appId}/${entry.line.id}`,
+                (entry) => lineKey(entry.line),
                 (entry) =>
                   html`<div class="line sev-${entry.line.severity}" ${inlineStyle({ background: tint(entry.appId) })}>
                     <time datetime=${entry.line.date} title=${entry.line.date}>${formatTime(entry.line.date)}</time>

@@ -3,7 +3,7 @@ import { css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { t } from '../../core/i18n.js';
-import { LogStream } from '../../core/logs/stream.js';
+import { lineKey, LogStream } from '../../core/logs/stream.js';
 import { openAddonLogs, type AddonRuntimeLog } from '../../data/api.js';
 import '../shared/cvc-cli.js';
 import { CvcElement } from '../shared/cvc-element.js';
@@ -168,7 +168,7 @@ export class CvcAddonLogs extends CvcElement {
             ? html`<p class="empty">${stream?.status === 'open' ? t('logs.waiting') : ''}</p>`
             : repeat(
                 visible,
-                (log) => log.id,
+                (log) => lineKey(log),
                 // The platform marks every line of an add-on "emerg": no colour from that.
                 (log) => renderRuntimeLine(log, { severity: false }),
               )

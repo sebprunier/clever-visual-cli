@@ -22,7 +22,7 @@ import {
   type LogInstance,
 } from '../../core/logs/instances.js';
 import { distinctHues, hueColor, hueTint, mergeLines } from '../../core/logs/merge.js';
-import { LogStream, MAX_LINES, type StreamStatus } from '../../core/logs/stream.js';
+import { lineKey, LogStream, MAX_LINES, type StreamStatus } from '../../core/logs/stream.js';
 import { readHashParams, withHashParams, writeHashParams } from '../../core/router.js';
 import {
   fetchDeployment,
@@ -837,7 +837,7 @@ export class CvcAppLogs extends CvcElement {
               ? html`<p class="empty">${this.emptyMessage()}</p>`
               : repeat(
                   visible,
-                  (log) => `${isAccessLog(log) ? 'access' : 'app'}/${log.id}`,
+                  (log) => lineKey(log),
                   (log) => {
                     const kind: LogKind = isAccessLog(log) ? 'access' : 'app';
                     const hue = this.#hues.get(log.instanceId);

@@ -70,6 +70,23 @@ async function sliceTurn(): Promise<() => void> {
   };
 }
 
+const lineKeys = new WeakMap<object, number>();
+let lastLineKey = 0;
+
+/**
+ * A key of its own for each line, for `repeat`. The `id` the API gives a line is not one: lines of
+ * other times and other messages share it (4,212 lines, 2,039 ids, over a day of one application).
+ */
+export function lineKey(line: object): number {
+  let key = lineKeys.get(line);
+  if (key == null) {
+    lastLineKey += 1;
+    key = lastLineKey;
+    lineKeys.set(line, key);
+  }
+  return key;
+}
+
 export class LogStream<T extends LogLineBase> extends EventTarget {
   status: StreamStatus = 'idle';
   error: string | null = null;
@@ -161,7 +178,8 @@ export class LogStream<T extends LogLineBase> extends EventTarget {
         if (slice == null) {
           return;
         }
-        this.#prepend(slice);
+        // Both ends of a window are inclusive: a line at `end` came with the newer slice, or live.
+        this.#prepend(slice.filter((line) => Date.parse(line.date) < end));
         spanRead += end - since;
         linesRead += slice.length;
         end = since;
@@ -235,10 +253,8 @@ export class LogStream<T extends LogLineBase> extends EventTarget {
     throw new Error(t('logs.noAnswerGaveUp', { count: OPEN_ATTEMPTS }));
   }
 
-  /** Lines older than those there, put above them, without the ones already there, up to the most kept. */
-  #prepend(slice: T[]): void {
-    const known = new Set([...this.lines, ...this.#pending].map((line) => line.id));
-    const older = slice.filter((line) => !known.has(line.id));
+  /** Lines older than those there, put above them, up to the most kept: the newest of them. */
+  #prepend(older: T[]): void {
     if (older.length === 0) {
       return;
     }

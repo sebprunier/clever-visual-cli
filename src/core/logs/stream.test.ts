@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LogsStream } from '../../data/api.js';
 import { t } from '../i18n.js';
-import { FIRST_SLICE_MS, LIVE_OVERLAP_MS, LogStream, OPEN_ATTEMPTS, OPEN_TIMEOUT_MS } from './stream.js';
+import { FIRST_SLICE_MS, LIVE_OVERLAP_MS, lineKey, LogStream, OPEN_ATTEMPTS, OPEN_TIMEOUT_MS } from './stream.js';
 
 interface Line {
   id: string;
@@ -304,13 +304,28 @@ describe('the past of a log stream, read backwards (#40)', () => {
     expect(log.history).toBe('complete');
   });
 
-  it('keeps once a line both the live stream and a slice bring', async () => {
-    const edge = { id: 'edge', date: new Date(NOW - LIVE_OVERLAP_MS).toISOString() };
-    const server = serve([...dayOfLines(), edge].sort((a, b) => a.date.localeCompare(b.date)));
+  it('keeps once a line at the edge of two windows, both ends being inclusive', async () => {
+    // One at the start of the live stream, one where the first slice starts.
+    const edges = [
+      { id: 'live-edge', date: new Date(NOW - LIVE_OVERLAP_MS).toISOString() },
+      { id: 'slice-edge', date: new Date(NOW - LIVE_OVERLAP_MS - FIRST_SLICE_MS).toISOString() },
+    ];
+    const server = serve([...dayOfLines(), ...edges].sort((a, b) => a.date.localeCompare(b.date)));
     const log = new LogStream<Line>(server.open);
     await log.start(15);
     await vi.advanceTimersByTimeAsync(10 * SECOND);
-    expect(log.lines.filter((line) => line.id === 'edge')).toHaveLength(1);
+    expect(log.lines.filter((line) => line.id === 'live-edge')).toHaveLength(1);
+    expect(log.lines.filter((line) => line.id === 'slice-edge')).toHaveLength(1);
+  });
+
+  it('keeps every line that shares its id with another, as the API gives them', async () => {
+    // The API's ids are not unique: here every line has one of two.
+    const lines = dayOfLines().map((line, index) => ({ ...line, id: `303804721:${index % 2}:0` }));
+    const server = serve(lines);
+    const log = new LogStream<Line>(server.open);
+    await log.start(60);
+    await vi.advanceTimersByTimeAsync(10 * SECOND);
+    expect(log.lines).toHaveLength(120);
   });
 
   it('drops the past of a start that is no longer the current one', async () => {
@@ -354,5 +369,14 @@ describe('the past of a log stream, read backwards (#40)', () => {
     await vi.advanceTimersByTimeAsync(SECOND);
     expect(server.asked).toHaveLength(1);
     expect(log.history).toBe('none');
+  });
+});
+
+describe('the key of a log line', () => {
+  it('is its own, though the API gives several lines the same id', () => {
+    const first = { id: '303804721:1:0', date: '2026-11-17T13:25:26.519Z' };
+    const second = { id: '303804721:1:0', date: '2026-11-17T13:26:26.519Z' };
+    expect(lineKey(first)).not.toBe(lineKey(second));
+    expect(lineKey(first)).toBe(lineKey(first));
   });
 });
