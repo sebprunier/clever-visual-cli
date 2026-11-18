@@ -112,7 +112,7 @@ With no running instance, the dialog says to start the application first. "Copy 
 
 ## Logs {#logs}
 
-![The live logs of an application](/screenshots/app-logs.png)
+![The live logs of an application, with the instances that wrote them](/screenshots/app-logs.png)
 
 The Logs tab streams the logs of the application live. The switch at the top picks what you read; the choice is remembered in this browser.
 
@@ -129,12 +129,46 @@ The toolbar:
 - the command for what is shown, copied in one click;
 - the state of the stream: connecting…, live, paused, stopped or error (with the reconnections the client made);
 - the number of lines, and how many the filter keeps;
+- **Instances (4)**, first on the second row, which shows or hides the [instances](#instances) beside the lines: an eye while they show, a struck-out eye while they are hidden. It reads "Instances (1 of 4)" while some are ticked;
 - the replay window: **now**, **last 15 minutes** (the default), **last hour**, **last 6 hours**, **last 24 hours**. Changing it reopens the stream, and the `--since` of the command follows;
 - **Filter lines…**, which keeps the lines that contain your text, as you type;
 - **Follow**, ticked by default, which keeps the view at the newest line;
 - pause and resume; stop, then **Restart** to reopen the stream with the chosen window; clear.
 
 The view keeps the newest 2,000 application lines and 5,000 access lines.
+
+### Instances {#instances}
+
+On the left of the lines, the instances that were alive during the replay window, as the Console lists them. With **last 15 minutes**, that is usually the running instance only. Just after a redeployment, the previous instance, the build instance and the new one are all there. With **now**, the list holds the instances alive when the tab opens. Above the list, the panel says what it covers ("Alive in the last 15 minutes"). When the last 24 hours hold more instances, it says how many ("2 more in the last 24 hours"), and **Widen to 24 hours** switches the window, as the toolbar does. A deployment of a few hours ago is out of a 15-minute window. The panel is open by default; **Instances** in the toolbar hides it, and your choice is remembered in this browser. In a narrow window, it sits above the lines.
+
+The instances are grouped by the deployment that created them, the newest first. Each group gives:
+
+- the number of the deployment, a link to [its logs](#deployment-logs);
+- its state, how long ago it ran and its commit.
+
+Each instance gives:
+
+- a box and its colour;
+- its name, then its number (`#0`) or **build**;
+- how many of the lines in view it wrote; an instance with 0 lines is listed too;
+- its state: up, deploying, stopping, or "deleted at 3:50:50 PM";
+- in its tooltip, its id, its flavor and its creation date.
+
+By default nothing is ticked, and every line shows. Ticking instances keeps their lines only, at once and without reconnecting: the lines already received stay. The text filter applies on top, and the counter says how many lines are kept ("1,446 / 2,000 lines"). **Show all** clears the selection. The selection goes into the address (`?instances=<id>,<id>`), so a reload or a shared link keeps it; an instance no longer in the window is dropped from it.
+
+When two instances or more wrote in the view, each line gets a bar in the colour of its instance, and the tooltip of its service gives the instance's name and number. The selection applies to the access logs too: each request names the instance that served it.
+
+The list is read again every 30 seconds while the stream is live, and as soon as a line comes from an instance it lacks: a redeployment adds its deployment and its instances, and the previous instance turns deleted. An instance the API no longer knows shows by the start of its id, "unknown to the API".
+
+The panel gives the command for the same list:
+
+```sh
+clever instances --app <app_id> --since 15m
+```
+
+::: info
+`clever logs` has no instance option: the command of the toolbar follows every instance, whatever is ticked.
+:::
 
 ### Logs of one deployment {#deployment-logs}
 
@@ -165,7 +199,7 @@ The command is the clever-tools one for the same lines:
 clever logs --app <app_id> --deployment-id <deployment_id> --since 2026-10-17T15:29:35Z
 ```
 
-`--since` is needed: without it, clever-tools streams from now on. The kind switch and the replay window are not offered here; the filter, **Follow**, pause and clear work as for the live logs.
+`--since` is needed: without it, clever-tools streams from now on. The kind switch and the replay window are not offered here; the filter, **Follow**, pause and clear work as for the live logs. The [instances](#instances) are those of the deployment, its build instance included (`clever instances --app <app_id> --deployment-id <deployment_id>`).
 
 ## Activity {#activity}
 

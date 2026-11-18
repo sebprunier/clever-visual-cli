@@ -108,20 +108,29 @@ const ansiColourStyles = unsafeCSS(
   ).join('\n'),
 );
 
-/**
- * Time, service and message, coloured by severity unless `severity` is false. `lead` goes after the
- * time (the source of the line in a merged view), `tint` behind the line.
- */
-export function renderRuntimeLine(
-  log: RuntimeLine,
-  lead: unknown = nothing,
-  tint: string | null = null,
-  severity = true,
-) {
-  return html`<div class="line ${severity ? `sev-${log.severity}` : ''}" ${inlineStyle({ background: tint })}>
+export interface RuntimeLineOptions {
+  /** After the time: the source of the line in a merged view. */
+  lead?: unknown;
+  /** Behind the line. */
+  tint?: string | null;
+  /** The message in the colour of its severity; true by default. */
+  severity?: boolean;
+  /** A bar on the left in this colour: the instance that wrote the line (#38). */
+  mark?: string | null;
+  /** The tooltip of the service: the instance that wrote the line, in words; its id by default. */
+  source?: string;
+}
+
+/** Time, service and message, with what `options` adds. */
+export function renderRuntimeLine(log: RuntimeLine, options: RuntimeLineOptions = {}) {
+  const { lead = nothing, tint = null, severity = true, mark = null, source = log.instanceId } = options;
+  return html`<div
+    class="line ${severity ? `sev-${log.severity}` : ''} ${mark == null ? '' : 'marked'}"
+    ${inlineStyle({ background: tint, '--cvc-mark': mark })}
+  >
     <time datetime=${log.date} title=${log.date}>${formatTime(log.date)}</time>
     ${lead}
-    <span class="service" title=${log.instanceId}>${log.service}</span>
+    <span class="service" title=${source}>${log.service}</span>
     <span class="message">${renderMessage(log)}</span>
   </div>`;
 }
@@ -129,6 +138,19 @@ export function renderRuntimeLine(
 export const logStyles = [
   ansiColourStyles,
   css`
+    /* The buttons with a label, as small as the window and the filter beside them. */
+    .toolbar button.ghost:not(.icon-only) {
+      padding: 0.3rem 0.55rem;
+      font-size: 0.85em;
+    }
+    /* The filter of the lines: as small as the controls beside it, growing up to a readable width. */
+    .toolbar input[type='search'] {
+      flex: 1 1 14rem;
+      width: auto;
+      min-width: 10rem;
+      max-width: 26rem;
+      font-size: 0.85em;
+    }
     .lines {
       overflow: auto;
       padding: 0.5rem 0.75rem;
@@ -142,6 +164,11 @@ export const logStyles = [
       gap: 0.75rem;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+    }
+    /* The instance that wrote the line, when several write in the view (#38). */
+    .line.marked {
+      box-shadow: inset 3px 0 0 var(--cvc-mark);
+      padding-left: 0.6rem;
     }
     .line time,
     .line .service {

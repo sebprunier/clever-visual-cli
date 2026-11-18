@@ -39,7 +39,8 @@ export function hueOf(appId: string): number {
   return hash % 360;
 }
 
-const GOLDEN_ANGLE = 137.508;
+/** The step between two hues of a set: each new one lands as far as possible from the ones before. */
+export const GOLDEN_ANGLE = 137.508;
 
 /**
  * One hue per application of a set, as far apart as possible: the golden angle from a start

@@ -184,3 +184,38 @@ export const ICON_LINK = html`<svg
 >
   <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
 </svg>`;
+
+/** An open eye: what it stands for is shown. */
+export const ICON_EYE = html`<svg
+  class="icon"
+  viewBox="0 0 24 24"
+  width="14"
+  height="14"
+  aria-hidden="true"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+  <circle cx="12" cy="12" r="3" />
+</svg>`;
+
+/** A struck-out eye: what it stands for is hidden. */
+export const ICON_EYE_OFF = html`<svg
+  class="icon"
+  viewBox="0 0 24 24"
+  width="14"
+  height="14"
+  aria-hidden="true"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+  <circle cx="12" cy="12" r="3" />
+  <path d="M3 3l18 18" />
+</svg>`;

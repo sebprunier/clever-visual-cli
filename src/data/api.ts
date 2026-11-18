@@ -95,6 +95,7 @@ import type { Instance } from '@clevercloud/client/cc-api-commands/instance/inst
 import { GetInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/get-invoice-command.js';
 import { ListInvoiceCommand } from '@clevercloud/client/cc-api-commands/invoice/list-invoice-command.js';
 import { ListApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/list-application-instance-command.js';
+import { GetApplicationInstanceCommand } from '@clevercloud/client/cc-api-commands/instance/get-application-instance-command.js';
 import type { LogsStream } from '@clevercloud/client/cc-api-commands/log/abstract-logs-stream-command.js';
 import type {
   AddonRuntimeLog,
@@ -199,6 +200,43 @@ export async function setApplicationBranch(
 
 export function fetchInstances(client: CcApiClient, ownerId: string, applicationId: string): Promise<Instance[]> {
   return client.send(new ListApplicationInstanceCommand({ ownerId, applicationId, excludeState: ['DELETED'] }));
+}
+
+/** The most instances the Logs tab lists, as the Console and `clever instances` do. */
+export const LOG_INSTANCES_LIMIT = 100;
+
+/**
+ * The instances behind a window of logs (#38): those of one deployment, or those alive at some point
+ * since `since`, deleted ones included (`clever instances --since`), the most recent first.
+ */
+export function fetchLogInstances(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  window: { since?: Date; deploymentId?: string },
+): Promise<Instance[]> {
+  return client.send(
+    new ListApplicationInstanceCommand({
+      ownerId,
+      applicationId,
+      since: window.deploymentId == null ? window.since : undefined,
+      deploymentId: window.deploymentId,
+      limit: LOG_INSTANCES_LIMIT,
+    }),
+  );
+}
+
+/** One instance of an application, or null when the API does not know it. */
+export async function fetchInstance(
+  client: CcApiClient,
+  ownerId: string,
+  applicationId: string,
+  instanceId: string,
+): Promise<Instance | null> {
+  return (
+    (await tolerateNotFound(client.send(new GetApplicationInstanceCommand({ ownerId, applicationId, instanceId })))) ??
+    null
+  );
 }
 
 /** The SSH keys of the account: public keys and fingerprints, nothing secret (#36). */

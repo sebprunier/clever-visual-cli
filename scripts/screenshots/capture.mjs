@@ -57,6 +57,13 @@ const ACTIONS = {
   },
 };
 
+// Some shots taken alone: the home first all the same, as in a full run, for what it leaves in the
+// browser (the costs of the organisation, which the overview shows).
+if (only.length > 0 && !only.includes(SHOTS[0].name)) {
+  await page.goto(`${BASE}${SHOTS[0].hash(ids)}`);
+  await page.waitForTimeout(5000);
+}
+
 for (const shot of SHOTS) {
   if (only.length > 0 && !only.includes(shot.name)) {
     continue;

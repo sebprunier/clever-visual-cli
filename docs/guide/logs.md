@@ -2,7 +2,7 @@
 
 The live logs of up to twelve applications on one page, side by side or merged into one feed. Each application is one `clever logs` command, and the page copies them together.
 
-![The logs of several applications, merged](/screenshots/logs-several.png)
+![The logs of several applications, side by side](/screenshots/logs-several.png)
 
 ## Open it {#open}
 

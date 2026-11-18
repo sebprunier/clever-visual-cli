@@ -1,7 +1,7 @@
 /**
  * What the screenshots show that was never recorded: environment variables,
  * the views kept by the sync, the platform status, the latest clever-tools
- * release, log lines. All made up.
+ * release, log lines, the instances that wrote them. All made up.
  */
 
 /** An application's variables (shown hidden). */
@@ -135,23 +135,53 @@ const FAILED_BUILD = [
   ['err', 'Deploy failed in 0 minutes and 53 seconds. Please review the lines above to find out why.'],
 ];
 
-function lines(messages, appId, deploymentId, now, spacing, service) {
+/** The instances made up next to the recorded ones (#38). */
+export const DEMO_IDS = {
+  /** The deployment of the API three minutes ago, a maintenance, and its instance. */
+  redeployment: 'deployment_5b1e9d27-c3a4-4e8f-b6d2-7a9c0e1f3d45',
+  current: '3c9e5a14-7b2d-4f61-9a8e-2d4b6c8f0e13',
+  /** A second instance of the deployment before, under last night's load. */
+  night: 'a41f7c26-5e83-4b9d-8c17-6f2e0d9b3a58',
+  /** The instance of the failed deployment of the other application: it built, and failed. */
+  failed: '9d2b6e41-0c7f-4a35-b8e9-1f4d7a2c6e90',
+};
+/** Seconds ago: the redeployment of the API, its new instance created, the previous one deleted. */
+const REDEPLOYED = 170;
+const CURRENT_CREATED = 150;
+const PREVIOUS_DELETED = 22;
+/** The lines of the API its new instance wrote: it started, answered its health check, then served alone. */
+const CURRENT_LINES = new Set([108, 63, 18, 9]);
+
+/**
+ * Who wrote a line of the API: the new instance, or the previous one, which served until it was
+ * deleted 22 s ago and wrote the slow query and the payment timeout.
+ */
+function apiSource(previous) {
+  return (secondsAgo) =>
+    CURRENT_LINES.has(secondsAgo) || secondsAgo < PREVIOUS_DELETED
+      ? { instanceId: DEMO_IDS.current, deploymentId: DEMO_IDS.redeployment }
+      : { instanceId: previous.id, deploymentId: previous.deploymentId };
+}
+
+function lines(messages, appId, deploymentId, now, spacing, service, source) {
   return timeline(
     messages.map(([severity, message], index) => [((messages.length - index) * spacing) / 1000, severity, message]),
     appId,
     deploymentId,
     now,
     service,
+    source,
   );
 }
 
-function timeline(entries, appId, deploymentId, now, service) {
+function timeline(entries, appId, deploymentId, now, service, source = () => ({})) {
   return entries.map(([secondsAgo, severity, message], index) => ({
     id: `${appId}-${deploymentId ?? 'live'}-${index}`,
     date: new Date(now - secondsAgo * 1000).toISOString(),
     applicationId: appId,
     deploymentId: deploymentId ?? 'deployment_demo',
     instanceId: 'instance_demo',
+    ...source(secondsAgo),
     service,
     severity,
     message,
@@ -160,10 +190,87 @@ function timeline(entries, appId, deploymentId, now, service) {
   }));
 }
 
-/** Log lines by application (the API, then a gateway and a worker), and the lines of the failed deployment. */
-export function logLines(ids, now, deploymentDate) {
+/**
+ * The instances of the demo, as the API lists them (#38), by application. The API was redeployed
+ * three minutes ago for a maintenance: `previous`, its recorded instance, served until the new
+ * one was up; a second instance of the same deployment ran last night, out of the default window
+ * but within the last 24 hours. The failed deployment had one instance, which built and failed.
+ */
+export function demoInstances(ids, now, previous, failedDeployment) {
+  const ago = (seconds) => new Date(now - seconds * 1000).toISOString();
+  const made = { network: null, isBuildVm: false };
+  return {
+    [ids.app]: [
+      { ...previous, state: 'DELETED', deletionDate: ago(PREVIOUS_DELETED) },
+      {
+        ...previous,
+        ...made,
+        id: DEMO_IDS.night,
+        name: 'Calm lapras',
+        index: 1,
+        state: 'DELETED',
+        hypervisorId: 'hv-par8-014',
+        creationDate: ago(13 * 3600),
+        deletionDate: ago(10 * 3600),
+      },
+      {
+        ...previous,
+        ...made,
+        id: DEMO_IDS.current,
+        deploymentId: DEMO_IDS.redeployment,
+        name: 'Swift ninjask',
+        index: 0,
+        state: 'UP',
+        hypervisorId: 'hv-par8-021',
+        creationDate: ago(CURRENT_CREATED),
+        deletionDate: null,
+      },
+    ],
+    [ids.failedApp]: [
+      {
+        ...made,
+        id: DEMO_IDS.failed,
+        ownerId: ids.orga,
+        applicationId: ids.failedApp,
+        resourceId: ids.failedApp,
+        deploymentId: ids.failedDeployment,
+        name: 'Eager bagon',
+        flavor: 'XS',
+        index: 0,
+        state: 'DELETED',
+        hypervisorId: 'hv-par8-007',
+        creationDate: new Date(Date.parse(failedDeployment.startDate) + 1500).toISOString(),
+        deletionDate: failedDeployment.steps.at(-1).date,
+      },
+    ],
+  };
+}
+
+/** The deployments of the demo, newest first, before the recorded ones (v2): the redeployment of the API. */
+export function demoDeployments(ids, now, before) {
+  return {
+    [ids.app]: [
+      {
+        ...before,
+        id: before.id + 1,
+        uuid: DEMO_IDS.redeployment,
+        date: now - REDEPLOYED * 1000,
+        state: 'OK',
+        action: 'DEPLOY',
+        cause: 'Maintenance',
+        instances: 1,
+      },
+    ],
+  };
+}
+
+/**
+ * Log lines by application (the API, then a gateway and a worker), and the lines of the failed
+ * deployment, each from the instance that wrote it.
+ */
+export function logLines(ids, now, deploymentDate, previous) {
   const others = ids.logsApps.filter((appId) => appId !== ids.app);
-  const apps = { [ids.app]: timeline(API, ids.app, null, now, 'bas') };
+  const apps = { [ids.app]: timeline(API, ids.app, null, now, 'bas', apiSource(previous)) };
   [GATEWAY, WORKER].forEach((entries, index) => {
     if (others[index] != null) {
       apps[others[index]] = timeline(entries, others[index], null, now, 'bas');
@@ -179,6 +286,7 @@ export function logLines(ids, now, deploymentDate) {
         Date.parse(deploymentDate) + 60_000,
         4_000,
         'bas',
+        () => ({ instanceId: DEMO_IDS.failed }),
       ),
     },
   };
@@ -207,15 +315,18 @@ const CLIENTS = [
   ['203.0.113.205', 'Brussels', 'BE'],
 ];
 
-/** Access log entries of the API, as the stream sends them: each request next to what the API logged of it. */
-export function accessLines(appId, now) {
+/**
+ * Access log entries of the API, as the stream sends them: each request next to what the API logged
+ * of it, served by the previous instance until it was deleted, then by the new one.
+ */
+export function accessLines(appId, now, previous) {
   return REQUESTS.map(([secondsAgo, method, path, statusCode, time, bytesOut], index) => {
     const [ip, city, countryCode] = CLIENTS[index % CLIENTS.length];
     return {
       id: `${appId}-access-${index}`,
       date: new Date(now - secondsAgo * 1000).toISOString(),
       applicationId: appId,
-      instanceId: 'instance_demo',
+      instanceId: secondsAgo < PREVIOUS_DELETED ? DEMO_IDS.current : previous.id,
       requestId: `request-${index}`,
       bytesIn: method === 'POST' ? 420 : 0,
       bytesOut,

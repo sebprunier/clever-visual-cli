@@ -372,7 +372,6 @@ export class CvcLogsPage extends CvcElement {
             )}
           </select>
         </label>
-        <span class="grow"></span>
         ${
           this.restartedAt != null
             ? nothing
@@ -605,12 +604,13 @@ export class CvcLogsPage extends CvcElement {
         margin: 0;
         color: var(--cvc-warn);
       }
+      /* A labelled setting set apart from the control before it: "Since" does not read as part of the layout. */
+      .toolbar > label:not(:first-child) {
+        margin-inline-start: 0.5rem;
+      }
       .toolbar select,
       .toolbar input[type='search'] {
         padding: 0.3rem 0.5rem;
-      }
-      .toolbar input[type='search'] {
-        width: 200px;
       }
       .grow {
         flex: 1;

@@ -166,7 +166,7 @@ export class CvcAddonLogs extends CvcElement {
                 visible,
                 (log) => log.id,
                 // The platform marks every line of an add-on "emerg": no colour from that.
-                (log) => renderRuntimeLine(log, nothing, null, false),
+                (log) => renderRuntimeLine(log, { severity: false }),
               )
         }
       </div>
@@ -202,8 +202,13 @@ export class CvcAddonLogs extends CvcElement {
       .toolbar input[type='search'] {
         padding: 0.3rem 0.5rem;
       }
-      .toolbar input[type='search'] {
-        width: 150px;
+      /* The controls take what the line leaves: room for the filter to grow. */
+      .toolbar > .row:last-child {
+        flex: 1 1 auto;
+      }
+      /* As small as the window of the application logs, which sits in a small label. */
+      .toolbar select {
+        font-size: 0.85em;
       }
       button.icon-only {
         display: inline-flex;

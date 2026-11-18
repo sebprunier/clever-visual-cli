@@ -6,7 +6,16 @@
  * motion design (scripts/motion/).
  */
 import { readFileSync } from 'node:fs';
-import { accessLines, favourites, logLines, platformStatus, syncVariables, VARIABLES } from './demo-data.mjs';
+import {
+  accessLines,
+  demoDeployments,
+  demoInstances,
+  favourites,
+  logLines,
+  platformStatus,
+  syncVariables,
+  VARIABLES,
+} from './demo-data.mjs';
 import { API_HOSTS, requestKey } from './shots.mjs';
 
 export const fixtures = JSON.parse(readFileSync(new URL('./fixtures/responses.json', import.meta.url), 'utf8'));
@@ -18,9 +27,46 @@ const failedDeploymentKey = Object.keys(fixtures).find(
   (key) => key.includes('/v4/orchestration/') && key.endsWith(`/deployments/${ids.failedDeployment}`),
 );
 const failedDeployment = JSON.parse(fixtures[failedDeploymentKey].body);
+
+/** The recorded answer of a GET of the API, parsed, found by the start of its key (its path and query). */
+function recorded(start) {
+  const key = Object.keys(fixtures).find((candidate) => candidate.startsWith(start));
+  return key == null ? null : JSON.parse(fixtures[key].body);
+}
+const appPath = (appId) => `/organisations/${ids.orga}/applications/${appId}`;
+/** The running instance of the API when recorded: the previous one, in the demo, of a redeployment. */
+const [previousInstance] = recorded(`GET api-bridge.clever-cloud.com/v4/orchestration${appPath(ids.app)}/instances?`);
+/** The recorded deployments of an application (v2), the longest list of them. */
+function recordedDeployments(appId) {
+  const start = `GET api-bridge.clever-cloud.com/v2${appPath(appId)}/deployments?limit=`;
+  const lists = Object.keys(fixtures)
+    .filter((key) => key.startsWith(start))
+    .map((key) => JSON.parse(fixtures[key].body));
+  return lists.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+const INSTANCES = demoInstances(ids, NOW, previousInstance, failedDeployment);
+const NEW_DEPLOYMENTS = demoDeployments(ids, NOW, recordedDeployments(ids.app)[0]);
+
+/** The instances of an application the API would list for a query (#38): by state, window and deployment. */
+function listInstances(instances, query) {
+  const excluded = query.getAll('excludeState').flatMap((value) => value.split(','));
+  const since = query.get('since');
+  const until = query.get('until');
+  const deploymentId = query.get('deploymentId');
+  return instances
+    .filter(
+      (instance) =>
+        !excluded.includes(instance.state) &&
+        (since == null || instance.deletionDate == null || instance.deletionDate >= since) &&
+        (until == null || instance.creationDate <= until) &&
+        (deploymentId == null || instance.deploymentId === deploymentId),
+    )
+    .slice(0, Number(query.get('limit') ?? 1000));
+}
+
 const LOGS = {
-  ...logLines(ids, NOW, failedDeployment.startDate ?? failedDeployment.startsAt),
-  access: { [ids.app]: accessLines(ids.app, NOW) },
+  ...logLines(ids, NOW, failedDeployment.startDate ?? failedDeployment.startsAt, previousInstance),
+  access: { [ids.app]: accessLines(ids.app, NOW, previousInstance) },
 };
 const STATUS = platformStatus(NOW);
 const CORS = {
@@ -157,6 +203,49 @@ export async function openDemoContext(
       }
       if (url.pathname.includes('/invoices')) {
         return json(route, []);
+      }
+      // The instances behind the logs (#38): those of the demo, or none for a window of another application.
+      const instancesPath = url.pathname.match(
+        /^\/v4\/orchestration\/organisations\/[^/]+\/applications\/([^/]+)\/instances(?:\/([^/]+))?$/,
+      );
+      if (instancesPath != null) {
+        const instances = INSTANCES[instancesPath[1]];
+        if (instances != null && instancesPath[2] != null) {
+          const instance = instances.find((candidate) => candidate.id === instancesPath[2]);
+          return instance == null ? json(route, { message: 'not in the demo data' }, 404) : json(route, instance);
+        }
+        if (instances != null) {
+          return json(route, listInstances(instances, url.searchParams));
+        }
+        if (url.searchParams.has('since') || url.searchParams.has('deploymentId')) {
+          return json(route, []);
+        }
+      }
+      // The deployments (v2), however many are asked for: the recorded ones after those of the demo.
+      const deploymentsPath = url.pathname.match(
+        /^\/v2\/organisations\/[^/]+\/applications\/([^/]+)\/deployments(?:\/([^/]+))?$/,
+      );
+      const deployments =
+        deploymentsPath == null
+          ? null
+          : [...(NEW_DEPLOYMENTS[deploymentsPath[1]] ?? []), ...(recordedDeployments(deploymentsPath[1]) ?? [])];
+      if (
+        deployments != null &&
+        deployments.length > 0 &&
+        (NEW_DEPLOYMENTS[deploymentsPath[1]] != null || fixtures[requestKey('GET', request.url())] == null)
+      ) {
+        if (deploymentsPath[2] == null) {
+          return json(route, deployments.slice(0, Number(url.searchParams.get('limit') ?? deployments.length)));
+        }
+        const deployment = deployments.find((candidate) => candidate.uuid === deploymentsPath[2]);
+        if (deployment != null) {
+          return json(route, deployment);
+        }
+      }
+      // The API counts its deployments: one more with that of the demo.
+      if (url.pathname === `/v2${appPath(ids.app)}`) {
+        const app = JSON.parse(fixtures[requestKey('GET', request.url())].body);
+        return json(route, { ...app, last_deploy: app.last_deploy + (NEW_DEPLOYMENTS[ids.app]?.length ?? 0) });
       }
       const fixture = fixtures[requestKey('GET', request.url())];
       if (fixture == null) {
