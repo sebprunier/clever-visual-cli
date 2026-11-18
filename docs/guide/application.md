@@ -137,7 +137,7 @@ The toolbar:
 
 The view keeps the newest 2,000 application lines and 5,000 access lines.
 
-The log server sends the past of a window at about 333 lines a second, oldest first, so a replay of a busy day would scroll by for minutes. The view reads it the other way round. It goes live from a few seconds ago, so the newest lines show at once. Then it reads the rest of the window backwards, newest first, a slice at a time, each put above the lines already there: nothing scrolls. It stops once the view is full or the window is read. When the most lines kept are reached first, the counter gives the time of the oldest one ("2,000 lines · since 9:41 AM"): on a busy application, "last 24 hours" may cover the last hour only. The command beside it, `clever logs --since 24h`, replays the whole window, oldest first, as a terminal does.
+The log server sends the past of a window at about 333 lines a second, oldest first, so a replay of a busy day would scroll by for minutes. The view reads it the other way round. It goes live from a few seconds ago, so the newest lines show at once; until the first ones come, a loader says it is connecting to the log server or loading the lines. Then it reads the rest of the window backwards, newest first, a slice at a time, each put above the lines already there: nothing scrolls. It stops once the view is full or the window is read. When the most lines kept are reached first, the counter gives the time of the oldest one ("2,000 lines · since 9:41 AM"): on a busy application, "last 24 hours" may cover the last hour only. The command beside it, `clever logs --since 24h`, replays the whole window, oldest first, as a terminal does.
 
 ### Instances {#instances}
 

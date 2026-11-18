@@ -84,6 +84,28 @@ export function historyNote(
   return failed == null ? null : { label: t('logs.history.error'), title: failed.historyError };
 }
 
+/**
+ * The lines area while it has no line: a loader as long as a stream connects or the past of the
+ * window is read, then that the stream waits for lines. `message` comes first (a deployment queued).
+ */
+export function renderNoLines(
+  streams: ReadonlyArray<{ status: StreamStatus; history: HistoryState }>,
+  message: string | null = null,
+) {
+  if (message != null && message !== '') {
+    return html`<p class="empty">${message}</p>`;
+  }
+  const loading = streams.some((stream) => stream.history === 'loading')
+    ? t('logs.loadingLines')
+    : streams.some((stream) => stream.status === 'connecting')
+      ? t('logs.connecting')
+      : null;
+  if (loading != null) {
+    return html`<p class="empty loading" role="status"><span class="spinner" aria-hidden="true"></span>${loading}</p>`;
+  }
+  return html`<p class="empty">${streams.some((stream) => stream.status === 'open') ? t('logs.waiting') : ''}</p>`;
+}
+
 /** That note after a count of lines: " · since 09:41", its tooltip saying more. */
 export function renderHistory(streams: Parameters<typeof historyNote>[0]) {
   const note = historyNote(streams);
@@ -187,6 +209,36 @@ export const logStyles = [
       min-width: 10rem;
       max-width: 26rem;
       font-size: 0.85em;
+    }
+    /* What the lines area says while it has none: in the font of the page, not of the lines. */
+    .lines .empty {
+      font-family: var(--cvc-font);
+    }
+    /* While a stream connects or reads the past: a loader, in the place of the lines. */
+    .empty.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .spinner {
+      display: inline-block;
+      width: 0.8em;
+      height: 0.8em;
+      border: 2px solid color-mix(in srgb, var(--cvc-muted) 30%, transparent);
+      border-top-color: var(--cvc-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner {
+        animation-duration: 2.4s;
+      }
     }
     .lines {
       overflow: auto;

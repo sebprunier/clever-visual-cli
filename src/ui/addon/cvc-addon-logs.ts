@@ -18,6 +18,7 @@ import {
   streamError,
   streamStatusLabel,
   renderHistory,
+  renderNoLines,
 } from '../shared/logs.js';
 import { sharedStyles } from '../shared/styles.js';
 
@@ -165,7 +166,7 @@ export class CvcAddonLogs extends CvcElement {
       <div class="lines card" role="log" aria-live="off">
         ${
           visible.length === 0
-            ? html`<p class="empty">${stream?.status === 'open' ? t('logs.waiting') : ''}</p>`
+            ? renderNoLines(stream == null ? [] : [stream])
             : repeat(
                 visible,
                 (log) => lineKey(log),

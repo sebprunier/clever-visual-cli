@@ -547,6 +547,8 @@ export const en = {
   'logs.restart': 'Restart',
   'logs.stop': 'Stop',
   'logs.clear': 'Clear',
+  'logs.connecting': 'Connecting to the log server…',
+  'logs.loadingLines': 'Loading the lines…',
   'logs.waiting': 'Connected, waiting for lines.',
   'logs.instances.title': 'Instances',
   'logs.instances.toggle': 'Instances ({count})',

@@ -42,6 +42,7 @@ import {
   streamError,
   streamStatusLabel,
   renderHistory,
+  renderNoLines,
 } from './shared/logs.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
@@ -490,9 +491,10 @@ export class CvcLogsPage extends CvcElement {
       <div class="lines" role="log" aria-live="off">
         ${
           lines.length === 0
-            ? html`<p class="empty">
-                ${this.queued.has(app.id) ? t('logs.deployment.queued') : stream?.status === 'open' ? t('logs.waiting') : ''}
-              </p>`
+            ? renderNoLines(
+                stream == null ? [] : [stream],
+                this.queued.has(app.id) ? t('logs.deployment.queued') : null,
+              )
             : repeat(
                 lines,
                 (log) => lineKey(log),
@@ -554,9 +556,10 @@ export class CvcLogsPage extends CvcElement {
       <div class="lines merged card" role="log" aria-live="off">
         ${
           lines.length === 0
-            ? html`<p class="empty">
-                ${this.queued.size > 0 && this.queued.size === this.apps.length ? t('multilogs.queued') : t('logs.waiting')}
-              </p>`
+            ? renderNoLines(
+                [...this.#streams.values()],
+                this.queued.size > 0 && this.queued.size === this.apps.length ? t('multilogs.queued') : null,
+              )
             : repeat(
                 lines,
                 (entry) => lineKey(entry.line),

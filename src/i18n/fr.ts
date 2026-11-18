@@ -550,6 +550,8 @@ export const fr: Record<MessageKey, string> = {
   'logs.restart': 'Relancer',
   'logs.stop': 'Arrêter',
   'logs.clear': 'Effacer',
+  'logs.connecting': 'Connexion au serveur de logs…',
+  'logs.loadingLines': 'Chargement des lignes…',
   'logs.waiting': 'Connecté, en attente de lignes.',
   'logs.instances.title': 'Instances',
   'logs.instances.toggle': 'Instances ({count})',

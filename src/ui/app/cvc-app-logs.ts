@@ -55,6 +55,7 @@ import { inlineStyle } from '../shared/inline-style.js';
 import {
   logStyles,
   renderHistory,
+  renderNoLines,
   renderRuntimeLine,
   runtimeSearchText,
   type RuntimeLineOptions,
@@ -834,7 +835,10 @@ export class CvcAppLogs extends CvcElement {
         <div class="lines card ${mode}" role="log" aria-live="off">
           ${
             visible.length === 0
-              ? html`<p class="empty">${this.emptyMessage()}</p>`
+              ? renderNoLines(
+                  this.#streams.map(({ stream }) => stream),
+                  this.emptyMessage(),
+                )
               : repeat(
                   visible,
                   (log) => lineKey(log),
@@ -1005,12 +1009,13 @@ export class CvcAppLogs extends CvcElement {
   }
 
   /** Why there is no line yet: still queued, never started, or waiting for the first one. */
-  private emptyMessage(): string {
+  /** What the lines area says of a deployment that has not started, before any loader. */
+  private emptyMessage(): string | null {
     const deployment = this.deployment;
     if (this.deploymentId !== '' && deployment != null && !hasStarted(deployment)) {
       return isUnderway(deployment) ? t('logs.deployment.queued') : t('logs.deployment.neverStarted');
     }
-    return this.status === 'open' ? t('logs.waiting') : '';
+    return null;
   }
 
   /**
