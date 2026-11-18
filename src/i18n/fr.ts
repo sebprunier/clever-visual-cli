@@ -518,6 +518,8 @@ export const fr: Record<MessageKey, string> = {
   'multilogs.panelFilter': 'Filtrer…',
   'multilogs.panelFilterAria': 'Filtrer les logs de {name}',
   'multilogs.openApp': 'Ouvrir les logs de cette application',
+  'logs.noAnswer': 'Pas de réponse du serveur de logs, nouvel essai',
+  'logs.noAnswerGaveUp': 'Le serveur de logs n’a pas répondu, après {count} essais.',
   'logs.retry': 'reconnexion n°{count}',
   'logs.status.connecting': 'connexion…',
   'logs.status.open': 'en direct',

@@ -43,7 +43,7 @@ In columns, each panel has its own controls:
 - **Pause** and **Resume**;
 - **×** ("Remove from the view"), which closes the stream and takes the application out of the address, so a reload agrees.
 
-When a stream fails, the panel shows the error and how many times it reconnected.
+When a stream fails, the panel shows the error and how many times it reconnected. A stream not open after 10 seconds is opened again, up to 3 attempts, as in the [Logs tab](/guide/application#logs); **Reconnect** opens the streams again after that.
 
 ### Merged {#merged}
 

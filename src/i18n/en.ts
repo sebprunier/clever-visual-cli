@@ -515,6 +515,8 @@ export const en = {
   'multilogs.panelFilter': 'Filter…',
   'multilogs.panelFilterAria': 'Filter the logs of {name}',
   'multilogs.openApp': 'Open the logs of this application',
+  'logs.noAnswer': 'No answer from the log server, trying again',
+  'logs.noAnswerGaveUp': 'The log server did not answer, after {count} attempts.',
   'logs.retry': 'reconnection #{count}',
   'logs.status.connecting': 'connecting…',
   'logs.status.open': 'live',

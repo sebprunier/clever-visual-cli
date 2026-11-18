@@ -127,7 +127,7 @@ The colours an application writes in its lines (ANSI codes, as a terminal shows 
 The toolbar:
 
 - the command for what is shown, copied in one click;
-- the state of the stream: connecting…, live, paused, stopped or error (with the reconnections the client made);
+- the state of the stream: connecting…, live, paused, stopped or error (with the reconnections the client made). The log server sometimes leaves an opening unanswered: a stream not open after 10 seconds is opened again over the same window, "No answer from the log server, trying again". After 3 attempts, it says the log server did not answer, and **Restart** tries again;
 - the number of lines, and how many the filter keeps;
 - **Instances (4)**, first on the second row, which shows or hides the [instances](#instances) beside the lines: an eye while they show, a struck-out eye while they are hidden. It reads "Instances (1 of 4)" while some are ticked;
 - the replay window: **now**, **last 15 minutes** (the default), **last hour**, **last 6 hours**, **last 24 hours**. Changing it reopens the stream, and the `--since` of the command follows. Any window but the default goes into the address (`?since=24h`), so a reload or a shared link keeps it;
