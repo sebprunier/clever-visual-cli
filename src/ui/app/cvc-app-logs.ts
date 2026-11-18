@@ -99,6 +99,8 @@ const INSTANCES_KEY = 'cvc.logs.instances';
 const INSTANCES_REFRESH_MS = 30_000;
 /** Instances the list lacks, looked up one by one at most, per window. */
 const MAX_LOOKUPS = 20;
+/** The replay window when the address names none. */
+const DEFAULT_SINCE = '15m';
 /** The widest window: the panel says how many more instances it would list. */
 const WIDEST = SINCE_OPTIONS[SINCE_OPTIONS.length - 1];
 /** What the list of each window covers, said above it. */
@@ -137,7 +139,7 @@ export class CvcAppLogs extends CvcElement {
   /** Its number and author, once it has started. */
   @state() private details: Deployment | null = null;
   @state() private deploymentError: string | null = null;
-  @state() private since = '15m';
+  @state() private since = DEFAULT_SINCE;
   @state() private filter = '';
   @state() private autoscroll = true;
   @state() private instancesOpen = readInstancesOpen();
@@ -182,8 +184,18 @@ export class CvcAppLogs extends CvcElement {
 
   override willUpdate(changed: PropertyValues<this>): void {
     if (changed.has('client') || changed.has('ownerId') || changed.has('appId') || changed.has('deploymentId')) {
+      // The window of the address (a reload, a shared link), else the one chosen before, for another application.
+      this.since = readSince(this.since);
+      this.writeSince();
       this.open();
       this.resetInstances();
+    }
+  }
+
+  /** The window into the address (`?since=`), but for the default one; the logs of a deployment have their own. */
+  private writeSince(): void {
+    if (this.deploymentId === '') {
+      writeHashParams({ since: this.since === DEFAULT_SINCE ? null : this.since });
     }
   }
 
@@ -451,6 +463,7 @@ export class CvcAppLogs extends CvcElement {
   /** The widest window, from the panel: as if chosen in the toolbar. */
   private widen(): void {
     this.since = WIDEST.value;
+    this.writeSince();
     this.restart();
   }
 
@@ -1059,6 +1072,7 @@ export class CvcAppLogs extends CvcElement {
 
   private onSinceChange(event: Event): void {
     this.since = (event.currentTarget as HTMLSelectElement).value;
+    this.writeSince();
     this.restart();
   }
 
@@ -1358,6 +1372,12 @@ function instanceState(instance: LogInstance): StateLabel {
     return { label: t('logs.instances.deletedAt', { time: formatTime(instance.deletedAt) }), tone: 'neutral' };
   }
   return stateLabel(INSTANCE_STATE_LABELS, instance.state);
+}
+
+/** The window `?since=` names, when it is one of the toolbar's; else `fallback`. */
+function readSince(fallback: string): string {
+  const value = readHashParams().get('since');
+  return SINCE_OPTIONS.some((option) => option.value === value) ? (value as string) : fallback;
 }
 
 /** The start of a replay window: its instances are those alive since then. */

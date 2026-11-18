@@ -130,7 +130,7 @@ The toolbar:
 - the state of the stream: connecting…, live, paused, stopped or error (with the reconnections the client made);
 - the number of lines, and how many the filter keeps;
 - **Instances (4)**, first on the second row, which shows or hides the [instances](#instances) beside the lines: an eye while they show, a struck-out eye while they are hidden. It reads "Instances (1 of 4)" while some are ticked;
-- the replay window: **now**, **last 15 minutes** (the default), **last hour**, **last 6 hours**, **last 24 hours**. Changing it reopens the stream, and the `--since` of the command follows;
+- the replay window: **now**, **last 15 minutes** (the default), **last hour**, **last 6 hours**, **last 24 hours**. Changing it reopens the stream, and the `--since` of the command follows. Any window but the default goes into the address (`?since=24h`), so a reload or a shared link keeps it;
 - **Filter lines…**, which keeps the lines that contain your text, as you type;
 - **Follow**, ticked by default, which keeps the view at the newest line;
 - pause and resume; stop, then **Restart** to reopen the stream with the chosen window; clear.
@@ -154,7 +154,7 @@ Each instance gives:
 - its state: up, deploying, stopping, or "deleted at 3:50:50 PM";
 - in its tooltip, its id, its flavor and its creation date.
 
-By default nothing is ticked, and every line shows. Ticking instances keeps their lines only, at once and without reconnecting: the lines already received stay. The text filter applies on top, and the counter says how many lines are kept ("1,446 / 2,000 lines"). **Show all** clears the selection. The selection goes into the address (`?instances=<id>,<id>`), so a reload or a shared link keeps it; an instance no longer in the window is dropped from it.
+By default nothing is ticked, and every line shows. Ticking instances keeps their lines only, at once and without reconnecting: the lines already received stay. The text filter applies on top, and the counter says how many lines are kept ("1,446 / 2,000 lines"). **Show all** clears the selection. The selection goes into the address with the window (`?since=24h&instances=<id>,<id>`), so a reload or a shared link keeps both. An instance no longer in the window is dropped from it: the window is relative, and a link opened the next day covers another 24 hours.
 
 When two instances or more wrote in the view, each line gets a bar in the colour of its instance, and the tooltip of its service gives the instance's name and number. The selection applies to the access logs too: each request names the instance that served it.
 
