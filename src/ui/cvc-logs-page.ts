@@ -41,6 +41,7 @@ import {
   sinceMinutes,
   streamError,
   streamStatusLabel,
+  renderHistory,
 } from './shared/logs.js';
 import { statusIcon, statusMessage } from './shared/status.js';
 import { sharedStyles } from './shared/styles.js';
@@ -208,8 +209,9 @@ export class CvcLogsPage extends CvcElement {
     const { client } = this;
     const ownerId = this.orga.id;
     const deploymentId = this.restartedAt == null ? undefined : this.restarts.get(appId);
-    const stream = new LogStream<ApplicationRuntimeLog>((since) =>
-      openRuntimeLogs(client, ownerId, appId, { since: this.streamSince ?? since, deploymentId }),
+    // The window starts with the restarts when there are some (`startMinutes`), read backwards from now.
+    const stream = new LogStream<ApplicationRuntimeLog>((since, until) =>
+      openRuntimeLogs(client, ownerId, appId, { since, until, deploymentId }),
     );
     stream.addEventListener('change', this.onChange);
     this.#streams.set(appId, stream);
@@ -457,7 +459,7 @@ export class CvcLogsPage extends CvcElement {
           >${app.name}</a
         >
         <span class="badge ${status.tone}" title=${status.label}>${status.label}</span>
-        <span class="muted small count">${lines.length}</span>
+        <span class="muted small count">${lines.length}${renderHistory(stream == null ? [] : [stream])}</span>
         <span class="grow"></span>
         <input
           type="search"
@@ -538,6 +540,15 @@ export class CvcLogsPage extends CvcElement {
             <span class="dot" ${inlineStyle({ background: color(app.id) })}></span>${app.name}
           </button>`;
         })}
+        <span class="muted small"
+          >${lines.length}
+          ${t('logs.lines')}${renderHistory(
+            this.apps
+              .filter((app) => !this.hiddenApps.has(app.id))
+              .map((app) => this.#streams.get(app.id))
+              .filter((stream) => stream != null),
+          )}</span
+        >
         <span class="muted small">${t('multilogs.noCli')}</span>
       </div>
       <div class="lines merged card" role="log" aria-live="off">

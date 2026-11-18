@@ -38,7 +38,7 @@ In columns, each panel has its own controls:
 - the state of the application, as an icon with its tooltip;
 - its name, which opens the Logs tab of the application;
 - the state of the stream: connecting…, live, paused, stopped or error;
-- the number of lines shown;
+- the number of lines shown, then "earlier lines…" or "since 9:41 AM", as in the [Logs tab](/guide/application#logs);
 - its own **Filter…** field, for this application only;
 - **Pause** and **Resume**;
 - **×** ("Remove from the view"), which closes the stream and takes the application out of the address, so a reload agrees.
@@ -66,7 +66,7 @@ The toolbar applies to all the applications at once:
 - **Reconnect**: reopens every stream with the chosen replay window.
 - **Clear all**: empties every panel.
 
-Each application keeps its latest 2,000 lines.
+Each application keeps its latest 2,000 lines. As in the [Logs tab](/guide/application#logs), each stream goes live first, then reads the past of the window backwards, so nothing scrolls while it comes. The merged view gives the number of lines next to the names, and from when every application is there.
 
 ## Following the restarts of a selection {#restarts}
 

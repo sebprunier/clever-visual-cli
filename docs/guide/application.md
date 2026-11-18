@@ -128,7 +128,7 @@ The toolbar:
 
 - the command for what is shown, copied in one click;
 - the state of the stream: connecting…, live, paused, stopped or error (with the reconnections the client made). The log server sometimes leaves an opening unanswered: a stream not open after 10 seconds is opened again over the same window, "No answer from the log server, trying again". After 3 attempts, it says the log server did not answer, and **Restart** tries again;
-- the number of lines, and how many the filter keeps;
+- the number of lines, and how many the filter keeps; then "earlier lines…" while the past of the window is read, or "since 9:41 AM" when the lines kept do not reach back to its start (see below);
 - **Instances (4)**, first on the second row, which shows or hides the [instances](#instances) beside the lines: an eye while they show, a struck-out eye while they are hidden. It reads "Instances (1 of 4)" while some are ticked;
 - the replay window: **now**, **last 15 minutes** (the default), **last hour**, **last 6 hours**, **last 24 hours**. Changing it reopens the stream, and the `--since` of the command follows. Any window but the default goes into the address (`?since=24h`), so a reload or a shared link keeps it;
 - **Filter lines…**, which keeps the lines that contain your text, as you type;
@@ -136,6 +136,8 @@ The toolbar:
 - pause and resume; stop, then **Restart** to reopen the stream with the chosen window; clear.
 
 The view keeps the newest 2,000 application lines and 5,000 access lines.
+
+The log server sends the past of a window at about 333 lines a second, oldest first, so a replay of a busy day would scroll by for minutes. The view reads it the other way round. It goes live from a few seconds ago, so the newest lines show at once. Then it reads the rest of the window backwards, newest first, a slice at a time, each put above the lines already there: nothing scrolls. It stops once the view is full or the window is read. When the most lines kept are reached first, the counter gives the time of the oldest one ("2,000 lines · since 9:41 AM"): on a busy application, "last 24 hours" may cover the last hour only. The command beside it, `clever logs --since 24h`, replays the whole window, oldest first, as a terminal does.
 
 ### Instances {#instances}
 

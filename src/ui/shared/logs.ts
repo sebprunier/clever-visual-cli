@@ -5,10 +5,10 @@
  */
 import { css, html, nothing, unsafeCSS } from 'lit';
 import { ANSI_COLOURS, hasAnsi, parseAnsi, stripAnsi, type AnsiSegment } from '../../core/logs/ansi.js';
-import type { StreamStatus } from '../../core/logs/stream.js';
+import type { HistoryState, StreamStatus } from '../../core/logs/stream.js';
 import { t, type MessageKey } from '../../core/i18n.js';
 import type { ApplicationRuntimeLog } from '../../data/api.js';
-import { formatTime } from './format.js';
+import { formatDateTime, formatTime } from './format.js';
 import { inlineStyle } from './inline-style.js';
 
 export const SINCE_OPTIONS: ReadonlyArray<{ value: string; label: MessageKey; minutes: number }> = [
@@ -51,6 +51,43 @@ export function streamError(error: string | null, retries: number): string | nul
     return null;
   }
   return retries > 0 ? `${error} (${t('logs.retry', { count: retries })})` : error;
+}
+
+/**
+ * What the lines cover, beside their count (#40): the past of the window still being read, the
+ * time of the oldest line once the most lines kept cut the window, or that the past could not be
+ * read. Of several streams, the latest cut tells from when every kind is there.
+ */
+export function historyNote(
+  streams: ReadonlyArray<{
+    history: HistoryState;
+    historyError: string | null;
+    lines: ReadonlyArray<{ date: string }>;
+  }>,
+): { label: string; title: string | null } | null {
+  if (streams.some((stream) => stream.history === 'loading')) {
+    return { label: t('logs.history.loading'), title: null };
+  }
+  const cuts = streams
+    .filter((stream) => stream.history === 'cut' && stream.lines.length > 0)
+    .map((stream) => stream.lines[0].date)
+    .sort();
+  const since = cuts.at(-1);
+  if (since != null) {
+    const today = new Date(since).toDateString() === new Date().toDateString();
+    return {
+      label: t('logs.history.cut', { time: today ? formatTime(since) : formatDateTime(since) }),
+      title: t('logs.history.cutTitle', { date: formatDateTime(since) }),
+    };
+  }
+  const failed = streams.find((stream) => stream.history === 'error');
+  return failed == null ? null : { label: t('logs.history.error'), title: failed.historyError };
+}
+
+/** That note after a count of lines: " · since 09:41", its tooltip saying more. */
+export function renderHistory(streams: Parameters<typeof historyNote>[0]) {
+  const note = historyNote(streams);
+  return note == null ? nothing : html` · <span title=${note.title ?? nothing}>${note.label}</span>`;
 }
 
 /** What a runtime line needs, from an application or from an add-on. */

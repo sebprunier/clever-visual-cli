@@ -290,6 +290,8 @@ export function fetchEnvironment(
 
 export interface RuntimeLogsOptions {
   since?: Date;
+  /** The stream ends there (`UNTIL_REACHED`): a slice of the past (#40). */
+  until?: Date;
   filter?: string;
   instanceId?: string[];
   /** Only the lines of the instances of this deployment (`clever logs --deployment-id`). */
@@ -307,6 +309,7 @@ export function openRuntimeLogs(
       ownerId,
       applicationId,
       since: options.since,
+      until: options.until,
       filter: options.filter,
       instanceId: options.instanceId,
       deploymentId: options.deploymentId,
@@ -782,9 +785,11 @@ export function openAddonLogs(
   client: CcApiClient,
   ownerId: string,
   addonId: string,
-  options: { since?: Date } = {},
+  options: { since?: Date; until?: Date } = {},
 ): Promise<LogsStream<AddonRuntimeLog>> {
-  return client.stream(new StreamAddonRuntimeLogCommand({ ownerId, addonId, since: options.since }));
+  return client.stream(
+    new StreamAddonRuntimeLogCommand({ ownerId, addonId, since: options.since, until: options.until }),
+  );
 }
 
 /** `clever accesslogs`: one entry per HTTP request the application answered. */
@@ -792,9 +797,11 @@ export function openAccessLogs(
   client: CcApiClient,
   ownerId: string,
   applicationId: string,
-  options: { since?: Date } = {},
+  options: { since?: Date; until?: Date } = {},
 ): Promise<LogsStream<ApplicationAccessLog>> {
-  return client.stream(new StreamApplicationAccessLogCommand({ ownerId, applicationId, since: options.since }));
+  return client.stream(
+    new StreamApplicationAccessLogCommand({ ownerId, applicationId, since: options.since, until: options.until }),
+  );
 }
 
 /** Every deployment of every application of the organisation. The backend ignores `limit` here. */

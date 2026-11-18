@@ -142,7 +142,8 @@ export async function openDemoContext(
       ...storage,
     },
   );
-  // The log streams: made-up lines, then a heartbeat that keeps them open.
+  // The log streams: the made-up lines of their window, then a heartbeat that keeps a live one open;
+  // a slice of the past (`until`, #40) ends once its lines are sent, as the API does.
   await context.addInitScript((logs) => {
     const realFetch = window.fetch.bind(window);
     window.fetch = async (input, init) => {
@@ -154,16 +155,24 @@ export async function openDemoContext(
         return realFetch(input, init);
       }
       const deploymentId = url.searchParams.get('deploymentId');
-      const lines =
+      const since = url.searchParams.get('since');
+      const until = url.searchParams.get('until');
+      const lines = (
         access != null
           ? (logs.access[access[1]] ?? [])
-          : ((deploymentId != null ? logs.deployments[deploymentId] : logs.apps[runtime[1]]) ?? []);
+          : ((deploymentId != null ? logs.deployments[deploymentId] : logs.apps[runtime[1]]) ?? [])
+      ).filter((line) => (since == null || line.date >= since) && (until == null || line.date <= until));
       const event = access != null ? 'ACCESS_LOG' : 'APPLICATION_LOG';
       const encoder = new TextEncoder();
       const body = new ReadableStream({
         start(controller) {
           for (const line of lines) {
             controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(line)}\n\n`));
+          }
+          if (until != null) {
+            controller.enqueue(encoder.encode('event: END_OF_STREAM\ndata: {"endedBy":"UNTIL_REACHED"}\n\n'));
+            controller.close();
+            return;
           }
           setInterval(() => controller.enqueue(encoder.encode('event: HEARTBEAT\ndata: {}\n\n')), 1000);
         },

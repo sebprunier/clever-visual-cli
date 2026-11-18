@@ -54,6 +54,7 @@ import { ICON_CLEAR, ICON_EYE, ICON_EYE_OFF, ICON_PAUSE, ICON_START, ICON_STOP }
 import { inlineStyle } from '../shared/inline-style.js';
 import {
   logStyles,
+  renderHistory,
   renderRuntimeLine,
   runtimeSearchText,
   type RuntimeLineOptions,
@@ -254,10 +255,10 @@ export class CvcAppLogs extends CvcElement {
     const kinds: LogKind[] = mode === 'both' ? ['app', 'access'] : [mode];
     this.#streams = kinds.map((kind) => {
       const stream = new LogStream<LogLine>(
-        (since) =>
+        (since, until) =>
           kind === 'app'
-            ? openRuntimeLogs(client, ownerId, appId, { since })
-            : openAccessLogs(client, ownerId, appId, { since }),
+            ? openRuntimeLogs(client, ownerId, appId, { since, until })
+            : openAccessLogs(client, ownerId, appId, { since, until }),
         kind === 'access' ? MAX_ACCESS_LINES : MAX_LINES,
       );
       stream.addEventListener('change', this.onStreamChange);
@@ -311,7 +312,10 @@ export class CvcAppLogs extends CvcElement {
     }
     const { client, ownerId, appId, deploymentId } = this;
     const since = deploymentSince(deployment.startsAt);
-    const stream = new LogStream<LogLine>(() => openRuntimeLogs(client, ownerId, appId, { since, deploymentId }));
+    // The window starts with the deployment (`start` below): live from now, then its past read backwards.
+    const stream = new LogStream<LogLine>((from, until) =>
+      openRuntimeLogs(client, ownerId, appId, { since: from, until, deploymentId }),
+    );
     stream.addEventListener('change', this.onStreamChange);
     this.#streams = [{ kind: 'app', stream }];
     void stream.start(minutesSince(since));
@@ -737,7 +741,8 @@ export class CvcAppLogs extends CvcElement {
           ${command != null ? html`<cvc-cli command=${command}></cvc-cli>` : nothing}
           <span class="badge ${status.tone}">${status.label}</span>
           <span class="muted small"
-            >${visible.length}${visible.length !== total ? ` / ${total}` : ''} ${t('logs.lines')}</span
+            >${visible.length}${visible.length !== total ? ` / ${total}` : ''}
+            ${t('logs.lines')}${renderHistory(this.#streams.map(({ stream }) => stream))}</span
           >
         </div>
         <div class="row">

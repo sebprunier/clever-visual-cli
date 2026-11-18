@@ -17,6 +17,7 @@ import {
   sinceMinutes,
   streamError,
   streamStatusLabel,
+  renderHistory,
 } from '../shared/logs.js';
 import { sharedStyles } from '../shared/styles.js';
 
@@ -62,7 +63,9 @@ export class CvcAddonLogs extends CvcElement {
       return;
     }
     const { client, ownerId, addonId } = this;
-    const stream = new LogStream<AddonRuntimeLog>((since) => openAddonLogs(client, ownerId, addonId, { since }));
+    const stream = new LogStream<AddonRuntimeLog>((since, until) =>
+      openAddonLogs(client, ownerId, addonId, { since, until }),
+    );
     stream.addEventListener('change', this.onStreamChange);
     this.#stream = stream;
     void stream.start(sinceMinutes(this.since));
@@ -82,7 +85,8 @@ export class CvcAddonLogs extends CvcElement {
           <cvc-cli command=${`clever logs --addon ${this.addonId}${sinceFlag(this.since)}`}></cvc-cli>
           <span class="badge ${status.tone}">${status.label}</span>
           <span class="muted small"
-            >${visible.length}${visible.length !== lines.length ? ` / ${lines.length}` : ''} ${t('logs.lines')}</span
+            >${visible.length}${visible.length !== lines.length ? ` / ${lines.length}` : ''}
+            ${t('logs.lines')}${renderHistory(stream == null ? [] : [stream])}</span
           >
         </div>
         <div class="row">
