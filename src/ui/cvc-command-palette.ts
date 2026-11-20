@@ -129,7 +129,11 @@ export class CvcCommandPalette extends CvcElement {
                 >
                   <span class="title">${command.title}</span>
                   ${command.subtitle ? html`<span class="subtitle">${command.subtitle}</span>` : nothing}
-                  ${command.cli ? html`<span class="cli">${command.cli}</span>` : nothing}
+                  ${
+                    command.cli
+                      ? html`<span class="cli" title=${command.cli}><span class="cli-text">${command.cli}</span></span>`
+                      : nothing
+                  }
                 </li>`;
             },
           )}
@@ -201,11 +205,14 @@ export class CvcCommandPalette extends CvcElement {
       li.active {
         background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
       }
+      /* One line per row (#41): the title whole, then the subtitle cut first, then the command. */
       li .title {
-        flex: 0 1 auto;
+        flex: 0 0 auto;
+        white-space: nowrap;
       }
       li .subtitle {
-        flex: 1 1 auto;
+        flex: 1 100 auto;
+        min-width: 0;
         color: var(--cvc-muted);
         font-size: 0.85rem;
         overflow: hidden;
@@ -213,7 +220,17 @@ export class CvcCommandPalette extends CvcElement {
         white-space: nowrap;
       }
       li .cli {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 50%;
         margin-left: auto;
+        white-space: nowrap;
+      }
+      /* A long command (clever curl …) ends with "…"; its tooltip gives it whole. */
+      li .cli-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       li.empty {
         color: var(--cvc-muted);
