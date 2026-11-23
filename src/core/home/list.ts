@@ -17,6 +17,7 @@ import {
   parseFilter,
   unknownStates,
   wantsArchived,
+  type FilterItem,
   type ParsedFilter,
 } from './filter.js';
 import {
@@ -60,6 +61,8 @@ export interface HomeList {
   filter: ParsedFilter;
   /** The `state:` values of the filter that no state holds, in any language (#44). */
   unknownStates: string[];
+  /** What the filter reads of every resource, archived applications included: the suggestions read it too (#45). */
+  filterItems: FilterItem[];
   grouping: ParsedGrouping;
   /** What deserves attention, whatever the filter. */
   watch: WatchItem[];
@@ -91,26 +94,23 @@ export function buildHomeList(input: HomeListInput): HomeList {
     ...operatorWatchList(addons, input.operatorVersions ?? (() => null)),
   ];
   const watchIds = new Set([...watch.map((item) => item.app.id), ...addonWatch.map((item) => item.addon.id)]);
-  const candidates = wantsArchived(filter) ? [...apps, ...(input.archivedApps ?? [])] : apps;
-  const visibleApps = candidates.filter((app) =>
-    matchesFilter(filter, {
-      kind: 'app',
-      name: app.name,
-      slugs: [app.variantSlug, app.instanceType],
-      runtime: app.variantName,
-      state: appStateWords(app.state),
-      tags: app.customerTags,
-      extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
-      flags: [
-        ...(watchIds.has(app.id) ? ['watch'] : []),
-        ...(app.isArchived ? [ARCHIVED] : []),
-        ...deploymentFlags(activity.get(app.id)?.last ?? null),
-      ],
-    }),
-  );
-  const visibleAddons = addons.filter((addon) => {
+  const appItem = (app: ApplicationSummary): FilterItem => ({
+    kind: 'app',
+    name: app.name,
+    slugs: [app.variantSlug, app.instanceType],
+    runtime: app.variantName,
+    state: appStateWords(app.state),
+    tags: app.customerTags,
+    extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
+    flags: [
+      ...(watchIds.has(app.id) ? ['watch'] : []),
+      ...(app.isArchived ? [ARCHIVED] : []),
+      ...deploymentFlags(activity.get(app.id)?.last ?? null),
+    ],
+  });
+  const addonItem = (addon: AddonSummary): FilterItem => {
     const state = input.addonState?.(addon) ?? null;
-    return matchesFilter(filter, {
+    return {
       kind: 'addon',
       name: addon.name,
       slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
@@ -119,8 +119,13 @@ export function buildHomeList(input: HomeListInput): HomeList {
       tags: addon.customerTags,
       extra: [addon.id, addon.realId],
       flags: [...(state === 'shared' ? ['shared'] : []), ...(watchIds.has(addon.id) ? ['watch'] : [])],
-    });
-  });
+    };
+  };
+  const appItems = new Map([...apps, ...(input.archivedApps ?? [])].map((app) => [app.id, appItem(app)]));
+  const addonItems = new Map(addons.map((addon) => [addon.id, addonItem(addon)]));
+  const candidates = wantsArchived(filter) ? [...apps, ...(input.archivedApps ?? [])] : apps;
+  const visibleApps = candidates.filter((app) => matchesFilter(filter, appItems.get(app.id) as FilterItem));
+  const visibleAddons = addons.filter((addon) => matchesFilter(filter, addonItems.get(addon.id) as FilterItem));
   const grouping = parseGrouping(input.groupingText);
   const tree = sortNodes(buildTree(grouping, visibleApps, visibleAddons, context), input.sort, {
     activity,
@@ -132,6 +137,7 @@ export function buildHomeList(input: HomeListInput): HomeList {
     context,
     filter,
     unknownStates: unknownStates(filter, stateVocabulary()),
+    filterItems: [...appItems.values(), ...addonItems.values()],
     grouping,
     watch,
     addonWatch,

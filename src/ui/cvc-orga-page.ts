@@ -22,7 +22,8 @@ import {
   type AppActivity,
   type WatchItem,
 } from '../core/home/activity.js';
-import { toggleToken } from '../core/home/filter.js';
+import { toggleToken, type FilterItem } from '../core/home/filter.js';
+import { acceptSuggestion, suggest, type Suggestions } from '../core/home/filter-suggest.js';
 import {
   groupingSuggestions,
   isWeak,
@@ -220,6 +221,11 @@ export class CvcOrgaPage extends CvcElement {
   @state() private favorites: Favorites = NO_FAVORITES;
   /** The "To watch" card shows all its entries, not only the first ones. */
   @state() private watchUnfolded = false;
+  /** What the word under the caret of the filter could become (#45), and the one highlighted. */
+  @state() private suggestions: Suggestions | null = null;
+  @state() private activeSuggestion = -1;
+  /** What the filter reads of every resource, from the last render: the suggestions read it. */
+  #filterItems: FilterItem[] = [];
 
   @query('input[name="filter"]') private filterInput?: HTMLInputElement;
   @query('aside.side') private sideElement?: HTMLElement;
@@ -609,25 +615,36 @@ export class CvcOrgaPage extends CvcElement {
     this.#costsPending =
       costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
-    const { context, filter, unknownStates, grouping, watch, addonWatch, visibleApps, visibleAddons, tree } =
-      buildHomeList({
-        apps,
-        archivedApps,
-        addons,
-        links: data.links,
-        activity,
-        filterText: this.filterText,
-        groupingText: this.groupingText,
-        sort: this.prefs.sort,
-        costs,
-        stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
-        addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
-        addonStateLabel,
-        dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
-        offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
-        operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
-      });
+    const {
+      context,
+      filter,
+      unknownStates,
+      filterItems,
+      grouping,
+      watch,
+      addonWatch,
+      visibleApps,
+      visibleAddons,
+      tree,
+    } = buildHomeList({
+      apps,
+      archivedApps,
+      addons,
+      links: data.links,
+      activity,
+      filterText: this.filterText,
+      groupingText: this.groupingText,
+      sort: this.prefs.sort,
+      costs,
+      stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
+      addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
+      addonStateLabel,
+      dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
+      offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
+      operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
+    });
     this.#order = displayOrder(tree, this.prefs.collapsed);
+    this.#filterItems = filterItems;
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
       .map((visit) => ({ app: appById.get(visit.appId), at: visit.at }))
@@ -692,17 +709,32 @@ export class CvcOrgaPage extends CvcElement {
             <div class="row toolbar">
               <div class="field filter">
                 <label class="muted small" for="filter">${t('home.filter')}</label>
-                <input
-                  id="filter"
-                  type="search"
-                  name="filter"
-                  placeholder=${t('home.filterPlaceholder')}
-                  aria-label=${t('home.filterAria')}
-                  autocomplete="off"
-                  spellcheck="false"
-                  .value=${this.filterText}
-                  @input=${(event: Event) => (this.filterText = (event.currentTarget as HTMLInputElement).value)}
-                />
+                <div class="combo">
+                  <input
+                    id="filter"
+                    type="search"
+                    name="filter"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded=${this.suggestions != null ? 'true' : 'false'}
+                    aria-controls="filter-suggestions"
+                    aria-activedescendant=${
+                      this.suggestions != null && this.activeSuggestion >= 0
+                        ? `filter-suggestion-${this.activeSuggestion}`
+                        : nothing
+                    }
+                    placeholder=${t('home.filterPlaceholder')}
+                    aria-label=${t('home.filterAria')}
+                    autocomplete="off"
+                    spellcheck="false"
+                    .value=${this.filterText}
+                    @input=${this.onFilterInput}
+                    @keydown=${this.onFilterKeyDown}
+                    @blur=${this.closeSuggestions}
+                    @click=${this.closeSuggestions}
+                  />
+                  ${this.renderSuggestions()}
+                </div>
                 ${
                   filter.error != null
                     ? html`<p class="danger small note">${t('home.filterError', { error: filter.error })}</p>`
@@ -812,6 +844,120 @@ export class CvcOrgaPage extends CvcElement {
           : nothing
       }
     `;
+  }
+
+  /** The suggestions under the filter (#45): mousedown keeps the focus in the field. */
+  private renderSuggestions() {
+    const items = this.suggestions?.items ?? [];
+    return html`<ul
+      id="filter-suggestions"
+      class="suggestions"
+      role="listbox"
+      aria-label=${t('home.suggestions')}
+      ?hidden=${items.length === 0}
+    >
+      ${items.map(
+        (suggestion, index) =>
+          html`<li
+            id="filter-suggestion-${index}"
+            role="option"
+            aria-selected=${index === this.activeSuggestion ? 'true' : 'false'}
+            class=${index === this.activeSuggestion ? 'active' : ''}
+            @mousedown=${(event: MouseEvent) => {
+              event.preventDefault();
+              void this.applySuggestion(index);
+            }}
+            @mousemove=${() => (this.activeSuggestion = index)}
+          >
+            <span class="text">${suggestion.text}</span>
+            ${
+              suggestion.count != null
+                ? html`<span class="count" title=${t('home.suggestionCount', { count: suggestion.count })}
+                    >${suggestion.count}</span
+                  >`
+                : nothing
+            }
+          </li>`,
+      )}
+    </ul>`;
+  }
+
+  private readonly onFilterInput = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    this.filterText = input.value;
+    this.updateSuggestions(input);
+  };
+
+  private updateSuggestions(input: HTMLInputElement) {
+    this.suggestions = suggest(input.value, input.selectionStart ?? input.value.length, this.#filterItems);
+    this.activeSuggestion = -1;
+  }
+
+  private readonly closeSuggestions = () => {
+    this.suggestions = null;
+    this.activeSuggestion = -1;
+  };
+
+  /**
+   * ↓ and ↑ move in the suggestions; Tab takes the highlighted one, or the first, as a shell
+   * completes; Enter takes the highlighted one only; Esc closes the list and leaves the text.
+   */
+  private readonly onFilterKeyDown = (event: KeyboardEvent) => {
+    const count = this.suggestions?.items.length ?? 0;
+    if (count === 0 || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        this.activeSuggestion = (this.activeSuggestion + 1) % count;
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        this.activeSuggestion = this.activeSuggestion <= 0 ? count - 1 : this.activeSuggestion - 1;
+        break;
+      case 'Tab':
+        if (event.shiftKey) {
+          this.closeSuggestions();
+          break;
+        }
+        event.preventDefault();
+        void this.applySuggestion(Math.max(this.activeSuggestion, 0));
+        break;
+      case 'Enter':
+        if (this.activeSuggestion >= 0) {
+          event.preventDefault();
+          void this.applySuggestion(this.activeSuggestion);
+        }
+        break;
+      case 'Escape':
+        // A search field clears itself on Escape: here, Escape only closes the list.
+        event.preventDefault();
+        this.closeSuggestions();
+        break;
+      case 'ArrowLeft':
+      case 'ArrowRight':
+      case 'Home':
+      case 'End':
+        this.closeSuggestions();
+        break;
+    }
+  };
+
+  /** Puts a suggestion in place of the word, the caret after it; a key opens the list of its values. */
+  private async applySuggestion(index: number) {
+    const input = this.filterInput;
+    const suggestions = this.suggestions;
+    const suggestion = suggestions?.items[index];
+    if (input == null || suggestions == null || suggestion == null) {
+      return;
+    }
+    const { text, caret } = acceptSuggestion(input.value, suggestions, suggestion);
+    input.value = text;
+    this.filterText = text;
+    await this.updateComplete;
+    input.setSelectionRange(caret, caret);
+    this.updateSuggestions(input);
   }
 
   private renderFilterExamples() {
@@ -1831,6 +1977,53 @@ ${t('activity.logsHint')}"
       }
       .field .note {
         margin: 0.25rem 0 0;
+      }
+      /* The suggestions of the filter (#45), under the field and over the list. */
+      .combo {
+        position: relative;
+      }
+      .suggestions {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        z-index: 5;
+        min-width: min(18rem, 100%);
+        max-width: 100%;
+        margin: 0;
+        padding: 0.25rem 0;
+        list-style: none;
+        background: var(--cvc-surface);
+        border: 1px solid var(--cvc-border);
+        border-radius: var(--cvc-radius);
+        box-shadow: var(--cvc-shadow-pop);
+      }
+      .suggestions[hidden] {
+        display: none;
+      }
+      .suggestions li {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1.5rem;
+        padding: 0.3rem 0.75rem;
+        cursor: pointer;
+        font-family: var(--cvc-mono);
+        font-size: 0.85rem;
+      }
+      .suggestions li.active {
+        background: color-mix(in srgb, var(--cvc-accent) 12%, transparent);
+      }
+      .suggestions .text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .suggestions .count {
+        flex: none;
+        color: var(--cvc-muted);
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
       }
       .examples {
         display: flex;

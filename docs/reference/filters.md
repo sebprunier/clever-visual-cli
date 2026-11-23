@@ -158,6 +158,32 @@ An expression made of operators only, such as `AND OR`, keeps everything.
 | `tag:legacy`                             | what carries a tag that starts with `legacy`             |
 | `NOT (is:app OR name:db)`                | the add-ons whose name does not hold `db`                |
 
+## Suggestions while typing {#suggestions}
+
+On the home page, the Filter field suggests how to finish the word under the caret. The list opens as you type, never on a mere click in the field.
+
+| You type                  | The list suggests                                                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the start of a word       | the keys `is:`, `has:`, `tag:`, `runtime:`, `state:`, `name:`, and the tag keys of the organisation (`env:`, `project:`…); `AND`, `OR` and `NOT` after a first term |
+| `is:`                     | `app`, `addon`, `watch`, `failed`, `deploying`, `shared`, `archived`, then the runtimes and providers of the organisation                                           |
+| `state:`                  | the states, in the language of the interface                                                                                                                        |
+| `has:`                    | the tag keys of the organisation                                                                                                                                    |
+| `tag:`                    | the tags of the organisation                                                                                                                                        |
+| `runtime:`                | the runtimes and providers of the organisation                                                                                                                      |
+| `name:`                   | the names of the applications and add-ons                                                                                                                           |
+| a tag key, such as `env:` | the values of that key: `env:prod`, `env:dev`…                                                                                                                      |
+
+Each value comes with the number of resources it keeps on its own, so `env:prod 28` tells right away what it is worth; a value that keeps nothing is not suggested. The words that start with what you typed come first, then the ones that contain it, eight at most. A leading dash stays (`-is:` suggests `-is:app`, `-is:addon`…), and a value with a space comes quoted (`project:"my project"`). Free text no key holds gets no suggestion: it already searches everything.
+
+| Key   | What it does                                                                   |
+| ----- | ------------------------------------------------------------------------------ |
+| ↓ ↑   | move in the list                                                               |
+| Tab   | take the highlighted suggestion, or the first one, as a shell completes a word |
+| Enter | take the highlighted suggestion; with none highlighted, Enter does what it did |
+| Esc   | close the list and leave the expression as it is                               |
+
+A click on a suggestion takes it too. A key such as `is:` stays open, and the list goes on with its values; a full term is followed by a space, ready for the next one.
+
 ## The examples under the field {#clickable-examples}
 
 Under the Filter field, a row of examples writes terms for you. Hover over one to see what it does:

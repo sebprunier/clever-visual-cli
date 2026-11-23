@@ -802,6 +802,9 @@ export const fr: Record<MessageKey, string> = {
   'home.filterError': 'Filtre incomplet ({error}), appliqué mot à mot.',
   'home.filterUnknownState':
     'Aucun état ne s’appelle « {value} ». États : {states}. Pour le dernier déploiement : is:failed, is:deploying.',
+  'home.suggestions': 'Suggestions',
+  'home.suggestionCount': '{count} ressources',
+  'home.suggestionCount_one': '{count} ressource',
   'home.groupingError': 'Regroupement : {error}.',
   'home.examples': 'ex.',
   'home.ex.isApp': 'Seulement les applications',

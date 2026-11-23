@@ -77,6 +77,8 @@ When you group by a tag key, an add-on without that tag goes with the applicatio
 
 Type an expression in the **Filter** field. Press `/` anywhere on the page, outside a text field, to jump to it. The list follows as you type.
 
+While you type, a list under the field suggests how to finish the word: the keys, then the values that make sense after one, taken from the organisation, each with the number of resources it keeps. After `env:`, it offers `env:prod 28` and `env:dev 4`. ↓ and ↑ move in it, Tab completes as a shell does, Esc closes it. See [Suggestions while typing](/reference/filters#suggestions).
+
 | You type         | The list keeps                                              |
 | ---------------- | ----------------------------------------------------------- |
 | `shop api`       | resources whose name, runtime, tags or ids hold both words  |

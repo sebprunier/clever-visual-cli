@@ -65,6 +65,23 @@ interface Token {
   key?: string | null;
   value?: string;
   negated?: boolean;
+  /** Where the token starts and ends in the raw expression, a leading dash included. */
+  start: number;
+  end: number;
+}
+
+/** A word of the raw expression, term or operator: what a suggestion replaces (#45). */
+export interface WordSpan {
+  start: number;
+  end: number;
+  operator: boolean;
+}
+
+/** The words of the raw expression, with their place: parentheses are not words. */
+export function wordSpans(raw: string): WordSpan[] {
+  return tokenize(raw)
+    .filter((token) => token.type !== 'lparen' && token.type !== 'rparen')
+    .map((token) => ({ start: token.start, end: token.end, operator: token.type !== 'term' }));
 }
 
 class FilterSyntaxError extends Error {}
@@ -104,10 +121,18 @@ export function isEmptyFilter(filter: ParsedFilter): boolean {
 }
 
 export function matchesFilter(filter: ParsedFilter, item: FilterItem): boolean {
-  if (filter.node == null) {
-    return true;
-  }
-  return evaluate(filter.node, prepare(item));
+  return matchesPrepared(filter, prepare(item));
+}
+
+/** A filter item made ready once, to match many expressions against it: the counts of the suggestions (#45). */
+export type PreparedFilterItem = Readonly<PreparedItem>;
+
+export function prepareFilterItem(item: FilterItem): PreparedFilterItem {
+  return prepare(item);
+}
+
+export function matchesPrepared(filter: ParsedFilter, item: PreparedFilterItem): boolean {
+  return filter.node == null || evaluate(filter.node, item);
 }
 
 /** The `is:` word of an archived application. */
@@ -187,16 +212,17 @@ function tokenize(raw: string): Token[] {
       continue;
     }
     if (char === '(' || char === ')') {
-      tokens.push({ type: char === '(' ? 'lparen' : 'rparen' });
+      tokens.push({ type: char === '(' ? 'lparen' : 'rparen', start: index, end: index + 1 });
       index += 1;
       continue;
     }
     // A dash stuck to a parenthesis negates the group, as NOT does: `-(a OR b)`.
     if (char === '-' && raw[index + 1] === '(') {
-      tokens.push({ type: 'not' });
+      tokens.push({ type: 'not', start: index, end: index + 1 });
       index += 1;
       continue;
     }
+    const start = index;
     // A dash stuck to a quote negates the quoted term: `-"old stuff"`.
     let negated = char === '-' && raw[index + 1] === '"';
     if (negated) {
@@ -225,7 +251,7 @@ function tokenize(raw: string): Token[] {
     }
     const lower = word.toLowerCase();
     if (!quoted && (lower === 'and' || lower === 'or' || lower === 'not')) {
-      tokens.push({ type: lower });
+      tokens.push({ type: lower, start, end: index });
       continue;
     }
     if (dashed && word.length > 1) {
@@ -239,9 +265,11 @@ function tokenize(raw: string): Token[] {
         key: normalise(word.slice(0, colon)),
         value: normalise(word.slice(colon + 1)),
         negated,
+        start,
+        end: index,
       });
     } else {
-      tokens.push({ type: 'term', key: null, value: normalise(word), negated });
+      tokens.push({ type: 'term', key: null, value: normalise(word), negated, start, end: index });
     }
   }
   return tokens;

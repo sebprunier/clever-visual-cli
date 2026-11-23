@@ -799,6 +799,9 @@ export const en = {
   'home.filterError': 'Incomplete filter ({error}), applied word by word.',
   'home.filterUnknownState':
     'No state is called "{value}". States: {states}. For the last deployment: is:failed, is:deploying.',
+  'home.suggestions': 'Suggestions',
+  'home.suggestionCount': '{count} resources',
+  'home.suggestionCount_one': '{count} resource',
   'home.groupingError': 'Grouping: {error}.',
   'home.examples': 'e.g.',
   'home.ex.isApp': 'Only the applications',
