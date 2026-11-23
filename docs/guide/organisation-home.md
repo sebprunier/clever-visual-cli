@@ -84,6 +84,7 @@ Type an expression in the **Filter** field. Press `/` anywhere on the page, outs
 | `-is:addon`      | everything but the add-ons: the applications alone          |
 | `is:node`        | the applications of a runtime, or the add-ons of a provider |
 | `is:watch`       | what the "To watch" card lists                              |
+| `is:failed`      | the applications whose last deployment failed               |
 | `is:shared`      | the add-ons on a shared plan                                |
 | `is:archived`    | the archived applications, left out of the list otherwise   |
 | `env:prod`       | what carries the tag `env:prod`; any `key:value` tag works  |
@@ -94,7 +95,7 @@ Type an expression in the **Filter** field. Press `/` anywhere on the page, outs
 
 Parentheses group conditions, and quotes keep words together (`"two words"`, `project:"my project"`). Case and accents do not matter.
 
-Under the field, clickable examples (`is:app`, `is:addon`, `is:watch`, `env:prod`, `-env:prod`, `has:project`) add their term to the expression, or remove it when it is already there; `AND`, `OR` and `( )` are added at the end. Hover over one to see what it does.
+Under the field, clickable examples (`is:app`, `is:addon`, `is:watch`, `is:failed`, `env:prod`, `-env:prod`, `has:project`) add their term to the expression, or remove it when it is already there; `AND`, `OR` and `( )` are added at the end. Hover over one to see what it does.
 
 An expression that does not hold together, such as an unclosed parenthesis, is still applied, word by word, and a line under the field says so: "Incomplete filter (unclosed parenthesis), applied word by word."
 
@@ -406,7 +407,7 @@ The applications and add-ons that deserve a look, whatever the filter, with thei
 
 A failure or a deployment in progress ends with **its logs**, a link to the logs of that deployment. The name opens the resource, a failed application on its Activity tab.
 
-The `is:watch` button of the card ("Only these in the list") filters the list on these entries; `is:watch` in the filter does the same. Past six entries, the card shows the first five and "Show the N others". With nothing to watch, the card does not show.
+The `is:watch` button of the card ("Only these in the list") filters the list on these entries; `is:watch` in the filter does the same. For every application whose last deployment failed, the stopped ones with an old failure included, filter with `is:failed`. Past six entries, the card shows the first five and "Show the N others". With nothing to watch, the card does not show.
 
 ### Opened recently {#recents}
 

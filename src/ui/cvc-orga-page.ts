@@ -66,6 +66,7 @@ import { listRecents } from '../core/home/recents.js';
 import { ADDON_STATE_STATUS } from '../core/home/addon-state.js';
 import type { AddonStore } from '../core/home/addon-store.js';
 import { appStatus } from '../core/home/status.js';
+import { stateNames } from '../core/home/state-words.js';
 import { toggleSort, type SortColumn } from '../core/home/sorting.js';
 import type { BulkApp, BulkKind } from '../core/home/bulk.js';
 import type { SmartTagResource } from '../core/home/smart-tags.js';
@@ -146,6 +147,7 @@ const FILTER_EXAMPLES: Array<{ token: string; title: MessageKey; append?: boolea
   { token: 'is:app', title: 'home.ex.isApp' },
   { token: 'is:addon', title: 'home.ex.isAddon' },
   { token: 'is:watch', title: 'home.ex.isWatch' },
+  { token: 'is:failed', title: 'home.ex.isFailed' },
   { token: 'env:prod', title: 'home.ex.tag' },
   { token: '-env:prod', title: 'home.ex.not' },
   { token: 'has:project', title: 'home.ex.has' },
@@ -607,23 +609,24 @@ export class CvcOrgaPage extends CvcElement {
     this.#costsPending =
       costs == null && this.prefs.costs && this.costStore != null && this.isSourcePending(this.prefs.costSource);
     this.#columns = this.prefs.costs ? COLUMNS + 1 : COLUMNS;
-    const { context, filter, grouping, watch, addonWatch, visibleApps, visibleAddons, tree } = buildHomeList({
-      apps,
-      archivedApps,
-      addons,
-      links: data.links,
-      activity,
-      filterText: this.filterText,
-      groupingText: this.groupingText,
-      sort: this.prefs.sort,
-      costs,
-      stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
-      addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
-      addonStateLabel,
-      dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
-      offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
-      operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
-    });
+    const { context, filter, unknownStates, grouping, watch, addonWatch, visibleApps, visibleAddons, tree } =
+      buildHomeList({
+        apps,
+        archivedApps,
+        addons,
+        links: data.links,
+        activity,
+        filterText: this.filterText,
+        groupingText: this.groupingText,
+        sort: this.prefs.sort,
+        costs,
+        stateLabel: (appState) => stateLabel(APP_STATE_LABELS, appState).label,
+        addonState: (addon) => this.addonStore?.stateOf(this.orga.id, addon, this.orga.applications) ?? null,
+        addonStateLabel,
+        dbVersion: (addon) => this.addonStore?.versions.version(this.orga.id, addon.id) ?? null,
+        offeredVersions: (providerId) => this.addonStore?.versions.offered(providerId) ?? null,
+        operatorVersions: (addon) => this.addonStore?.operators.versions(this.orga.id, addon.id) ?? null,
+      });
     this.#order = displayOrder(tree, this.prefs.collapsed);
     const appById = new Map(apps.map((app) => [app.id, app]));
     const recents = listRecents(this.orga.id)
@@ -703,6 +706,13 @@ export class CvcOrgaPage extends CvcElement {
                 ${
                   filter.error != null
                     ? html`<p class="danger small note">${t('home.filterError', { error: filter.error })}</p>`
+                    : nothing
+                }
+                ${
+                  unknownStates.length > 0
+                    ? html`<p class="muted small note">
+                        ${t('home.filterUnknownState', { value: unknownStates[0], states: stateNames().join(', ') })}
+                      </p>`
                     : nothing
                 }
                 ${this.renderFilterExamples()}

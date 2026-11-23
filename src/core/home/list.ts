@@ -6,10 +6,19 @@
 import type { AddonSummary, ApplicationSummary, OperatorVersions } from '../../data/api.js';
 import { addonWatchList, type AddonWatchItem } from '../addons/database.js';
 import { operatorWatchList, type OperatorWatchItem } from '../addons/operator.js';
-import { watchList, type AppActivity, type WatchItem } from './activity.js';
+import { isInProgress, watchList, type AppActivity, type WatchItem } from './activity.js';
 import type { AddonState } from './addon-state.js';
 import type { CostTable } from './costs.js';
-import { ARCHIVED, matchesFilter, parseFilter, wantsArchived, type ParsedFilter } from './filter.js';
+import {
+  ARCHIVED,
+  DEPLOYING,
+  FAILED,
+  matchesFilter,
+  parseFilter,
+  unknownStates,
+  wantsArchived,
+  type ParsedFilter,
+} from './filter.js';
 import {
   buildTree,
   linkedAddons,
@@ -20,6 +29,7 @@ import {
   type ParsedGrouping,
 } from './grouping.js';
 import { sortNodes, type SortSpec } from './sorting.js';
+import { addonStateWords, appStateWords, stateVocabulary } from './state-words.js';
 
 export interface HomeListInput {
   /** Applications of the organisation, archived ones left out. */
@@ -48,6 +58,8 @@ export interface HomeListInput {
 export interface HomeList {
   context: GroupingContext;
   filter: ParsedFilter;
+  /** The `state:` values of the filter that no state holds, in any language (#44). */
+  unknownStates: string[];
   grouping: ParsedGrouping;
   /** What deserves attention, whatever the filter. */
   watch: WatchItem[];
@@ -86,27 +98,29 @@ export function buildHomeList(input: HomeListInput): HomeList {
       name: app.name,
       slugs: [app.variantSlug, app.instanceType],
       runtime: app.variantName,
-      state: input.stateLabel(app.state),
+      state: appStateWords(app.state),
       tags: app.customerTags,
       extra: [app.id, ...linkedAddons(app.id, context).map((addon) => addon.name)],
-      flags: [...(watchIds.has(app.id) ? ['watch'] : []), ...(app.isArchived ? [ARCHIVED] : [])],
+      flags: [
+        ...(watchIds.has(app.id) ? ['watch'] : []),
+        ...(app.isArchived ? [ARCHIVED] : []),
+        ...deploymentFlags(activity.get(app.id)?.last ?? null),
+      ],
     }),
   );
-  const visibleAddons = addons.filter((addon) =>
-    matchesFilter(filter, {
+  const visibleAddons = addons.filter((addon) => {
+    const state = input.addonState?.(addon) ?? null;
+    return matchesFilter(filter, {
       kind: 'addon',
       name: addon.name,
       slugs: [addon.providerId, addon.providerId.replace(/-addon$/, '')],
       runtime: addon.providerId,
-      state: addonLabel(addon) ?? undefined,
+      state: state == null ? undefined : addonStateWords(state),
       tags: addon.customerTags,
       extra: [addon.id, addon.realId],
-      flags: [
-        ...(input.addonState?.(addon) === 'shared' ? ['shared'] : []),
-        ...(watchIds.has(addon.id) ? ['watch'] : []),
-      ],
-    }),
-  );
+      flags: [...(state === 'shared' ? ['shared'] : []), ...(watchIds.has(addon.id) ? ['watch'] : [])],
+    });
+  });
   const grouping = parseGrouping(input.groupingText);
   const tree = sortNodes(buildTree(grouping, visibleApps, visibleAddons, context), input.sort, {
     activity,
@@ -114,7 +128,28 @@ export function buildHomeList(input: HomeListInput): HomeList {
     costs: input.costs,
     addonState: input.addonState,
   });
-  return { context, filter, grouping, watch, addonWatch, visibleApps, visibleAddons, tree };
+  return {
+    context,
+    filter,
+    unknownStates: unknownStates(filter, stateVocabulary()),
+    grouping,
+    watch,
+    addonWatch,
+    visibleApps,
+    visibleAddons,
+    tree,
+  };
+}
+
+/** `is:failed`, `is:deploying`: what the last deployment of an application says, whatever its state (#44). */
+function deploymentFlags(last: AppActivity['last'] | null): string[] {
+  if (last == null) {
+    return [];
+  }
+  if (last.state === 'FAILED') {
+    return [FAILED];
+  }
+  return isInProgress(last) ? [DEPLOYING] : [];
 }
 
 /** Ids of the rows a reader sees, in display order: the content of collapsed groups is left out. */

@@ -1,4 +1,5 @@
 import type { AddonState } from '../../core/home/addon-state.js';
+import { addonStateKey } from '../../core/home/state-words.js';
 import { getLocale, t, type MessageKey } from '../../core/i18n.js';
 import type { Application, Deployment, Instance } from '../../data/api.js';
 
@@ -54,20 +55,9 @@ export const INSTANCE_STATE_LABELS: Record<Instance['state'], StateSpec> = {
   GHOST: { key: 'state.instance.GHOST', tone: 'danger' },
 };
 
-/** An add-on state in words: the applications' words where they fit, so `state:` and grouping read both. */
+/** An add-on state in words, in the language of the page. */
 export function addonStateLabel(state: AddonState): string {
-  switch (state) {
-    case 'up':
-      return t('state.app.SHOULD_BE_UP');
-    case 'starting':
-      return t('state.app.WANTS_TO_BE_UP');
-    case 'migrating':
-      return t('addonState.migrating');
-    case 'shared':
-      return t('addonState.shared');
-    default:
-      return t('state.app.SHOULD_BE_DOWN');
-  }
+  return t(addonStateKey(state));
 }
 
 export function stateLabel<K extends string>(table: Record<K, StateSpec>, state: K | string): StateLabel {

@@ -68,6 +68,14 @@ export function setLocale(locale: Locale, persist = true): void {
   localeChanges.dispatchEvent(new Event('change'));
 }
 
+/**
+ * The message for `key` in every language, without duplicates: for words read
+ * whatever the language of the page, such as the states of `state:` (#44).
+ */
+export function translations(key: MessageKey): string[] {
+  return [...new Set(LOCALES.map(({ id }) => MESSAGES[id][key] ?? en[key]))];
+}
+
 export type MessageParams = Record<string, string | number>;
 
 /**

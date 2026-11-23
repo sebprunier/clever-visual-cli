@@ -1,5 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { isEmptyFilter, matchesFilter, parseFilter, toggleToken, wantsArchived, type FilterItem } from './filter.js';
+import {
+  isEmptyFilter,
+  matchesFilter,
+  parseFilter,
+  toggleToken,
+  unknownStates,
+  wantsArchived,
+  type FilterItem,
+} from './filter.js';
 import { setLocale } from '../i18n.js';
 
 beforeAll(() => setLocale('fr', false));
@@ -9,7 +17,7 @@ const api: FilterItem = {
   name: 'API Météo prod',
   slugs: ['node', 'node'],
   runtime: 'Node.js',
-  state: 'démarrée',
+  state: ['running', 'démarrée'],
   tags: ['env:prod', 'project:meteo:prod'],
   extra: ['app_1234'],
 };
@@ -56,6 +64,8 @@ describe('home filter', () => {
     expect(keep('tag:env')).toEqual(['API Météo prod']);
     expect(keep('runtime:postgres')).toEqual(['meteo-db']);
     expect(keep('state:demarree')).toEqual(['API Météo prod']);
+    expect(keep('state:running')).toEqual(['API Météo prod']);
+    expect(keep('state:run')).toEqual(['API Météo prod']);
     expect(keep('name:bucket')).toEqual(['old-bucket']);
     expect(keep('project:meteo')).toEqual(['API Météo prod', 'meteo-db']);
     expect(keep('project:met')).toEqual([]);
@@ -121,6 +131,29 @@ describe('is:watch', () => {
     expect(matchesFilter(parseFilter('is:watch env:prod'), failing)).toBe(true);
     expect(matchesFilter(parseFilter('-is:watch'), api)).toBe(true);
     expect(matchesFilter(parseFilter('runtime:watch'), failing)).toBe(false);
+  });
+});
+
+describe('unknownStates (#44)', () => {
+  const vocabulary = ['running', 'démarrée', 'stopped', 'arrêtée', 'payment default'];
+
+  it('lists the state: values that no state holds, in any language', () => {
+    expect(unknownStates(parseFilter('state:failed'), vocabulary)).toEqual(['failed']);
+    expect(unknownStates(parseFilter('is:app -(state:failed OR state:KO) state:failed'), vocabulary)).toEqual([
+      'failed',
+      'ko',
+    ]);
+  });
+
+  it('accepts a part of a state, in either language, case and accents aside', () => {
+    expect(unknownStates(parseFilter('state:run'), vocabulary)).toEqual([]);
+    expect(unknownStates(parseFilter('state:Arretee'), vocabulary)).toEqual([]);
+    expect(unknownStates(parseFilter('state:"payment def"'), vocabulary)).toEqual([]);
+  });
+
+  it('ignores the other terms and an empty filter', () => {
+    expect(unknownStates(parseFilter('failed is:failed name:failed'), vocabulary)).toEqual([]);
+    expect(unknownStates(parseFilter(''), vocabulary)).toEqual([]);
   });
 });
 

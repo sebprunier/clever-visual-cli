@@ -13,12 +13,14 @@ Filtering is an extra of the interface: it runs in your browser, on the list the
 | `is:app`, `is:addon` | the applications, the add-ons                                                          |
 | `is:<slug>`          | the applications of a runtime (`is:node`), the add-ons of a provider (`is:postgresql`) |
 | `is:watch`           | what the "To watch" card lists                                                         |
+| `is:failed`          | the applications whose last deployment failed                                          |
+| `is:deploying`       | the applications whose last deployment is in progress                                  |
 | `is:shared`          | the add-ons on a shared plan                                                           |
 | `key:value`          | what carries the tag `key:value`, or a tag that continues it, such as `key:value:…`    |
 | `has:key`            | what carries a `key:…` tag, whatever its value                                         |
 | `tag:text`           | what carries a tag that starts with the text                                           |
 | `runtime:text`       | the runtime or provider holds the text                                                 |
-| `state:text`         | the state, as the list shows it, holds the text                                        |
+| `state:text`         | the state, as the list shows it, in either language, holds the text                    |
 | `name:text`          | the name holds the text                                                                |
 | `a b`, `a AND b`     | both                                                                                   |
 | `a OR b`             | either                                                                                 |
@@ -48,6 +50,8 @@ Several words must all match, each on its own: `shop api` keeps what holds `shop
 | `is:app`, `is:application`                | the applications                                                                         |
 | `is:addon`, `is:add-on`                   | the add-ons                                                                              |
 | `is:watch`                                | the applications and add-ons of the ["To watch" card](/guide/organisation-home#to-watch) |
+| `is:failed`                               | the applications whose last deployment failed                                            |
+| `is:deploying`                            | the applications whose last deployment is in progress                                    |
 | `is:shared`                               | the add-ons on a shared plan, which have no instance of their own                        |
 | `is:node`, `is:python`, `is:docker`…      | the applications of that runtime                                                         |
 | `is:postgresql`, `is:redis`, `is:cellar`… | the add-ons of that provider                                                             |
@@ -55,6 +59,8 @@ Several words must all match, each on its own: `shop api` keeps what holds `shop
 For an application, `is:` reads the slugs Clever Cloud gives its runtime: its variant and its instance type. For an add-on, it reads its provider id, with and without `-addon`: `postgresql-addon` answers both `is:postgresql-addon` and `is:postgresql`. A slug only has to start with what you type: `is:postgres` and even `is:post` find the PostgreSQL add-ons.
 
 `is:shared` knows an add-on is shared once its state has loaded.
+
+`is:failed` and `is:deploying` read the last deployment of each application, the ones Clever Cloud triggers included, whatever the state of the application. `is:failed` keeps more than the failures of the "To watch" card: the card leaves out a stopped application whose deployment failed more than a week ago, `is:failed` keeps it. An application whose last deployment succeeded is left out, even when an older one failed. No add-on matches either term. Both need the last deployments: while "activity…" shows under the title of the page, they are still loading and the list may be incomplete.
 
 To list the applications alone, take the add-ons out: `-is:addon`. That is the same as `is:app`.
 
@@ -87,12 +93,14 @@ The filter reads the tags of each resource itself. An add-on placed in a group t
 | Term           | Keeps                                                                                                            |
 | -------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `runtime:text` | the runtime of an application (`Java + Maven`) or the provider of an add-on, or one of its slugs, holds the text |
-| `state:text`   | the state shown in the State column holds the text                                                               |
+| `state:text`   | the state shown in the State column, in either language, holds the text                                          |
 | `name:text`    | the name holds the text                                                                                          |
 
 All three look for the text anywhere: `runtime:java` finds `Java + Maven`, `runtime:postgres` finds `postgresql-addon`, `name:api` finds `shop-api` and `api-gateway`.
 
-`state:` reads the words of the State column, in the language of the interface. In English, an application is running, starting, stopped, moderated or in payment default, and an add-on is running, starting, migrating, stopped or shared: `state:stop` keeps what is stopped. In French, the same terms are in French (`state:arrêtée`). An add-on whose state has not loaded yet does not match.
+`state:` reads the words of the State column, in English and in French, whatever the language of the interface. In English, an application is running, starting, stopped, moderated or in payment default, and an add-on is running, starting, migrating, stopped or shared: `state:stop` keeps what is stopped. The French words work as well (`state:arrêtée`), so a link or a favourite view keeps matching after a language switch. An add-on whose state has not loaded yet does not match.
+
+The state is the one of the application, not of its last deployment: there is no failed state. A `state:` value that no state holds, in either language, keeps nothing, and a line under the field says so: "No state is called "failed". States: running, starting, stopped, moderated, payment default, migrating, shared. For the last deployment: is:failed, is:deploying." For the deployments, see [`is:failed` and `is:deploying`](#is).
 
 ## Combining terms {#operators}
 
@@ -134,20 +142,21 @@ An expression made of operators only, such as `AND OR`, keeps everything.
 
 ## Examples {#examples}
 
-| Expression                               | Keeps                                        |
-| ---------------------------------------- | -------------------------------------------- |
-| `-is:addon`                              | the applications alone                       |
-| `is:app env:prod`                        | the production applications                  |
-| `project:shop -env:dev`                  | the shop, without its development resources  |
-| `project:shop (env:prod OR env:staging)` | the shop in production or staging            |
-| `is:addon -has:project`                  | the add-ons without a project tag            |
-| `is:postgresql state:stopped`            | the stopped PostgreSQL databases             |
-| `is:watch env:prod`                      | what deserves a look in production           |
-| `is:addon -is:shared`                    | the add-ons with instances of their own      |
-| `runtime:java OR runtime:node`           | the Java and Node.js applications            |
-| `name:api -is:addon`                     | the applications with `api` in their name    |
-| `tag:legacy`                             | what carries a tag that starts with `legacy` |
-| `NOT (is:app OR name:db)`                | the add-ons whose name does not hold `db`    |
+| Expression                               | Keeps                                                    |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `-is:addon`                              | the applications alone                                   |
+| `is:app env:prod`                        | the production applications                              |
+| `project:shop -env:dev`                  | the shop, without its development resources              |
+| `project:shop (env:prod OR env:staging)` | the shop in production or staging                        |
+| `is:addon -has:project`                  | the add-ons without a project tag                        |
+| `is:postgresql state:stopped`            | the stopped PostgreSQL databases                         |
+| `is:watch env:prod`                      | what deserves a look in production                       |
+| `is:failed env:prod`                     | the production applications whose last deployment failed |
+| `is:addon -is:shared`                    | the add-ons with instances of their own                  |
+| `runtime:java OR runtime:node`           | the Java and Node.js applications                        |
+| `name:api -is:addon`                     | the applications with `api` in their name                |
+| `tag:legacy`                             | what carries a tag that starts with `legacy`             |
+| `NOT (is:app OR name:db)`                | the add-ons whose name does not hold `db`                |
 
 ## The examples under the field {#clickable-examples}
 
@@ -158,6 +167,7 @@ Under the Filter field, a row of examples writes terms for you. Hover over one t
 | `is:app`      | Only the applications                                  |
 | `is:addon`    | Only the add-ons                                       |
 | `is:watch`    | The applications and add-ons of the "To watch" card    |
+| `is:failed`   | The applications whose last deployment failed          |
 | `env:prod`    | What carries the tag env:prod; any key:value tag works |
 | `-env:prod`   | Everything but env:prod                                |
 | `has:project` | What carries a project:… tag, whatever its value       |

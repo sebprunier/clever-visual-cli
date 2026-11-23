@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { AddonSummary, ApplicationSummary } from '../../data/api.js';
+import type { AddonSummary, ApplicationSummary, Deployment } from '../../data/api.js';
 import { setLocale } from '../i18n.js';
+import { indexActivity } from './activity.js';
 import { buildHomeList, displayOrder, type HomeListInput } from './list.js';
 import { DEFAULT_PREFS, toggleCollapsed } from './prefs.js';
 
@@ -70,6 +71,77 @@ describe('buildHomeList', () => {
     const list = buildHomeList(input({ filterText: '(blog', groupingText: 'project > project' }));
     expect(list.filter.error).not.toBeNull();
     expect(list.grouping.error).not.toBeNull();
+  });
+});
+
+describe('is:failed and is:deploying (#44)', () => {
+  const DAY = 86_400_000;
+  const deployment = (applicationId: string, state: Deployment['state'], daysAgo: number) =>
+    ({
+      applicationId,
+      state,
+      date: new Date(Date.now() - daysAgo * DAY).toISOString(),
+      author: { id: 'user_1' },
+    }) as unknown as Deployment;
+  const failing = input({
+    apps: [
+      app('redeploy-failed'),
+      app('old-failure', [], 'SHOULD_BE_DOWN'),
+      app('fixed'),
+      app('deploying'),
+      app('never-deployed'),
+    ],
+    activity: indexActivity([
+      deployment('redeploy-failed', 'SUCCEEDED', 10),
+      deployment('redeploy-failed', 'FAILED', 1),
+      deployment('old-failure', 'FAILED', 30),
+      deployment('fixed', 'FAILED', 3),
+      deployment('fixed', 'SUCCEEDED', 2),
+      deployment('deploying', 'FAILED', 2),
+      deployment('deploying', 'WORK_IN_PROGRESS', 0),
+    ]),
+  });
+  const ids = (filterText: string) => {
+    const list = buildHomeList({ ...failing, filterText });
+    return [...list.visibleApps.map((item) => item.id), ...list.visibleAddons.map((item) => item.id)];
+  };
+
+  it('keeps the applications whose last deployment failed, whatever their state', () => {
+    expect(ids('is:failed')).toEqual(['redeploy-failed', 'old-failure']);
+    // A stopped application with a month-old failure is not "to watch", but its last deployment failed.
+    expect(ids('is:watch')).toEqual(['redeploy-failed', 'deploying']);
+  });
+
+  it('keeps the applications whose last deployment is in progress', () => {
+    expect(ids('is:deploying')).toEqual(['deploying']);
+  });
+
+  it('composes with the other terms', () => {
+    expect(ids('is:failed OR is:deploying')).toEqual(['redeploy-failed', 'old-failure', 'deploying']);
+    expect(ids('-is:failed -is:deploying')).toEqual(['fixed', 'never-deployed', 'shop-db']);
+    expect(ids('is:failed state:stopped')).toEqual(['old-failure']);
+  });
+});
+
+describe('state: in every language (#44)', () => {
+  it('matches the words of both languages, whatever the language of the page', () => {
+    const stopped = input({ apps: [app('up'), app('down', [], 'SHOULD_BE_DOWN')] });
+    for (const locale of ['fr', 'en'] as const) {
+      setLocale(locale, false);
+      for (const filterText of ['state:running', 'state:démarrée', 'state:demarree']) {
+        expect(buildHomeList({ ...stopped, filterText }).visibleApps.map((item) => item.id)).toEqual(['up']);
+      }
+      expect(buildHomeList({ ...stopped, filterText: 'state:stopped' }).visibleApps.map((a) => a.id)).toEqual(['down']);
+    }
+    setLocale('fr', false);
+  });
+
+  it('reports the values that match no state, and still applies them', () => {
+    const list = buildHomeList(input({ filterText: 'state:failed' }));
+    expect(list.unknownStates).toEqual(['failed']);
+    expect(list.visibleApps).toEqual([]);
+    expect(buildHomeList(input({ filterText: 'state:run' })).unknownStates).toEqual([]);
+    expect(buildHomeList(input({ filterText: 'state:migr state:mutualise' })).unknownStates).toEqual([]);
   });
 });
 

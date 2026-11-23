@@ -5,10 +5,11 @@
  *   is:app  is:addon               one kind only
  *   is:node  is:postgresql         runtime or add-on provider slug, like the Console's sidebar
  *   is:watch                       applications and add-ons listed under "To watch"
+ *   is:failed  is:deploying        applications whose last deployment failed, is in progress
  *   is:archived                    archived applications, left out of the list otherwise
  *   project:shop  env:prod         any `<key>:<value>` matches the tag `key:value` (or `key:value:…`)
  *   has:project                    has a tag with this key
- *   tag:env  runtime:java  state:arrêtée  name:api
+ *   tag:env  runtime:java  state:arrêtée  name:api   (`state:` reads every language)
  *   NOT env:prod   -env:prod       negation, also -"two words" and -( … )
  *   a AND b   a b                  conjunction (implicit between terms)
  *   a OR b                         disjunction, lowest precedence
@@ -44,12 +45,15 @@ export interface FilterItem {
   slugs: string[];
   /** Runtime or provider display name. */
   runtime: string;
-  /** State label as displayed. */
-  state?: string;
+  /** The words of its state, in every language: `state:running` and `state:démarrée` both match (#44). */
+  state?: readonly string[];
   tags: string[];
   /** Extra searchable words: ids, linked resource names... */
   extra?: string[];
-  /** Words for `is:` beyond the slugs: `watch` for a resource listed under "To watch", `shared` for a shared add-on. */
+  /**
+   * Words for `is:` beyond the slugs: `watch` for a resource listed under "To watch", `shared` for a shared
+   * add-on, `failed` or `deploying` for an application by its last deployment.
+   */
   flags?: string[];
 }
 
@@ -108,6 +112,9 @@ export function matchesFilter(filter: ParsedFilter, item: FilterItem): boolean {
 
 /** The `is:` word of an archived application. */
 export const ARCHIVED = 'archived';
+/** The `is:` words of an application whose last deployment failed, is in progress (#44). */
+export const FAILED = 'failed';
+export const DEPLOYING = 'deploying';
 
 /**
  * Whether the expression asks for archived applications (`is:archived`, even under a negation): they
@@ -126,6 +133,34 @@ export function wantsArchived(filter: ParsedFilter): boolean {
     }
   };
   return filter.node != null && walk(filter.node);
+}
+
+/**
+ * The `state:` values of the expression that no state holds, in any language: `state:failed` matches
+ * nothing, and the page says why (#44).
+ */
+export function unknownStates(filter: ParsedFilter, vocabulary: readonly string[]): string[] {
+  const words = vocabulary.map(normalise);
+  const unknown = new Set<string>();
+  const walk = (node: FilterNode): void => {
+    switch (node.type) {
+      case 'and':
+      case 'or':
+        node.children.forEach(walk);
+        return;
+      case 'not':
+        walk(node.child);
+        return;
+      case 'term':
+        if (node.key === 'state' && !words.some((word) => word.includes(node.value))) {
+          unknown.add(node.value);
+        }
+    }
+  };
+  if (filter.node != null) {
+    walk(filter.node);
+  }
+  return [...unknown];
 }
 
 /** Adds `token` to the raw expression, or removes it when already present. */
@@ -292,7 +327,7 @@ interface PreparedItem {
   slugs: string[];
   flags: string[];
   runtime: string;
-  state: string;
+  state: string[];
   tags: string[];
   haystack: string;
 }
@@ -310,7 +345,7 @@ function prepare(item: FilterItem): PreparedItem {
     slugs,
     flags,
     runtime,
-    state: item.state == null ? '' : normalise(item.state),
+    state: (item.state ?? []).map(normalise),
     tags,
     haystack: [name, runtime, ...tags, ...extra].join(' '),
   };
@@ -352,7 +387,7 @@ function evaluateTerm(key: string | null, value: string, item: PreparedItem): bo
     case 'runtime':
       return item.runtime.includes(value) || item.slugs.some((slug) => slug.includes(value));
     case 'state':
-      return item.state.includes(value);
+      return item.state.some((word) => word.includes(value));
     case 'name':
       return item.name.includes(value);
     default:
